@@ -2,11 +2,12 @@
 
 Local checks below ran on 2026-09-07 with the 0.1.0 source.
 These results describe the local release checks.
-They do not establish a hosted CI run or public package publication.
+Public package publication requires separate publisher setup.
 
 | Check | Status |
 |---|---|
 | Full Python unit and integration suite | 105 passed in 3.05 seconds with Python 3.12 on Windows |
+| GitHub test matrix | Passed on Windows and Ubuntu with Python 3.11 and 3.14 in [the initial source run](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34182051866) |
 | MCP integration tests | 8 passed with Python 3.12 on Windows |
 | Synthetic CLI demo | Passed; existing imported SQLite file remained byte-for-byte unchanged |
 | STDIO MCP initialization and tool calls | Passed through an actual subprocess; 17 tools listed and season tools called |
@@ -28,7 +29,7 @@ They do not establish a hosted CI run or public package publication.
 | MCP Registry namespace | Authentication and ownership verification required |
 
 Run `uv run pytest -q`, the synthetic demo, and `uv run python scripts/validate_release.py` before each later release.
-GitHub workflow definitions describe future checks. They are not evidence that a hosted run passed.
+The linked GitHub run is separate evidence for the tested source commit.
 
 The MCP tests also checked proposal confirmation, idempotent execution, useful policy errors,
 rejection of live writes, protection of imported state, and prevention of confirmed draft-history rollback.
