@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up the fantasy football archive each day
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=fantasy-football-backup.service
+
+[Install]
+WantedBy=timers.target

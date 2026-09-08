@@ -3,6 +3,9 @@
 Two local STDIO servers share policy and versioned SQLite state.
 The manager provides calculations and synthetic execution.
 The ESPN companion provides browser observations, live draft submissions, and verified weekly lineup swaps.
+An optional Linux coordinator visits season contexts in sequence with one server browser.
+A separate PostgreSQL archive retains labeled evidence without remote database calls during draft actions.
+See [server architecture and operation](SERVER.md).
 
 ```mermaid
 flowchart TD

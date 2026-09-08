@@ -4,9 +4,9 @@
 The following evaluation will cover five teams through a season.
 Start times, final results, and season outcomes are not yet recorded.
 
-The current source supports separate league databases and a shared browser directory.
-It does not include a scheduler that continuously manages multiple leagues.
-This plan will test supported behavior and identify the remaining work.
+Version 0.3.0 adds a serial season coordinator with separate league databases and a shared server browser.
+Two-team server verification is recorded in [validation status](VALIDATION.md).
+Five-team season acceptance remains planned.
 
 ## Failures to retain
 
@@ -34,12 +34,12 @@ The profile lease permits only one active controller at a time.
 The current source can retain separate league state while controllers use that profile in sequence.
 Live acceptance of five-team scheduling and profile transitions remains pending.
 
-The diagram shows the planned five-team arrangement. The coordinator is not implemented.
-Until it exists, an operator must select each context and control the transitions.
+The diagram shows the planned five-team evaluation using the implemented season coordinator.
+Use the [server instructions](SERVER.md) to configure explicit team and week contexts.
 
 ```mermaid
 flowchart LR
-    A[League A state directory] --> Q[Planned multi-league coordinator]
+    A[League A state directory] --> Q[Serial season coordinator]
     B[League B state directory] --> Q
     C[League C state directory] --> Q
     D[League D state directory] --> Q
@@ -52,7 +52,6 @@ flowchart LR
     V --> R[Reconcile the observed result]
     R --> W[Update only the selected state directory]
     W --> Q
-    style Q stroke-dasharray: 5 5
 ```
 
 Do not schedule overlapping drafts on one shared profile.

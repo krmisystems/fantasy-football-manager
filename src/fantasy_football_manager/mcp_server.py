@@ -126,6 +126,10 @@ def create_server(data_dir=None):
         result = draft_recommendation(snapshot, config, trials, seed)
         latest, _, current_revision, current_config_revision = manager.require_state()
         current = (revision, config_revision) == (current_revision, current_config_revision) and latest.age_seconds() <= config.limits.max_draft_age_seconds
+        manager.record_calculation("draft", snapshot, config, revision, config_revision, result,
+                                   seed=seed, requested_trials=trials, accepted=current,
+                                   reason="current" if current else "state_changed" if
+                                   (revision, config_revision) != (current_revision, current_config_revision) else "stale")
         return {**result, "revision": revision, "config_revision": config_revision, "current": current}
 
     @server.tool(annotations=write)
@@ -151,21 +155,27 @@ def create_server(data_dir=None):
     def recommend_lineup() -> dict[str, Any]:
         """Find the best legal weekly lineup for the selected strategy."""
         snapshot, config, revision, config_revision = manager.require_state()
-        return {**lineup_recommendation(snapshot, config), "revision": revision, "config_revision": config_revision}
+        result = lineup_recommendation(snapshot, config)
+        manager.record_calculation("lineup", snapshot, config, revision, config_revision, result)
+        return {**result, "revision": revision, "config_revision": config_revision}
 
     @server.tool(annotations=read)
     @expected_errors
     def rank_waiver_candidates(limit: int = 10) -> dict[str, Any]:
         """Rank alternative acquisitions using weekly projections and configured limits."""
         snapshot, config, revision, config_revision = manager.require_state()
-        return {**rank_waivers(snapshot, config, limit), "revision": revision, "config_revision": config_revision}
+        result = rank_waivers(snapshot, config, limit)
+        manager.record_calculation("waivers", snapshot, config, revision, config_revision, result)
+        return {**result, "revision": revision, "config_revision": config_revision}
 
     @server.tool(annotations=read)
     @expected_errors
     def get_power_rankings() -> dict[str, Any]:
         """Compare each team's best legal weekly lineup. These are not championship odds."""
         snapshot, config, revision, config_revision = manager.require_state()
-        return {**power_rankings(snapshot, config), "revision": revision, "config_revision": config_revision}
+        result = power_rankings(snapshot, config)
+        manager.record_calculation("power_rankings", snapshot, config, revision, config_revision, result)
+        return {**result, "revision": revision, "config_revision": config_revision}
 
     @server.tool(annotations=write)
     @expected_errors

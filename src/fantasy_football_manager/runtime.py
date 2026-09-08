@@ -81,6 +81,9 @@ class DraftMonitor:
                         self.completed_trials += work
                     # Stop before another state read when shutdown occurs during a batch.
                     if self.stop_event.is_set():
+                        self.manager.record_calculation("draft", snapshot, config, revision, config_revision, batch,
+                            seed=batch_seed, requested_trials=min(trials, config.limits.batch_trials),
+                            accepted=False, reason="stopped")
                         with self.lock:
                             self.discarded_batches += int(work > 0)
                             self.discarded_trials += work
@@ -92,11 +95,18 @@ class DraftMonitor:
                     unusable = latest_config.automation.paused or not latest.source.complete or latest.phase != "draft" or expired
                     with self.lock:
                         if self.stop_event.is_set():
+                            self.manager.record_calculation("draft", snapshot, config, revision, config_revision, batch,
+                                seed=batch_seed, requested_trials=min(trials, config.limits.batch_trials),
+                                accepted=False, reason="stopped")
                             self.discarded_batches += int(work > 0)
                             self.discarded_trials += work
                             self.status = "stopped"
                             return
                         if changed or (unusable and not own_complete):
+                            self.manager.record_calculation("draft", snapshot, config, revision, config_revision, batch,
+                                seed=batch_seed, requested_trials=min(trials, config.limits.batch_trials), accepted=False,
+                                reason="state_changed" if changed else "paused" if latest_config.automation.paused else
+                                       "incomplete" if not latest.source.complete else "stale")
                             self.discarded_batches += int(work > 0)
                             self.discarded_trials += work
                             self.result = None
@@ -104,6 +114,9 @@ class DraftMonitor:
                                            else "waiting_for_complete_snapshot" if not latest.source.complete
                                            else "waiting_for_fresh_snapshot")
                         else:
+                            self.manager.record_calculation("draft", snapshot, config, revision, config_revision, batch,
+                                seed=batch_seed, requested_trials=min(trials, config.limits.batch_trials),
+                                accepted=True, reason="current")
                             previous = self.result
                             aggregate = merge_batches(previous["result"] if previous else None, batch)
                             count = (previous["batch_count"] if previous else 0) + int(work > 0)

@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import evidence
 from .browser_draft import BrowserDraft
 from .browser_lineup import BrowserLineup, lineup_equivalent, next_lineup_swap
 from .draft import recommend_draft
@@ -58,6 +59,15 @@ class ESPNService:
                 db.execute("INSERT OR REPLACE INTO espn_worker_launches VALUES(?,?)", (value["launch_id"], json.dumps(value)))
             previous = db.execute("SELECT status FROM espn_runtime WHERE id=1").fetchone()["status"]
             previous = json.loads(previous) if previous else {}
+            category = evidence.failure_category(details.get("error") or details.get("last_error"))
+            old_category = evidence.failure_category(previous.get("error") or previous.get("last_error"))
+            if (previous.get("pid"), previous.get("status"), old_category) != (value["pid"], status, category):
+                record = evidence.envelope(*self.manager._state(db))
+                record["worker"] = {"pid": value["pid"], "launch_id": self.worker_launch_id,
+                    "previous_status": previous.get("status"), "status": status,
+                    "error_category": category, "classification_basis": "message_pattern",
+                    "proposal_id": details.get("proposal_id")}
+                evidence.append(db, "worker_transition", record)
             if status in {"connection_failed", "disconnected", "startup_failed"} and previous.get("pid") not in {None, os.getpid()}:
                 age = (datetime.now(timezone.utc) - datetime.fromisoformat(previous["observed_at"])).total_seconds()
                 if age <= 90 and previous.get("status") not in {"disconnected", "startup_failed", "draft_complete"}:
@@ -261,14 +271,20 @@ class ESPNService:
         permit = controller.authorize(proposal_id, confirmation)
         if not permit["should_click"]:
             return permit
+        stage = "submission"
         try:
             result = await submit(permit)
+            stage = "recording_return"
+            self.manager.record_submission(permit, result)
+            stage = "reconciliation"
             if result.get("snapshot") is not None:
                 reconciliation = controller.reconcile(proposal_id, result["snapshot"])
                 return {**reconciliation, "browser": {k: v for k, v in result.items() if k != "snapshot"}}
             return {**controller.get(proposal_id), "browser": result, "retry_allowed": False}
         except Exception as exc:
             # Once claimed, no exception permits an automatic second click.
+            if stage == "submission":
+                self.manager.record_submission(permit, error=exc)
             self._save_status("awaiting_verification", proposal_id=proposal_id, error=str(exc))
             return {**controller.get(proposal_id), "error": str(exc), "retry_allowed": False}
 
@@ -303,6 +319,12 @@ class ESPNService:
         review = self._review_proposals()
         self._save_status("awaiting_review" if any(item["current"] for item in review) else "monitoring_lineup", week=snapshot.week)
         _, latest_config, latest_revision, latest_config_revision = self.manager.require_state()
+        disposition = ("stopped" if self.stop_event.is_set() else "paused" if latest_config.automation.paused else
+                       "state_changed" if (revision, config_revision) != (latest_revision, latest_config_revision) else
+                       "incomplete" if not snapshot.source.complete else
+                       "stale" if snapshot.age_seconds() > config.limits.max_season_age_seconds else "current")
+        self.manager.record_calculation("lineup", snapshot, config, revision, config_revision, result,
+                                        accepted=disposition == "current", reason=disposition)
         if (self.stop_event.is_set() or latest_config.automation.paused
                 or (revision, config_revision) != (latest_revision, latest_config_revision)
                 or config.automation.mode_for("set_lineup") != "automatic" or result.get("status") != "ok"):
@@ -346,8 +368,9 @@ class ESPNService:
                             self._save_status("draft_complete")
                             return
                         else:
+                            batch_seed = self.seed
                             batch = await asyncio.to_thread(recommend_draft, snapshot, config,
-                                                            min(trials, config.limits.batch_trials), self.seed)
+                                                            min(trials, config.limits.batch_trials), batch_seed)
                             self.seed += 1
                             if (self.latest is None or self.latest["config_revision"] != config_revision or
                                 self.latest["result"].get("analysis_fingerprint") != batch.get("analysis_fingerprint")):
@@ -360,6 +383,13 @@ class ESPNService:
                                               trials=aggregate.get("trials", 0), current_pick=batch["current_pick"])
                             # No new action is selected after pause, stop, config, or state changes during calculation.
                             _, latest_config, latest_revision, latest_config_revision = self.manager.require_state()
+                            disposition = ("stopped" if self.stop_event.is_set() else "paused" if latest_config.automation.paused else
+                                "state_changed" if (revision, config_revision) != (latest_revision, latest_config_revision) else
+                                "incomplete" if not snapshot.source.complete else
+                                "stale" if snapshot.age_seconds() > config.limits.max_draft_age_seconds else "current")
+                            self.manager.record_calculation("draft", snapshot, config, revision, config_revision, batch,
+                                seed=batch_seed, requested_trials=min(trials, config.limits.batch_trials),
+                                accepted=disposition == "current", reason=disposition)
                             if (not self.stop_event.is_set() and not latest_config.automation.paused and
                                 (revision, config_revision) == (latest_revision, latest_config_revision) and
                                 batch.get("my_next_pick") == batch.get("current_pick") and

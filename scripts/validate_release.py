@@ -23,7 +23,8 @@ PRIVATE_NAMES.update({"Cookies", "Login Data", "Local State", "Web Data", "Histo
                       "Preferences", "Secure Preferences", "espn-browser.lock"})
 PRIVATE_DIRS = {"private-captures", "espn-browser-profile", "browser-profile"}
 PRIVATE_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pem", ".key"}
-TEXT_SUFFIXES = {".py", ".json", ".md", ".toml", ".yml", ".yaml", ".txt", ".mmd", ".lock", ".html"}
+TEXT_SUFFIXES = {".py", ".json", ".md", ".toml", ".yml", ".yaml", ".txt", ".mmd", ".lock", ".html",
+                 ".service", ".timer", ".sh", ".jsonl"}
 SECRET_PATTERNS = (
     re.compile(r"[A-Za-z]:[\\/]Users[\\/][^\\/\s\"']+", re.IGNORECASE),
     re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{32,}|github_pat_[A-Za-z0-9_]{32,}|sk-[A-Za-z0-9]{32,})\b"),

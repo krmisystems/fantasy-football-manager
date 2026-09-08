@@ -4,12 +4,15 @@ Local MCP tools for draft decisions, weekly team analysis, and ESPN draft and li
 
 <!-- mcp-name: io.github.krmisystems/fantasy-football-manager -->
 
-Version **0.2.2** adds public-draft compatibility, complete history recovery, and verified Windows worker startup.
+Version **0.3.0** adds server season scheduling, durable local evidence, and a PostgreSQL archive.
+The server can monitor configured teams after the operator computer disconnects.
 The package provides two local MCP servers: **17 manager tools** and **13 ESPN tools**.
 The manager calculates recommendations and controls policy. The ESPN companion observes leagues and submits draft picks or lineup swaps.
 The old draft Chrome extension is not required.
 
-The complete local run passed **509 tests**, including **15 isolated Chrome cases**.
+Read [validation status](docs/VALIDATION.md) for the current regression results and live evidence.
+The v0.3.0 Windows suite passed **579 tests**, including **15 isolated Chrome cases**.
+The separate Linux archive run passed **23 tests** with PostgreSQL.
 A live 10-team PPR draft produced a complete 16-player roster: **13 manager-confirmed picks and 3 ESPN Autopicks**.
 Startup failures and an autocomplete timeout caused the platform fallback selections.
 The run required compatibility fixes and manual recovery. It does not establish an unattended draft from start to finish.
@@ -19,7 +22,8 @@ Read the [acceptance record](docs/LIVE_DRAFT_ACCEPTANCE.md) for runtime details 
 Season mode reads weekly rosters and supports one verified lineup swap at a time.
 Live waiver, free-agent, drop, and trade adapters remain planned. Automatic week rollover is not implemented.
 Three more draft trials and a five-team season trial are [planned](docs/MULTI_TEAM_ACCEPTANCE.md).
-Separate league databases are supported. A scheduler for multiple teams remains planned.
+The serial season coordinator has passed a two-team server observation check.
+Five-team season acceptance remains planned. Read the [server guide](docs/SERVER.md).
 
 ## Compatibility changes
 
@@ -38,21 +42,18 @@ See [validation status](docs/VALIDATION.md) for verified results and remaining l
 
 ## Preview installation
 
-Use the [v0.2.2 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.2) wheel:
+Use the [v0.3.0 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) wheel:
 
 ```sh
-uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy_football_manager-0.2.2-py3-none-any.whl"
+uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.0/fantasy_football_manager-0.3.0-py3-none-any.whl"
 ```
 
 The preview is not published on PyPI or the MCP Registry.
-The [plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy-football-manager-0.2.2-plugin.zip)
+The [plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.0/fantasy-football-manager-0.3.0-plugin.zip)
 registers both commands. It does not install the Python package.
-The release includes a [plugin file manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy-football-manager-0.2.2-plugin-manifest.json)
-and an asset checksum file.
-Published v0.2.0 and v0.2.1 assets remain unchanged.
-All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34192876128) passed.
-Both installed commands passed STDIO checks. The installed ESPN command also passed an authenticated Week 1 advisory monitor check.
-See [published-package evidence](docs/VALIDATION.md#published-v022-evidence) for the exact commit and verification limits.
+Release assets include the plugin file manifest and SHA-256 checksums.
+Earlier published releases remain unchanged.
+See [server acceptance](docs/SERVER_ACCEPTANCE.md) for the deployment evidence and remaining limits.
 
 ## Install from source
 

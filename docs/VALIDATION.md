@@ -1,5 +1,9 @@
 # Validation status
 
+Version 0.3.0 adds a server coordinator and labeled evidence archive.
+Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, two-team observations, backup recovery, and verification limits.
+The historical results below retain their original runtime scope.
+
 ## Working-tree live draft: Complete with failures and manual interventions
 
 The tested 10-team PPR snake draft used 16 rounds.

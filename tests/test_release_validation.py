@@ -99,6 +99,16 @@ def test_html_private_path_or_token_is_rejected(release_source, kind):
     assert "Possible private path or secret in: tests/fixtures/unsafe.HTML" in errors
 
 
+@pytest.mark.parametrize("suffix", ["service", "timer", "sh", "jsonl"])
+@pytest.mark.parametrize("kind", ["path", "token"])
+def test_deployment_and_event_files_receive_privacy_scanning(release_source, suffix, kind):
+    private = "C:" + "/Users/" + "FictionalPerson/Documents/state" if kind == "path" else "ghp_" + "x" * 36
+    relative = f"deployment/unsafe.{suffix}"
+    write(release_source, relative, private)
+    errors, _ = validator.validate(release_source)
+    assert f"Possible private path or secret in: {relative}" in errors
+
+
 @pytest.mark.parametrize("mutation, expected", [
     (lambda value: value.update(name="io.github.other/example"), "Registry namespace"),
     (lambda value: value["packages"][0].update(version="0.0.6"), "Registry package"),

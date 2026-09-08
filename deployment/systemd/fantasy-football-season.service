@@ -1,0 +1,23 @@
+[Unit]
+Description=Fantasy Football season coordinator
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=fantasy-football
+Group=fantasy-football
+WorkingDirectory=/var/lib/fantasy-football
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/fantasy-football/environment
+ExecStart=/opt/fantasy-football/venv/bin/python -m fantasy_football_manager.server --manifest /etc/fantasy-football/leagues.json --interval 60
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=180
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

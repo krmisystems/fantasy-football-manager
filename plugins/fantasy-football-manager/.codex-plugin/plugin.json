@@ -1,6 +1,6 @@
 {
   "name": "fantasy-football-manager",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Fantasy draft and weekly analysis with ESPN automation for draft picks and lineup swaps.",
   "author": {
     "name": "krmisystems",

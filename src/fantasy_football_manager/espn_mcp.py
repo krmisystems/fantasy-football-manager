@@ -127,17 +127,32 @@ def create_espn_server(data_dir=None):
 
 
 async def _worker(args):
+    from .server import stop_signals
     service = ESPNService(args.data_dir)
-    try:
-        connection = service.saved_connection()
-        await service.connect(**connection)
-        await service.start(args.interval, args.trials)
-        await service.task
-    except Exception as exc:
-        service._save_status("startup_failed", error=str(exc))
-        raise
-    finally:
-        await service.close()
+    stopping = asyncio.Event()
+
+    def request_stop():
+        stopping.set()
+        service.stop_event.set()
+
+    with stop_signals(request_stop):
+        try:
+            connection = service.saved_connection()
+            await service.connect(**connection)
+            if not stopping.is_set():
+                await service.start(args.interval, args.trials)
+                if stopping.is_set():
+                    service.stop_event.set()
+                await service.task
+        except Exception as exc:
+            service._save_status("startup_failed", error=str(exc))
+            raise
+        finally:
+            service.stop_event.set()
+            if service.task is not None and not service.task.done():
+                # Finish the authorized operation before closing its browser.
+                await asyncio.shield(service.task)
+            await service.close()
 
 
 def main():

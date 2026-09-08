@@ -1,0 +1,15 @@
+[Unit]
+Description=Back up fantasy football databases and private configuration
+After=postgresql.service
+
+# Install deployment/backup.py at the generic application path below.
+# The helper retains complete application backup sets for 14 days.
+# Keep browser authentication profiles outside public artifacts.
+[Service]
+Type=oneshot
+User=fantasy-football
+Group=fantasy-football
+ExecStart=/opt/fantasy-football/venv/bin/python /opt/fantasy-football/deployment/backup.py --manifest /etc/fantasy-football/archive.json --output-dir /var/lib/fantasy-football/backups --dsn dbname=fantasy_football --config /etc/fantasy-football/leagues.json --retention-days 14
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=1800

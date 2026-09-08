@@ -1,0 +1,11 @@
+[Unit]
+Description=Archive fantasy football evidence each minute
+
+[Timer]
+OnBootSec=60
+OnUnitInactiveSec=60
+AccuracySec=5
+Unit=fantasy-football-archive.service
+
+[Install]
+WantedBy=timers.target

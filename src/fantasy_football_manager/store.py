@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import evidence
 from .models import LeagueSnapshot, ManagerConfig
 from .policy import PolicyError, apply_demo_action, check_action
 
@@ -35,6 +36,7 @@ class Manager:
                 CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, at TEXT NOT NULL, event TEXT NOT NULL, detail TEXT NOT NULL);
             """)
             db.execute("INSERT OR IGNORE INTO state VALUES(1,NULL,0,?,0)", (ManagerConfig().model_dump_json(),))
+            evidence.initialize(db)
 
     @contextmanager
     def transaction(self):
@@ -61,6 +63,19 @@ class Manager:
     def _audit(db, event, detail):
         db.execute("INSERT INTO audit(at,event,detail) VALUES(?,?,?)",
                    (datetime.now(timezone.utc).isoformat(), event, json.dumps(detail)))
+        if event in evidence.AUDIT_EVENTS:
+            state = Manager._state(db)
+            record = evidence.envelope(*state)
+            action = dict(detail)
+            if event.startswith("browser_"):
+                table = "browser_lineup_proposals" if event.startswith("browser_lineup_") else "browser_proposals"
+                row = db.execute(f"SELECT decision FROM {table} WHERE id=?", (detail["proposal_id"],)).fetchone()
+                action = {**json.loads(row["decision"]), **action,
+                          "action": "set_lineup" if table == "browser_lineup_proposals" else "draft_pick"}
+            record["action"] = evidence.action_or_result(action)
+            evidence.append(db, event, record)
+            if event in {"demo_action_executed", "browser_draft_reconciled", "browser_lineup_reconciled"}:
+                evidence.append(db, "snapshot_changed", evidence.envelope(*state, include_snapshot=True))
 
     def state(self):
         with self.transaction() as db:
@@ -104,6 +119,8 @@ class Manager:
                 db.execute("UPDATE state SET config=?,config_revision=? WHERE id=1", (ManagerConfig().model_dump_json(), config_revision))
             db.execute("UPDATE state SET snapshot=?,revision=? WHERE id=1", (parsed.model_dump_json(), revision + 1))
             self._audit(db, "snapshot_imported", {"revision": revision + 1, "synthetic": parsed.source.synthetic})
+            if old is None or evidence.fingerprint(old) != evidence.fingerprint(parsed):
+                evidence.append(db, "snapshot_changed", evidence.envelope(*self._state(db), include_snapshot=True))
             return {"status": "imported", "revision": revision + 1, "config_revision": config_revision,
                     "config_reset": old is not None and not same_scope}
 
@@ -158,3 +175,38 @@ class Manager:
         with self.transaction() as db:
             return [{"id": r["id"], "at": r["at"], "event": r["event"], "detail": json.loads(r["detail"])}
                     for r in db.execute("SELECT * FROM audit ORDER BY id DESC LIMIT ?", (limit,))]
+
+    def record_calculation(self, kind, snapshot, config, revision, config_revision, result, *,
+                           seed=None, requested_trials=None, accepted=True, reason=None):
+        """Record completed work against its original inputs, including discarded work."""
+        if kind not in {"draft", "lineup", "waivers", "power_rankings"}:
+            raise ValueError("Unknown evidence calculation kind.")
+        record = evidence.envelope(snapshot, config, revision, config_revision)
+        actual = result.get("trials", 0) if kind == "draft" else 0
+        record["calculation"] = {"kind": kind, "seed": seed, "requested_trials": requested_trials,
+            "completed_trials": actual if type(actual) is int and actual >= 0 else 0,
+            "accepted": bool(accepted), "disposition": reason if reason in {
+                "state_changed", "stopped", "paused", "stale", "incomplete", "current"} else None,
+            "work_scope": "single_completed_call", "acceptance_scope": "current_calculation_not_action_permission",
+            "selection_causality": "not_inferred",
+            "result": evidence.action_or_result(result)}
+        with self.transaction() as db:
+            if reason is None:
+                _, latest_config, latest_revision, latest_config_revision = self._state(db)
+                age_limit = config.limits.max_draft_age_seconds if snapshot.phase == "draft" else config.limits.max_season_age_seconds
+                disposition = ("state_changed" if (revision, config_revision) != (latest_revision, latest_config_revision) else
+                    "paused" if latest_config.automation.paused else "incomplete" if not snapshot.source.complete else
+                    "stale" if snapshot.age_seconds() > age_limit else "current")
+                record["calculation"].update(disposition=disposition, accepted=bool(accepted) and disposition == "current")
+            evidence.append(db, "calculation_completed", record)
+
+    def record_submission(self, permit, result=None, *, error=None):
+        """Record a browser return separately from platform confirmation."""
+        with self.transaction() as db:
+            record = evidence.envelope(*self._state(db))
+            record["action"] = evidence.action_or_result(permit)
+            record["submission"] = {"returned": error is None,
+                "result": evidence.action_or_result(result or {}),
+                "error_category": evidence.failure_category(error if error is not None else (result or {}).get("error")),
+                "confirmation_scope": "requires_platform_reconciliation"}
+            evidence.append(db, "browser_submission_returned" if error is None else "browser_submission_raised", record)

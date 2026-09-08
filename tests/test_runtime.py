@@ -10,6 +10,9 @@ from fantasy_football_manager.models import LeagueSnapshot, ManagerConfig
 
 
 class ManagerStub:
+    def record_calculation(self, *args, **kwargs):
+        pass
+
     def __init__(self, complete=False):
         now = datetime.now(timezone.utc)
         self.snapshot = LeagueSnapshot.model_validate({

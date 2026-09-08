@@ -1,0 +1,15 @@
+[Unit]
+Description=Archive fantasy football evidence
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=fantasy-football
+Group=fantasy-football
+WorkingDirectory=/var/lib/fantasy-football
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/fantasy-football/environment
+ExecStart=/opt/fantasy-football/venv/bin/python -m fantasy_football_manager.archive sync --manifest /etc/fantasy-football/archive.json --dsn dbname=fantasy_football
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=180
