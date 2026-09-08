@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "fantasy-football-manager"
 version = "0.3.0"
-description = "Local MCP tools for fantasy football draft and weekly team decisions."
+description = "ESPN draft and lineup tools for Codex and other MCP clients, with approval modes and per-team limits."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{name = "krmisystems"}]
 dependencies = ["mcp>=2.2,<3", "pydantic>=2.11,<3", "playwright>=1.62,<2", "filelock>=3.32,<4"]
-keywords = ["mcp", "fantasy-football", "codex", "draft", "lineup"]
+keywords = ["mcp", "espn", "fantasy-football", "codex", "draft", "lineup", "browser-automation"]
 
 [project.optional-dependencies]
 server = ["psycopg[binary]>=3.3,<4"]

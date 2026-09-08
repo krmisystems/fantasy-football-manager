@@ -45,6 +45,7 @@ fantasy-football-espn = "fantasy_football_manager.espn_mcp:main"
         write(tmp_path, f"{plugin}/skills/{skill}/SKILL.md", f"---\nname: {skill}\n---\nFictional release fixture.\n")
     write_json(tmp_path, "docs/registry/server.json", {
         "name": f"io.github.krmisystems/{validator.NAME}", "version": VERSION,
+        "description": "Fictional release validation server.",
         "packages": [{"registryType": "pypi", "identifier": validator.NAME,
                       "version": VERSION, "transport": {"type": "stdio"}}]})
     return tmp_path
@@ -113,6 +114,8 @@ def test_deployment_and_event_files_receive_privacy_scanning(release_source, suf
     (lambda value: value.update(name="io.github.other/example"), "Registry namespace"),
     (lambda value: value["packages"][0].update(version="0.0.6"), "Registry package"),
     (lambda value: value["packages"][0].update(transport={"type": "streamable-http"}), "Registry package"),
+    (lambda value: value.update(description="x" * 101), "Registry description"),
+    (lambda value: value.update(description=" "), "Registry description"),
 ])
 def test_registry_namespace_version_and_transport_checks_remain_active(release_source, mutation, expected):
     path = release_source / "docs/registry/server.json"

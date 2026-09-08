@@ -1,5 +1,8 @@
 # Release the package
 
+Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for current publication status.
+The records below retain their original version and validation scope.
+
 ## Published v0.2.2 evidence
 
 Version 0.2.2 includes the compatibility changes from the second live draft trial.
@@ -10,7 +13,7 @@ The [v0.2.2 prerelease](https://github.com/krmisystems/fantasy-football-manager/
 All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34192876128) passed.
 All five published asset downloads matched the verified local hashes.
 The installed wheel passed both STDIO checks and an authenticated ESPN advisory monitor check.
-The local plugin is installed and enabled at version 0.2.2.
+The local plugin was installed and enabled at version 0.2.2 for that release check.
 See [validation status](VALIDATION.md#published-v022-evidence) for the installation evidence and its limits.
 
 The reusable CI workflow tests the exact requested commit before packaging.

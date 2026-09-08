@@ -69,6 +69,9 @@ def validate(root: Path, expected_version: str | None = None) -> tuple[list[str]
     namespace = f"io.github.krmisystems/{NAME}"
     if registry.get("name") != namespace:
         errors.append("Registry namespace does not match the intended package owner")
+    description = registry.get("description")
+    if not isinstance(description, str) or not description.strip() or len(description) > 100:
+        errors.append("Registry description must contain from 1 through 100 characters")
     marker = f"mcp-name: {namespace}"
     if marker not in (root / "README.md").read_text(encoding="utf-8"):
         errors.append("README is missing the MCP Registry package marker")

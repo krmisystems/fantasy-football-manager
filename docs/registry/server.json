@@ -2,7 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.krmisystems/fantasy-football-manager",
   "title": "Fantasy Football Manager",
-  "description": "Local draft and weekly tools with an ESPN companion for draft picks and verified lineup swaps.",
+  "description": "ESPN draft and lineup analysis for Codex and MCP clients. Live actions use the ESPN companion.",
+  "websiteUrl": "https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PLUGIN_INSTALL.md",
   "version": "0.3.0",
   "repository": {
     "url": "https://github.com/krmisystems/fantasy-football-manager",

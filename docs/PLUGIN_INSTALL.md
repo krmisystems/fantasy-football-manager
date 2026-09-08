@@ -7,10 +7,10 @@ It requires an authenticated browser connection. Season mode supports lineup swa
 
 ## Install the commands
 
-Use version 0.2.2 for public-draft compatibility and separate league state with a shared browser profile.
+Version 0.3.0 adds server season scheduling and an evidence archive to the draft and lineup tools.
 Read the [preview installation instructions](../README.md#preview-installation) for the wheel and plugin assets.
 Check [validation status](VALIDATION.md) for installed-command and live acceptance evidence.
-The preview is not published on PyPI or the MCP Registry.
+Check [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for verified package, registry, and plugin availability.
 The plugin archive contains registrations and skills. Install the Python wheel separately.
 
 From the repository root, run:

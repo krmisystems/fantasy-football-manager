@@ -159,10 +159,18 @@ Create a private archive manifest:
 }
 ```
 
-Set `code_revision` to the actual source commit when known.
-Use a new run identifier after runtime or source changes.
-Preserve unknown historical provenance as `null`.
-Do not attribute a run with changing development patches to one released wheel.
+The run's `runtime_version` and `code_revision` describe the collection environment.
+Set `code_revision` to the collector's actual source commit when known.
+Use a new run identifier after collection software or source selection changes.
+Preserve unknown collection provenance as `null`.
+
+A collection can contain copied historical records and new outbox events.
+Its run version does not identify the software that executed every historical action.
+The bundle's `exporter_version` identifies the sanitizer and export software.
+An outbox event's `application_version` identifies the software that produced that event.
+That field alone does not prove who caused an underlying action or which software performed it.
+Historical execution versions remain unknown unless separate evidence establishes them.
+Keep existing immutable run metadata unchanged when documenting this distinction.
 
 ```sh
 fantasy-football-archive export --manifest "$PRIVATE_ARCHIVE_MANIFEST" --output "$PRIVATE_BUNDLE"
@@ -179,7 +187,7 @@ Historical exports cannot recover evidence that the original runtime never recor
 | Table | Contents |
 |---|---|
 | `archive_imports` | Bundle identity, import time, and content-hash manifest. |
-| `archive_runs` | Immutable run identity and known runtime provenance. |
+| `archive_runs` | Immutable collection identity and known collection-environment provenance. |
 | `archive_records` | Snapshots, picks, proposals, calculations, events, and classified failures. |
 | `archive_labels` | Evidence-backed labels and explicit operator observations. |
 
