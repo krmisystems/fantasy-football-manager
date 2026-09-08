@@ -7,10 +7,9 @@ It requires an authenticated browser connection. Season mode supports lineup swa
 
 ## Install the commands
 
-Version 0.2.1 is published as a GitHub prerelease.
-Use the [preview installation instructions](../README.md#preview-installation) for its wheel and plugin assets.
-The installed wheel passed both STDIO checks. Its ESPN command passed authenticated connection and sync checks in advisory mode.
-The local plugin was installed and enabled at version 0.2.1. These checks did not submit a live action.
+Use version 0.2.2 for public-draft compatibility and separate league state with a shared browser profile.
+Read the [preview installation instructions](../README.md#preview-installation) for the wheel and plugin assets.
+Check [validation status](VALIDATION.md) for installed-command and live acceptance evidence.
 The preview is not published on PyPI or the MCP Registry.
 The plugin archive contains registrations and skills. Install the Python wheel separately.
 
@@ -27,6 +26,50 @@ Restart Codex if you changed its environment.
 Install Google Chrome before using the managed ESPN profile.
 The package includes Playwright but does not copy an existing browser's cookies.
 Both servers must use the same data directory to share policy, observations, and pause state.
+
+## Select league state and a shared browser profile
+
+Use a separate state directory for each league that you want to preserve.
+Set the same `--data-dir` argument on both MCP commands for that league.
+Set `FFM_BROWSER_DATA_DIR` on the ESPN command to reuse an existing managed browser profile.
+The browser directory must be the parent of `espn-browser-profile`.
+
+The following local MCP configuration uses placeholders. Replace each placeholder with an absolute path.
+Keep these personal settings outside the public repository.
+
+```json
+{
+  "mcpServers": {
+    "fantasy-manager-league-two": {
+      "command": "fantasy-football-manager",
+      "args": ["--data-dir", "<league-two-state-directory>"]
+    },
+    "fantasy-espn-league-two": {
+      "command": "fantasy-football-espn",
+      "args": ["--data-dir", "<league-two-state-directory>"],
+      "env": {
+        "FFM_BROWSER_DATA_DIR": "<shared-browser-directory>"
+      }
+    }
+  }
+}
+```
+
+Use this pair once for the selected league. Keep the original pair pointed at its original state directory.
+Do not register another pair that controls the same league state.
+Restart the configured MCP processes after you change their arguments or environment.
+The servers select these directories at process startup.
+
+The new state directory retains its own roster, policy, action history, and pending claims.
+The shared profile retains the existing browser sign-in. No cookie copy is required.
+ESPN can still require a new sign-in when a session expires.
+The profile lease permits one controller at a time, including controllers for different leagues.
+Disconnect the current browser controller before connecting the other league.
+
+Workers started through the ESPN tool receive the same browser setting.
+For a manual worker restart, set `FFM_BROWSER_DATA_DIR` in that process's environment again.
+`FFM_BROWSER_DATA_DIR` is available from version 0.2.2. Install that version or later before using this configuration.
+See the [connection and handoff steps](ESPN_AUTOMATION.md#separate-league-state-from-the-browser-profile).
 
 ## Prepare a personal plugin
 

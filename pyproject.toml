@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fantasy-football-manager"
-version = "0.2.1"
+version = "0.2.2"
 description = "Local MCP tools for fantasy football draft and weekly team decisions."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -99,6 +99,42 @@ Season mode continues for the explicit connected week. Automatic week rollover r
 A shared pause flag blocks new actions across workers using the same data directory.
 The profile lease prevents simultaneous ownership of that profile.
 
+`FFM_DATA_DIR` selects the league database. `FFM_BROWSER_DATA_DIR` can select a separate, shared browser profile root.
+Separate league databases keep their own policy, proposals, and history.
+Only one controller can use a shared browser profile at a time.
+
+A launch identifier connects a standalone worker request to that worker's heartbeat.
+The parent verifies the identifier and heartbeat time before it reports startup success.
+The worker PID can differ from the Windows launcher PID.
+Per-launch status preserves a startup failure without replacing another worker's status.
+
 Saved state and proposals survive normal restarts through SQLite.
 The worker is not an operating-system service and has no automatic reboot recovery.
-Packaged draft and lineup submission still need end-to-end acceptance tests in an authenticated ESPN league.
+See the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for authenticated submission evidence and its runtime limits.
+Live lineup submission still needs a separate acceptance check.
+
+## Draft entry and season handoff
+
+```mermaid
+flowchart TD
+    Waiting[Authenticated waiting room] --> Entry{Unique entry for the requested team?}
+    Entry -->|Not available yet| Waiting
+    Entry -->|Verified| Room[Enter the draft room]
+    Room --> Identity[Check roster identity and Autopick state]
+    Identity --> History[Load complete pick history]
+    History --> Observe[Observe clock and new picks]
+    Observe --> Simulate[Run Monte Carlo batches]
+    Simulate --> Turn{Our turn and policy permits a pick?}
+    Turn -->|No| Observe
+    Turn -->|Yes| Claim[Claim one submission]
+    Claim --> Confirm[Submit once and reconcile the result]
+    Confirm --> Complete{Selected roster complete?}
+    Complete -->|No| Observe
+    Complete -->|Yes| Stop[Stop draft automation]
+    Stop -. Explicit reconnect .-> Season[Read the selected scoring week]
+    Season --> Lineup[Calculate a legal weekly lineup]
+```
+
+The draft worker stops when the selected roster is complete.
+A separate observation can verify the remaining league picks.
+Season operation requires an explicit phase and scoring week. The draft worker does not start season automation automatically.

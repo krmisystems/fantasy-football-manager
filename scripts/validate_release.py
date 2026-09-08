@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import sys
@@ -22,7 +23,7 @@ PRIVATE_NAMES.update({"Cookies", "Login Data", "Local State", "Web Data", "Histo
                       "Preferences", "Secure Preferences", "espn-browser.lock"})
 PRIVATE_DIRS = {"private-captures", "espn-browser-profile", "browser-profile"}
 PRIVATE_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pem", ".key"}
-TEXT_SUFFIXES = {".py", ".json", ".md", ".toml", ".yml", ".yaml", ".txt", ".mmd", ".lock"}
+TEXT_SUFFIXES = {".py", ".json", ".md", ".toml", ".yml", ".yaml", ".txt", ".mmd", ".lock", ".html"}
 SECRET_PATTERNS = (
     re.compile(r"[A-Za-z]:[\\/]Users[\\/][^\\/\s\"']+", re.IGNORECASE),
     re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{32,}|github_pat_[A-Za-z0-9_]{32,}|sk-[A-Za-z0-9]{32,})\b"),
@@ -34,6 +35,26 @@ def validate(root: Path, expected_version: str | None = None) -> tuple[list[str]
     errors: list[str] = []
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     version = project["version"]
+    runtime_versions = []
+    try:
+        runtime = ast.parse((root / "src" / "fantasy_football_manager" / "__init__.py").read_text(encoding="utf-8"))
+        for node in runtime.body:
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
+            if any(isinstance(target, ast.Name) and target.id == "__version__" for target in targets):
+                runtime_versions.append(node.value.value if isinstance(node.value, ast.Constant) else None)
+    except (OSError, SyntaxError):
+        pass
+    if runtime_versions != [version]:
+        errors.append("Runtime __version__ must be one literal matching pyproject.toml")
+    try:
+        lock = tomllib.loads((root / "uv.lock").read_text(encoding="utf-8"))
+        local_packages = [package for package in lock.get("package", []) if package.get("name") == NAME]
+        valid_lock = (len(local_packages) == 1 and local_packages[0].get("version") == version
+                      and local_packages[0].get("source") in ({"editable": "."}, {"virtual": "."}))
+    except (OSError, tomllib.TOMLDecodeError):
+        valid_lock = False
+    if not valid_lock:
+        errors.append("uv.lock must contain one matching local project package version")
     plugin_dir = root / "plugins" / NAME
     plugin = json.loads((plugin_dir / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     registry = json.loads((root / "docs" / "registry" / "server.json").read_text(encoding="utf-8"))

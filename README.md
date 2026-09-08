@@ -4,53 +4,52 @@ Local MCP tools for draft decisions, weekly team analysis, and ESPN draft and li
 
 <!-- mcp-name: io.github.krmisystems/fantasy-football-manager -->
 
-Version **0.2.1** is a published compatibility preview for the ESPN companion.
-The package provides two MCP servers: 17 manager tools and 13 ESPN companion tools.
-The manager calculates recommendations and controls policy.
-The ESPN companion observes league state and can submit real draft picks or weekly lineup swaps.
+Version **0.2.2** adds public-draft compatibility, complete history recovery, and verified Windows worker startup.
+The package provides two local MCP servers: **17 manager tools** and **13 ESPN tools**.
+The manager calculates recommendations and controls policy. The ESPN companion observes leagues and submits draft picks or lineup swaps.
+The old draft Chrome extension is not required.
 
-Version 0.2.1 passed 400 tests, including 14 isolated Chrome cases using local fixtures.
-Authenticated reading and an advisory monitor were verified through the ESPN service and Chrome.
-The installed v0.2.1 ESPN MCP command also connected and synced successfully in advisory mode without pending actions.
-**Live account acceptance of packaged draft picks and lineup swaps remains untested.**
-Earlier direct browser picks were verified during a live draft. That separate evidence does not validate this package.
+The complete local run passed **509 tests**, including **15 isolated Chrome cases**.
+A live 10-team PPR draft produced a complete 16-player roster: **13 manager-confirmed picks and 3 ESPN Autopicks**.
+Startup failures and an autocomplete timeout caused the platform fallback selections.
+The run required compatibility fixes and manual recovery. It does not establish an unattended draft from start to finish.
+Live evidence uses installed v0.2.1 dependencies with working-tree patches.
+Read the [acceptance record](docs/LIVE_DRAFT_ACCEPTANCE.md) for runtime details and failures.
 
-Season mode reads weekly rosters and can submit verified lineup swaps automatically.
-Live waiver, free-agent, drop, and trade adapters remain planned. Complete season management is not yet implemented.
+Season mode reads weekly rosters and supports one verified lineup swap at a time.
+Live waiver, free-agent, drop, and trade adapters remain planned. Automatic week rollover is not implemented.
+Three more draft trials and a five-team season trial are [planned](docs/MULTI_TEAM_ACCEPTANCE.md).
+Separate league databases are supported. A scheduler for multiple teams remains planned.
 
-## Compatibility patch
+## Compatibility changes
 
-The v0.2.1 patch addresses compatibility gaps found during signed-in, read-only validation:
+- Enter through the authenticated waiting room and verify the selected roster.
+- Retry when the draft entry becomes available.
+- Recover complete pick history before following Activity updates.
+- Validate visible player positions and fantasy-team ownership.
+- Select the exact autocomplete suggestion before searching for its draft row.
+- Read supported status and secondary-position labels without weakening ownership checks.
+- Share one browser profile across separate league databases, with one controller at a time.
+- Match standalone worker startup to its own heartbeat, including Windows launcher PID differences.
 
-- Read the weekly team header when ESPN exposes it as a `columnheader`.
-- Bind player responses without league identifiers to the verified request URL.
-- Distinguish selected-team lock evidence from league-wide lock coverage.
-- Refresh cached player data when any team's ownership changes.
-- Wait for delayed navigation before checking the selected team.
-
-The authenticated check read complete league rosters and produced a legal nine-slot lineup recommendation.
-An advisory monitor completed three polls and stopped cleanly without pending actions.
-League-wide power rankings correctly remained incomplete because only the selected team's locks were verified.
-This check did not submit a real pick or lineup change.
-The patch is published as a prerelease. Published v0.2.0 assets remain unchanged.
+The release workflow tests the requested commit on Windows and Ubuntu before it builds publication artifacts.
+The browser gate includes the public draft layout and its autocomplete interaction.
+See [validation status](docs/VALIDATION.md) for verified results and remaining limits.
 
 ## Preview installation
 
-The [v0.2.1 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1) is published on GitHub as a prerelease.
-This version is not published on PyPI or the MCP Registry. Install the published preview wheel:
+Use the [v0.2.2 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.2) wheel:
 
 ```sh
-uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.1/fantasy_football_manager-0.2.1-py3-none-any.whl"
+uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy_football_manager-0.2.2-py3-none-any.whl"
 ```
 
-Published assets: [preview release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1),
-[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.1/fantasy-football-manager-0.2.1-plugin.zip),
-and [SHA-256 manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.1/fantasy-football-manager-0.2.1-plugin-manifest.json).
-The plugin ZIP registers both commands. It does not install the Python package.
-All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34186633175) passed.
-All five uploaded asset downloads matched the local artifact hashes. Both installed commands passed STDIO checks.
-The installed ESPN command passed authenticated connection and sync checks in advisory mode. No live action was submitted.
-See the exact release commit and validation evidence in [validation status](docs/VALIDATION.md).
+The preview is not published on PyPI or the MCP Registry.
+The [plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy-football-manager-0.2.2-plugin.zip)
+registers both commands. It does not install the Python package.
+The release includes a [plugin file manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy-football-manager-0.2.2-plugin-manifest.json)
+and an asset checksum file.
+Published v0.2.0 and v0.2.1 assets remain unchanged.
 
 ## Install from source
 
@@ -134,7 +133,7 @@ It does not undo a submitted pick or lineup swap. Reconcile unresolved results b
 | Area | Implemented | Limit |
 |---|---|---|
 | Draft analysis | Snake order, roster completion, five strategies, continuous Monte Carlo batches, conditional availability | Two-pick horizon. No auctions or championship odds. |
-| ESPN draft execution | Browser observation, proposals, one-click claims, platform reconciliation, automatic worker | Requires sign-in and compatible ESPN selectors. Packaged live end-to-end validation remains outstanding. |
+| ESPN draft execution | Browser observation, proposals, one-click claims, platform reconciliation, automatic worker | Requires sign-in and compatible ESPN selectors. The live trial required fixes and manual recovery; see the acceptance record. |
 | Season analysis | Weekly lineups, available-player comparisons, projected power rankings | Requires weekly projections, eligibility, ownership, and lock data. |
 | Season execution | Weekly observations and one verified lineup swap at a time through ESPN MCP | Each swap must meet the improvement limit. Live waivers, acquisitions, drops, trades, and week rollover remain planned. |
 | Policy and storage | Action modes, caps, protected players, spending limits, revisions, local SQLite records | One active league context per data directory. |

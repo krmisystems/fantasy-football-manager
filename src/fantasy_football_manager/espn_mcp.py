@@ -133,6 +133,9 @@ async def _worker(args):
         await service.connect(**connection)
         await service.start(args.interval, args.trials)
         await service.task
+    except Exception as exc:
+        service._save_status("startup_failed", error=str(exc))
+        raise
     finally:
         await service.close()
 

@@ -442,18 +442,18 @@ async def test_standalone_busy_profile_does_not_spawn(service, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_worker_early_exit_is_reported_as_failure(service):
-    service._save_status("connection_failed", pid=123456, error="Fictional browser lease is busy")
+    service._save_status("connection_failed", pid=123456, launch_id="fictional-launch", error="Fictional browser lease is busy")
     with pytest.raises(ValueError, match="lease is busy"):
-        await service._await_worker_start(SimpleNamespace(pid=123456, poll=lambda: 1), timeout=0)
+        await service._await_worker_start(SimpleNamespace(pid=123456, poll=lambda: 1), timeout=0, launch_id="fictional-launch")
     assert service.local_status == "startup_failed"
 
 
 @pytest.mark.asyncio
 async def test_worker_start_requires_matching_process_acknowledgement(service):
     process = SimpleNamespace(pid=123456, poll=lambda: None)
-    assert (await service._await_worker_start(process, timeout=0))["status"] == "startup_pending"
-    service._save_status("monitoring", pid=process.pid)
-    result = await service._await_worker_start(process, timeout=0)
+    assert (await service._await_worker_start(process, timeout=0, launch_id="fictional-launch"))["status"] == "startup_pending"
+    service._save_status("monitoring", pid=process.pid, launch_id="fictional-launch")
+    result = await service._await_worker_start(process, timeout=0, launch_id="fictional-launch")
     assert result["startup_acknowledged"] is True and result["status"] == "monitoring"
 
 

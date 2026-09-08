@@ -5,7 +5,9 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .browser_draft import BrowserDraft
 from .browser_lineup import BrowserLineup, lineup_equivalent, next_lineup_swap
@@ -20,13 +22,14 @@ from .store import Manager
 class ESPNService:
     def __init__(self, data_dir=None, browser=None):
         self.manager = Manager(data_dir)
+        self.browser_data_dir = Path(os.environ.get("FFM_BROWSER_DATA_DIR") or self.manager.data_dir).expanduser().resolve()
         self.draft = BrowserDraft(self.manager)
         self.lineup = BrowserLineup(self.manager)
         self._injected_browser = browser is not None
         self.phase = "draft"
         if browser is None:
             from .espn_browser import ESPNBrowser
-            browser = ESPNBrowser(self.manager.data_dir)
+            browser = ESPNBrowser(self.browser_data_dir)
         self.browser = browser
         self.browser.permit_validator = self._validate_permit
         self.task = None
@@ -36,21 +39,26 @@ class ESPNService:
         self.seed = 1
         self.local_status = "disconnected"
         self._last_status = None
+        self.worker_launch_id = os.environ.get("FFM_WORKER_LAUNCH_ID")
         with self.manager.transaction() as db:
             db.execute("CREATE TABLE IF NOT EXISTS espn_runtime(id INTEGER PRIMARY KEY CHECK(id=1),connection TEXT,status TEXT)")
             db.execute("INSERT OR IGNORE INTO espn_runtime VALUES(1,NULL,NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS espn_worker_launches(launch_id TEXT PRIMARY KEY,status TEXT NOT NULL)")
             connection = db.execute("SELECT connection FROM espn_runtime WHERE id=1").fetchone()["connection"]
         snapshot = self.manager.state()[0]
         self.phase = json.loads(connection).get("phase", "draft") if connection else (snapshot.phase if snapshot else "draft")
 
     def _save_status(self, status, **details):
         self.local_status = status
-        value = {"status": status, "pid": os.getpid(), "observed_at": datetime.now(timezone.utc).isoformat(), **details}
+        value = {"status": status, "pid": os.getpid(), "observed_at": datetime.now(timezone.utc).isoformat(),
+                 "launch_id": self.worker_launch_id, **details}
         self._last_status = value
         with self.manager.transaction() as db:
+            if value.get("launch_id"):
+                db.execute("INSERT OR REPLACE INTO espn_worker_launches VALUES(?,?)", (value["launch_id"], json.dumps(value)))
             previous = db.execute("SELECT status FROM espn_runtime WHERE id=1").fetchone()["status"]
             previous = json.loads(previous) if previous else {}
-            if status in {"connection_failed", "disconnected"} and previous.get("pid") not in {None, os.getpid()}:
+            if status in {"connection_failed", "disconnected", "startup_failed"} and previous.get("pid") not in {None, os.getpid()}:
                 age = (datetime.now(timezone.utc) - datetime.fromisoformat(previous["observed_at"])).total_seconds()
                 if age <= 90 and previous.get("status") not in {"disconnected", "startup_failed", "draft_complete"}:
                     return value
@@ -106,10 +114,10 @@ class ESPNService:
                 await self.browser.close()
                 if phase == "season":
                     from .espn_season_browser import ESPNSeasonBrowser
-                    self.browser = ESPNSeasonBrowser(self.manager.data_dir, week=week)
+                    self.browser = ESPNSeasonBrowser(self.browser_data_dir, week=week)
                 else:
                     from .espn_browser import ESPNBrowser
-                    self.browser = ESPNBrowser(self.manager.data_dir)
+                    self.browser = ESPNBrowser(self.browser_data_dir)
                 self.browser.permit_validator = self._validate_permit
             elif phase == "season" and hasattr(self.browser, "week"):
                 self.browser.week = week
@@ -412,7 +420,8 @@ class ESPNService:
         closed = await self.close()
         require(closed["status"] == "disconnected", "Wait for the current operation before starting the standalone worker.")
         from filelock import FileLock, Timeout
-        lease = FileLock(self.manager.data_dir / "espn-browser.lock")
+        self.browser_data_dir.mkdir(parents=True, exist_ok=True)
+        lease = FileLock(self.browser_data_dir / "espn-browser.lock")
         try:
             lease.acquire(timeout=0)
         except Timeout as exc:
@@ -421,31 +430,42 @@ class ESPNService:
             lease.release()
         log_path = self.manager.data_dir / "espn-worker.log"
         command = [sys.executable, "-m", "fantasy_football_manager.espn_mcp", "--worker", "--data-dir", str(self.manager.data_dir)]
+        launch_id = uuid.uuid4().hex
+        worker_env = {**os.environ, "FFM_BROWSER_DATA_DIR": str(self.browser_data_dir), "FFM_WORKER_LAUNCH_ID": launch_id}
         with log_path.open("ab") as log:
             process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                       env=worker_env,
                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                                        start_new_session=os.name != "nt")
-        return await self._await_worker_start(process)
+        return await self._await_worker_start(process, launch_id=launch_id)
 
-    async def _await_worker_start(self, process, timeout=10):
+    async def _await_worker_start(self, process, timeout=10, *, launch_id):
+        require(isinstance(launch_id, str) and bool(launch_id), "A worker launch identifier is required for startup verification.")
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             with self.manager.transaction() as db:
-                raw = db.execute("SELECT status FROM espn_runtime WHERE id=1").fetchone()["status"]
-            shared = json.loads(raw) if raw else {}
+                row = db.execute("SELECT status FROM espn_worker_launches WHERE launch_id=?", (launch_id,)).fetchone()
+            shared = json.loads(row["status"]) if row else {}
+            timestamp = datetime.fromisoformat(shared["observed_at"]) if shared.get("observed_at") else None
+            age = (datetime.now(timezone.utc) - timestamp).total_seconds() if timestamp else None
+            matching = (shared.get("launch_id") == launch_id and type(shared.get("pid")) is int
+                        and shared["pid"] > 0 and age is not None and 0 <= age <= 90)
             exited = process.poll()
             if exited is not None:
-                reason = (shared.get("error") or shared.get("last_error")) if shared.get("pid") == process.pid else None
+                reason = (shared.get("error") or shared.get("last_error")) if matching else None
                 message = f"ESPN worker exited during startup with code {exited}." + (f" {reason}" if reason else " Check the local worker log.")
-                self._save_status("startup_failed", worker_pid=process.pid, error=message)
+                self._save_status("startup_failed", worker_pid=shared.get("pid") if matching else None,
+                                  launcher_pid=process.pid, failed_launch_id=launch_id, error=message)
                 raise ValueError(message)
-            if shared.get("pid") == process.pid and shared.get("status") in {
+            if matching and shared.get("status") in {
                 "starting", "monitoring", "monitoring_lineup", "lineup_current", "no_admissible_lineup_exchange",
                 "paused", "awaiting_review", "awaiting_verification", "draft_complete", "needs_attention"}:
-                return {"status": shared["status"], "pid": process.pid, "startup_acknowledged": True,
+                return {"status": shared["status"], "pid": shared["pid"], "launcher_pid": process.pid,
+                        "launch_id": launch_id, "startup_acknowledged": True,
                         "worker": shared, "lifetime": "independent_of_codex",
                         "control": "Set automation.paused=true in the manager config to stop new actions."}
             if asyncio.get_running_loop().time() >= deadline:
-                return {"status": "startup_pending", "pid": process.pid, "startup_acknowledged": False,
+                return {"status": "startup_pending", "pid": None, "launcher_pid": process.pid,
+                        "launch_id": launch_id, "startup_acknowledged": False,
                         "lifetime": "independent_of_codex", "message": "The process started, but browser startup is not yet verified."}
             await asyncio.sleep(.1)

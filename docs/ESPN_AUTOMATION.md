@@ -22,6 +22,36 @@ In draft mode, complete pick history must agree with the visible clock and saved
 In season mode, the visible team and week must match the requested context.
 Missing or contradictory observations do not authorize a submission.
 
+## Separate league state from the browser profile
+
+Set `FFM_BROWSER_DATA_DIR` to select the browser directory for the ESPN process.
+That directory contains `espn-browser-profile` and `espn-browser.lock`.
+Select the parent directory when you reuse an existing managed profile.
+The setting does not copy cookies or move league records.
+
+Use `--data-dir` or `FFM_DATA_DIR` to select each league's separate state directory.
+Both MCP servers for that league must select the same state directory.
+`FFM_BROWSER_DATA_DIR` affects the ESPN browser only. It does not change the selected league database.
+If this setting is absent or empty, the browser uses the league state directory.
+
+The ESPN service selects the browser directory when its process starts.
+Draft and season adapters keep that selection when the connection changes phase.
+A worker launched by `espn_start_standalone_worker` receives the same selected browser directory.
+Set the variable again when you start an MCP process or worker manually. The saved connection does not store this setting.
+
+Only one controller can hold a shared browser profile lease.
+Reconcile pending actions before changing controllers.
+Call `espn_disconnect` on the current controller to release its browser connection.
+Then connect the other league through its separate MCP server pair.
+Pausing one league does not pause another league's separate state directory.
+
+For a completed draft, connect with `phase="season"` and the current scoring week.
+Call `espn_sync` to verify the selected roster, projections, and locks.
+A phase change keeps the league's saved policy. Check `set_lineup` mode before you start season automation.
+See the [local server configuration example](PLUGIN_INSTALL.md#select-league-state-and-a-shared-browser-profile).
+
+`FFM_BROWSER_DATA_DIR` is available from version 0.2.2.
+
 ## Companion tools
 
 | Tool | Purpose |

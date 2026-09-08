@@ -1,5 +1,34 @@
 # Validation status
 
+## Working-tree live draft: Complete with failures and manual interventions
+
+The tested 10-team PPR snake draft used 16 rounds.
+The runtime used installed v0.2.1 dependencies with changing working-tree patches, including the v0.2.2 candidate.
+The selected roster is complete with 16 players.
+The manager confirmed submissions at picks 30, 31, 50, 51, 70, 71, 90, 91, 110, 111, 130, 150, and 151.
+ESPN Autopick made picks 10, 11, and 131.
+
+Initial adapter failures prevented the first two manager selections.
+At pick 131, manual autocomplete selection was too late. The manager reconciled its failed proposal as `not_selected`.
+Later restarts exposed availability and position parser gaps. Fixes restored operation before confirmed picks 150 and 151.
+The run required manual interventions and does not establish unattended operation.
+No duplicate submissions were observed.
+
+The 13 confirmed receipts had a median authorization-to-observation time of 3.71 seconds and a range of 2.21–4.84 seconds.
+These measurements exclude failed proposals, platform fallback selections, and the simulation stage.
+They do not establish a general latency bound.
+
+The complete local suite passed **509 tests in 31.78 seconds** on Windows with Python 3.12.13.
+The run used `FFM_BROWSER_TESTS=1` and included **15 isolated Chrome cases**: 5 draft cases and 10 season cases.
+The final post-draft observation verified all 160 selections, complete history, and the 16-player roster.
+A fresh Week 1 season connection and sync observed that roster and produced lineup status `ok`.
+The snapshot contained 1,036 player records, including 494 weekly projections, with verified locks for the selected team only.
+All 9 starter slots were filled. Current and optimized lineups both had an estimated 125.35 points, with 0.0 improvement.
+No season action was submitted, and no pending claim remained.
+Release publication remains pending.
+This working-tree run does not establish live write acceptance for an installed v0.2.2 wheel.
+Read the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for the failure log, manual interventions, receipts, and evidence boundaries.
+
 ## Version 0.2.1 patch status
 
 The complete local patch run passed **400 tests in 20.91 seconds** on Windows with Python 3.12.13.
@@ -74,7 +103,7 @@ Published assets remain fixed to the release commit. Later documentation commits
 ```sh
 uv run pytest -q
 uv run fantasy-football-manager --demo
-uv run python scripts/validate_release.py --version 0.2.1
+uv run python scripts/validate_release.py --version 0.2.2
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
 uv run python scripts/build_plugin_zip.py
@@ -84,7 +113,7 @@ The browser cases are opt-in. With installed Chrome, run them in PowerShell:
 
 ```powershell
 $env:FFM_BROWSER_TESTS = "1"
-uv run pytest -q tests/test_browser_integration.py tests/test_season_browser_integration.py
+uv run pytest -q tests/test_browser_integration.py tests/test_season_browser_integration.py tests/test_espn_public_draft_integration.py
 Remove-Item Env:FFM_BROWSER_TESTS
 ```
 

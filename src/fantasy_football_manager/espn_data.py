@@ -158,7 +158,7 @@ def _rules(payload, target):
             or _integer(draft.get("keeperCountFuture", 0), "Future keeper count")
             or draft.get("isTradingEnabled") is True):
         raise ESPNDataError("Keeper leagues and traded draft picks are not supported.")
-    if str(draft.get("leagueSubType", "NONE")).upper() not in ("NONE", ""):
+    if str(draft.get("leagueSubType", "NONE")).upper() not in ("NONE", "", "DRAFT_LOBBY"):
         raise ESPNDataError("This draft subtype is not supported.")
     teams = _array(payload.get("teams"), "League teams")
     count = _integer(settings.get("size"), "League size", minimum=2)
@@ -291,7 +291,7 @@ def _name_key(name):
     return re.sub(r"[^a-z0-9]", "", value)
 
 
-def _visible_picks(text, players, count):
+def _visible_picks(text, players, count, team_names=None):
     by_name = {}
     for player in players:
         by_name.setdefault(_name_key(player.name), []).append(player)
@@ -301,8 +301,15 @@ def _visible_picks(text, players, count):
             position = {"D/ST": "DST", "DEF": "DST"}.get(position, position)
             matches = [p for p in matches if position in p.eligible_positions]
         if len(matches) != 1:
-            raise ESPNDataError("A visible pick does not identify one projected player.")
+            raise ESPNDataError(f"A visible pick does not identify one projected player: {name.strip()!r} ({position or 'unknown position'}).")
         return matches[0].id
+    def verify_owner(number, owner):
+        if team_names is None:
+            return
+        expected = team_names.get(_owner(number, count))
+        clean = lambda value: " ".join(unicodedata.normalize("NFKC", value).split()).casefold()
+        if expected is None or clean(owner) != clean(expected):
+            raise ESPNDataError("The visible pick team conflicts with the configured snake draft owner.")
     result = []
     # Accessibility snapshots prefix rows with a node number. Available-player
     # rows also contain QUEUE or DRAFT controls and cannot establish a pick.
@@ -310,21 +317,51 @@ def _visible_picks(text, players, count):
     history_heading = re.search(r"\b(?:DRAFT HISTORY|PICK HISTORY|DRAFT RECAP)\b", text, re.I)
     if history_heading:
         history_text = text[history_heading.end():]
-    for number, description in re.findall(r"^\s*\d+ row (\d+) (.+)$", history_text, re.M):
-        if re.search(r"\b(?:QUEUE|DRAFT)\b", description):
+    history_rows = re.findall(r"^\s*\d+ row (\d+) (.+)$", history_text, re.M)
+    history_rows += re.findall(r'^\s*- row "(\d+) ([^"\n]+)"[^\n]*$', history_text, re.M)
+    for number, description in history_rows:
+        if re.search(r"\b(?:QUEUE|DRAFT)\b", description, re.I):
             continue
         candidates = [p for p in players if description.startswith(p.name + " ")]
         if len(candidates) != 1:
             raise ESPNDataError("A visible history row does not identify one player.")
-        result.append((int(number), candidates[0].id))
-    activity = re.compile(r"(?:^|\n)\s*(?:\d+\s+text\s+|text\s+)?([^\n]+?)\s*/\s*"
+        player = candidates[0]
+        details = re.fullmatch(r"(?:(?:Q|D|DTD|O|IR|PUP|SSPD|SUSP|NA)\s+)?[A-Z]{2,4}\s+"
+                               r"(QB|RB|WR|TE|D/ST|DST|DEF|K)(?:(?<=WR)\s+CB)?\s+(.+)", description[len(player.name) + 1:])
+        if details is None:
+            raise ESPNDataError("A visible history row has no verified position and team.")
+        position, owner = details.groups()
+        pid = identify(player.name, position)
+        if team_names is not None:
+            expected = team_names.get(_owner(int(number), count))
+            if owner != expected:
+                cell = r"(?:-?\d+(?:\.\d+)?|-)"
+                owner = re.sub(r"\s+" + cell + r"\s+" + cell + r"\s+(?:\d+|-)$", "", owner)
+        verify_owner(int(number), owner)
+        result.append((int(number), pid))
+    # The visible Pick History grid exposes each cell on a separate body-text
+    # line. Require its complete column header before interpreting those rows.
+    body_history = "\n".join(line.strip() for line in history_text.splitlines() if line.strip())
+    header = re.search(r"^PICK\nPLAYER\nTEAM\n\d{4} PTS\nPROJ PTS\nRK$", body_history, re.M)
+    if header:
+        number_cell = r"(?:-?\d+(?:\.\d+)?|-)"
+        body_rows = re.compile(
+            r"^(\d+)\n([^\n]+)\n(?:(?:Q|D|DTD|O|IR|PUP|SSPD|SUSP|NA)\n)?"
+            r"[A-Z]{2,4}\n(QB|RB|WR|TE|D/ST|DST|DEF|K)(?:(?<=WR)(?:[ \t]*|\n)CB)?\n([^\n]+)\n"
+            + number_cell + r"\n" + number_cell + r"\n(?:\d+|-)\s*$", re.M)
+        for number, name, position, owner in body_rows.findall(body_history[header.end():]):
+            verify_owner(int(number), owner)
+            result.append((int(number), identify(name, position)))
+    activity = re.compile(r"(?:^|\n)\s*(?:\d+\s+text\s+|text\s+|-\s+(?:listitem|text):\s*)?([^\n]+?)\s*/\s*"
                           r"[A-Z]{2,4}\s+(QB|RB|WR|TE|D/ST|DST|DEF|K)(?:,\s*[A-Z/]+)*\s+"
-                          r"R(\d+),\s*P(\d+)\s*-", re.M)
-    for name, position, rnd, offset in activity.findall(text):
+                          r"R(\d+),\s*P(\d+)\s*-\s*([^\n]+)", re.M)
+    for name, position, rnd, offset, owner in activity.findall(text):
         rnd, offset = int(rnd), int(offset)
         if rnd < 1 or not 1 <= offset <= count:
             raise ESPNDataError("A visible Activity pick has an invalid round or position.")
-        result.append(((rnd - 1) * count + offset, identify(name, position)))
+        number = (rnd - 1) * count + offset
+        verify_owner(number, owner)
+        result.append((number, identify(name, position)))
     return result
 
 
@@ -333,8 +370,9 @@ def normalize_espn_draft(league_payload, players_payload, *, team_id, visible_te
                          projections_observed_at=None, player_response_url=None) -> LeagueSnapshot:
     """Build a complete draft snapshot from fresh browser observations.
 
-    ``observed_team_id`` must come from a verified My Team link when the page
-    URL lacks ``teamId``. The configured target alone does not prove identity.
+    ``observed_team_id`` must come from a verified My Team link or authenticated
+    draft entry with a matching roster selection. A page URL without ``teamId``
+    requires this evidence. The configured target alone does not prove identity.
     ``previous`` contributes only confirmed picks from the same draft scope.
     A cached player response must retain its actual download timestamp.
     A player-only response requires its exact verified request URL.
@@ -387,24 +425,28 @@ def normalize_espn_draft(league_payload, players_payload, *, team_id, visible_te
             continue
         add(number, _numeric_id(value, "Drafted player ID", player=True), order.index(owner) + 1)
     players = _players(players_payload, season, _scoring(league_payload), {p.player_id for p in confirmed.values()})
-    for number, pid in _visible_picks(visible_text, players, rules.teams):
+    for number, pid in _visible_picks(visible_text, players, rules.teams,
+                                      {slot: names[tid] for slot, tid in enumerate(order, 1)}):
         add(number, pid, _owner(number, rules.teams))
     total = rules.teams * rules.rounds
     clocks = {int(n) for n in re.findall(r"ON THE CLOCK:\s*PICK\s+(\d+)", visible_text, re.I)}
     complete_text = bool(re.search(r"\bDRAFT\s+(?:IS\s+)?COMPLETE\b|\bDRAFT\s+HAS\s+ENDED\b", visible_text, re.I))
     drafted = league_payload["draftDetail"].get("drafted") is True
+    waiting = bool(re.search(r"^\s*DRAFTING IN\s+\d{1,2}:\d{2}\s*$", visible_text, re.I | re.M))
     if len(clocks) > 1:
         raise ESPNDataError("Visible draft clocks conflict.")
+    if waiting and (clocks or confirmed or complete_text or drafted):
+        raise ESPNDataError("The pre-draft countdown conflicts with confirmed draft progress.")
     current = next(iter(clocks), None)
-    if current is None:
+    if current is None and not waiting:
         if not (complete_text or drafted):
             raise ESPNDataError("No verified current pick or completed draft is visible.")
         current = total + 1
-    if not 1 <= current <= total + 1:
+    if current is not None and not 1 <= current <= total + 1:
         raise ESPNDataError("The visible current pick is outside the configured draft.")
-    if (complete_text or drafted) and current <= total:
+    if (complete_text or drafted) and current is not None and current <= total:
         raise ESPNDataError("The completed draft status conflicts with the visible clock.")
-    if sorted(confirmed) != list(range(1, current)):
+    if sorted(confirmed) != list(range(1, current if current is not None else 1)):
         raise ESPNDataError("Draft history is incomplete or stale relative to the visible current pick.")
     complete = current == total + 1 and len(confirmed) == total
     if len(players) < total:
@@ -419,7 +461,8 @@ def normalize_espn_draft(league_payload, players_payload, *, team_id, visible_te
                     notes=["Projection timestamps record the response download time, not the ESPN publication time.",
                            f"Excluded {len(players_payload['players']) - len(players)} player rows without usable supported season projections.",
                            "An excluded player cannot receive a recommendation. A confirmed or rostered exclusion blocks this snapshot.",
-                           "Complete means the observed draft history is complete through the current pick. Weekly projections and locks are unverified."],
+                           "Complete means the observed draft history is complete through the current pick. Weekly projections and locks are unverified.",
+                           *(["The pre-draft countdown is visible. No active pick is verified, so draft submissions are blocked."] if waiting else [])],
                     browser={"page_url": page_url, "league_id": league, "team_id": verified_team,
                              "current_pick": current, "autopick_enabled": True if enabled else False if disabled else None,
                              "draft_complete": complete})

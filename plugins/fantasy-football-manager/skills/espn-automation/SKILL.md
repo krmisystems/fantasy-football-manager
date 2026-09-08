@@ -9,7 +9,8 @@ Use the `fantasy-football-espn` companion supplied by this plugin for live ESPN 
 Use `season-manager` for weekly observation and lineup automation through the same companion.
 Use the manager MCP for saved configuration and strategy.
 Live draft submission and weekly lineup swaps are implemented.
-Packaged live account acceptance remains untested for both paths.
+Check the current release evidence before claiming live account acceptance.
+Distinguish installed-package checks from working-tree live submissions and local browser fixtures.
 Season mode supports one verified lineup swap at a time.
 Live waivers, acquisitions, drops, and trades are not implemented.
 
@@ -23,6 +24,7 @@ Live waivers, acquisitions, drops, and trades are not implemented.
 6. Read `espn_get_status` before starting submissions.
 
 The default connection uses a dedicated local Chrome profile.
+The old draft Chrome extension is not required.
 It does not copy cookies from an existing profile.
 The optional `cdp_url` must identify a loopback debugging endpoint.
 Do not request passwords or cookies through tool arguments.

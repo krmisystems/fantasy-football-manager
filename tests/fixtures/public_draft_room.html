@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head><title>Fictional public draft room</title></head>
+<body>
+  <h1>Fictional public draft room</h1>
+  <label for="roster">Roster</label>
+  <select id="roster">
+    <option value="11" selected>Fictional North</option>
+    <option value="22">Fictional South</option>
+  </select>
+  <div class="autoPick-container">
+    <label class="autoPick-label" for="autopick">Autopick</label>
+    <input id="autopick" type="checkbox" style="display:none">
+  </div>
+  <p id="clock">ON THE CLOCK: PICK 4</p>
+  <div role="tablist">
+    <div id="players-tab" role="tab" aria-selected="true" onclick="showTab('players')">
+      <span role="tab">Players</span>
+    </div>
+    <div id="history-tab" role="tab" aria-selected="false" onclick="showTab('history')">
+      <span role="tab">Pick History</span>
+    </div>
+  </div>
+  <section id="players-view">
+    <input placeholder="Player Name" aria-label="Search Players" oninput="findPlayer(this.value)">
+    <div id="suggestions" hidden>
+      <button type="button" onclick="wrongPlayer()">Fictional Runner Delta Jr. ABC RB</button>
+      <button type="button" onclick="selectSuggestion()">Fictional Runner Delta ABC RB</button>
+    </div>
+    <table aria-label="Available Players"><tbody>
+      <tr><td><span>Fictional Runner Delta Jr.</span></td><td>RB</td>
+        <td><button type="button" onclick="wrongPlayer()">DRAFT</button></td></tr>
+      <tr id="target-row" hidden><td><span>Fictional Runner Delta</span></td><td>RB</td>
+        <td><button type="button" onclick="draftPlayer(this)">DRAFT</button></td></tr>
+    </tbody></table>
+  </section>
+  <section id="history-view" hidden>
+    <label for="round">Round</label>
+    <select id="round" onchange="filterHistory(this.value)">
+      <option value="2" selected>Round 2</option><option value="all">All Rounds</option>
+    </select>
+    <table aria-label="Pick History"><thead><tr>
+      <th>PICK</th><th>PLAYER</th><th>TEAM</th><th>2026 PTS</th><th>PROJ PTS</th><th>RK</th>
+    </tr></thead><tbody>
+      <tr data-round="1" aria-label="1 Fictional Runner Alpha ABC RB Fictional North" hidden>
+        <td>1</td><td>Fictional Runner Alpha<br>ABC<br>RB</td><td>Fictional North</td><td>0</td><td>120</td><td>1</td>
+      </tr>
+      <tr data-round="1" aria-label="2 Fictional Runner Beta ABC RB Fictional South" hidden>
+        <td>2</td><td>Fictional Runner Beta<br>ABC<br>RB</td><td>Fictional South</td><td>0</td><td>110</td><td>2</td>
+      </tr>
+      <tr data-round="2" aria-label="3 Fictional Runner Gamma ABC RB Fictional South">
+        <td>3</td><td>Fictional Runner Gamma<br>ABC<br>RB</td><td>Fictional South</td><td>0</td><td>100</td><td>3</td>
+      </tr>
+    </tbody></table>
+  </section>
+  <h2>Activity</h2>
+  <ul id="activity"><li>Fictional Runner Gamma / ABC RB R2, P1 - Fictional South</li></ul>
+  <p>Selection count: <output id="clicks">0</output></p>
+  <p>Wrong selection count: <output id="wrong">0</output></p>
+  <p>History visits: <output id="history-visits">0</output></p>
+  <p>Player view restorations: <output id="restorations">0</output></p>
+  <p>Exact searches: <output id="searches">0</output></p>
+  <p>Exact suggestions selected: <output id="suggestion-clicks">0</output></p>
+  <script>
+    function increment(id) {
+      const output = document.getElementById(id);
+      output.textContent = String(Number(output.textContent) + 1);
+    }
+    function showTab(name) {
+      document.getElementById('players-view').hidden = name !== 'players';
+      document.getElementById('history-view').hidden = name !== 'history';
+      document.getElementById('players-tab').setAttribute('aria-selected', String(name === 'players'));
+      document.getElementById('history-tab').setAttribute('aria-selected', String(name === 'history'));
+      increment(name === 'players' ? 'restorations' : 'history-visits');
+    }
+    function filterHistory(value) {
+      document.querySelectorAll('[data-round]').forEach(row => {
+        row.hidden = value !== 'all' && row.dataset.round !== value;
+      });
+    }
+    function findPlayer(value) {
+      if (value === 'Fictional Runner Delta') increment('searches');
+      document.getElementById('target-row').hidden = true;
+      document.getElementById('suggestions').hidden = value !== 'Fictional Runner Delta';
+    }
+    function selectSuggestion() {
+      increment('suggestion-clicks');
+      document.getElementById('suggestions').hidden = true;
+      document.getElementById('target-row').hidden = false;
+    }
+    function wrongPlayer() { increment('wrong'); }
+    function draftPlayer(button) {
+      if (document.getElementById('players-view').hidden || document.getElementById('autopick').checked) {
+        increment('wrong'); return;
+      }
+      increment('clicks');
+      button.disabled = true;
+      document.getElementById('clock').textContent = 'DRAFT COMPLETE';
+      document.getElementById('activity').innerHTML =
+        '<li>Fictional Runner Delta / ABC RB R2, P2 - Fictional North</li>';
+    }
+  </script>
+</body>
+</html>

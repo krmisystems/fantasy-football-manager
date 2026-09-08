@@ -63,6 +63,9 @@ class Locator:
     async def all(self):
         return [Locator([node]) for node in self.nodes]
 
+    def or_(self, other):
+        return Locator(list(dict.fromkeys([*self.nodes, *other.nodes])))
+
     async def is_visible(self):
         return self.nodes[0].visible
 
@@ -78,6 +81,18 @@ class Locator:
     async def inner_text(self, **kwargs):
         return self.nodes[0].text
 
+    async def input_value(self):
+        return self.nodes[0].attrs.get("value", "")
+
+    def locator(self, selector):
+        def selected(node):
+            if selector == "option":
+                return node.role == "option"
+            if selector == 'input[type="checkbox"]':
+                return node.attrs.get("type") == "checkbox"
+            return node.attrs.get("selector") == selector
+        return Locator([node for root in self.nodes for node in root.walk() if selected(node)])
+
     def get_by_role(self, role, name=None, exact=False):
         return Locator([node for root in self.nodes for node in root.walk()
                         if node.role == role and (name is None or matches(node.name, name, exact))])
@@ -85,7 +100,9 @@ class Locator:
     def get_by_text(self, text, exact=False):
         return Locator([node for root in self.nodes for node in root.walk() if matches(node.text, text, exact)], (text, exact))
 
-    def filter(self, has):
+    def filter(self, has=None, visible=None):
+        if visible is not None:
+            return Locator([node for node in self.nodes if node.visible is visible])
         text, exact = has.text_query
         return Locator([node for node in self.nodes if any(matches(child.text, text, exact) for child in node.walk())])
 
@@ -133,9 +150,13 @@ class Page:
         return Locator([self.root]).get_by_text(*args, **kwargs)
 
     def locator(self, selector):
-        assert selector == "body"
+        if selector != "body":
+            return Locator([self.root]).locator(selector)
         text = f"ON THE CLOCK: PICK {self.clock}\n{self.autopick.name}"
         return Locator([Node(text=text)])
+
+    def get_by_placeholder(self, text, exact=False):
+        return Locator([node for node in self.root.walk() if matches(node.attrs.get("placeholder", ""), text, exact)])
 
     async def goto(self, url, **kwargs):
         self.gotos.append(url)
@@ -420,7 +441,7 @@ async def test_connection_waits_for_delayed_my_team_navigation(tmp_path, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_missing_navigation_keeps_login_window_open_without_claiming_ready(tmp_path, monkeypatch):
+async def test_missing_navigation_keeps_waiting_room_open_without_claiming_ready(tmp_path, monkeypatch):
     page = Page()
     page.team_link.visible = False
     context = Context([page])
@@ -429,9 +450,246 @@ async def test_missing_navigation_keeps_login_window_open_without_claiming_ready
     browser = espn_browser.ESPNBrowser(tmp_path)
     result = await browser.connect("123", "11", 2026)
     assert result["connected"] is True and result["ready"] is False
-    assert "My Team" in result["error"] and not context.closed
+    assert result["status"] == "awaiting_draft_entry" and "Observation will retry" in result["error"]
+    assert not context.closed
     assert context.calls == [] and page.button.clicks == 0
     await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_observation_retries_waiting_room_when_entry_appears_without_reloading(tmp_path, monkeypatch):
+    page = Page()
+    page.team_link.visible = False
+    target = URL + "&memberId=fictional-member"
+    entry = Node("link", "Enter The Draft", visible=False, attrs={"href": target})
+    roster = Node("combobox", attrs={"value": "11"}, children=[
+        Node("option", "Fictional North", attrs={"value": "11"}),
+        Node("option", "Fictional South", attrs={"value": "22"})])
+    context = Context([page])
+    driver = SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=AsyncMock(return_value=context)), stop=AsyncMock())
+    monkeypatch.setattr(espn_browser, "_start_playwright", AsyncMock(return_value=driver))
+
+    async def navigate(url, **kwargs):
+        page.gotos.append(url)
+        page.url = url
+        page.root.children = [entry] if "/waitingroom?" in url else [roster, page.autopick, page.row]
+
+    monkeypatch.setattr(page, "goto", navigate)
+    browser = espn_browser.ESPNBrowser(tmp_path)
+    connected = await browser.connect("123", "11", 2026)
+    assert connected["connected"] and not connected["ready"]
+    assert connected["status"] == "awaiting_draft_entry"
+    waiting_url = "https://fantasy.espn.com/football/waitingroom?leagueId=123"
+    assert page.gotos == [waiting_url] and context.calls == []
+    with pytest.raises(ValueError, match="Observation will retry"):
+        await browser.observe()
+    assert browser.status()["status"] == "awaiting_draft_entry"
+    assert page.gotos == [waiting_url] and context.calls == []
+    entry.visible = True
+    snapshot = await browser.observe()
+    assert browser._page is page and browser._draft_entry_url == target
+    assert page.gotos == [waiting_url, target]
+    assert snapshot.source.browser.current_pick == 1 and snapshot.picks == []
+    assert snapshot.source.browser.team_id == "11"
+    assert browser.status()["status"] == "observed" and browser.status()["error"] is None
+    assert page.button.clicks == 0
+    await browser.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("url", [
+    "https://fantasy.espn.com/football/waitingroom?leagueId=456",
+    "https://fantasy.espn.com/football/waitingroom?leagueId=123&teamId=22",
+    "https://fantasy.espn.com/football/waitingroom?leagueId=123&seasonId=2025",
+    "https://fantasy.espn.com/football/waitingroom?leagueId=123&leagueId=456",
+    "https://fantasy.espn.com/login?leagueId=123",
+    "https://example.com/football/waitingroom?leagueId=123",
+])
+async def test_observation_never_enters_or_navigates_unverified_waiting_pages(connected, monkeypatch, url):
+    browser, page, context = connected
+    browser._managed = True
+    page.url = url
+    enter = AsyncMock(side_effect=AssertionError("Unverified page retried draft entry."))
+    monkeypatch.setattr(browser, "_enter_from_waiting_room", enter)
+    with pytest.raises(ValueError):
+        await browser.observe()
+    enter.assert_not_awaited()
+    assert page.gotos == [] and context.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("restriction", ["cdp", "season", "existing_entry"])
+async def test_waiting_room_retry_requires_managed_draft_without_prior_entry(connected, monkeypatch, restriction):
+    browser, page, context = connected
+    browser._managed = restriction != "cdp"
+    page.url = "https://fantasy.espn.com/football/waitingroom?leagueId=123"
+    if restriction == "season":
+        browser.page_path = "team"
+    elif restriction == "existing_entry":
+        browser._draft_entry_url = URL + "&memberId=fictional-member"
+    enter = AsyncMock(side_effect=AssertionError("Ineligible session retried draft entry."))
+    monkeypatch.setattr(browser, "_enter_from_waiting_room", enter)
+    with pytest.raises(ValueError):
+        await browser.observe()
+    enter.assert_not_awaited()
+    assert page.gotos == [] and context.calls == []
+
+
+@pytest.mark.asyncio
+async def test_waiting_room_change_during_identity_read_blocks_draft_navigation(connected, monkeypatch):
+    browser, page, context = connected
+    browser._managed = True
+    page.url = "https://fantasy.espn.com/football/waitingroom?leagueId=123"
+    page.root.children = [Node("link", "Enter The Draft", attrs={"href": URL + "&memberId=fictional-member"})]
+
+    async def read_after_navigation(url, headers=None):
+        page.url = "https://fantasy.espn.com/football/waitingroom?leagueId=456"
+        return deepcopy(context.league)
+
+    monkeypatch.setattr(browser, "_read_json", read_after_navigation)
+    with pytest.raises(ValueError, match="waiting room changed"):
+        await browser.observe()
+    assert page.gotos == [] and browser._draft_entry_url is None
+    assert browser.status()["status"] == "observation_blocked"
+
+
+@pytest.mark.asyncio
+async def test_waiting_room_entry_verifies_member_and_selected_roster(connected, monkeypatch):
+    browser, page, context = connected
+    browser._managed = True
+    target = URL + "&memberId=fictional-member"
+    entry = Node("link", "Enter The Draft", attrs={"href": target})
+    roster = Node("combobox", attrs={"value": "11"}, children=[
+        Node("option", "Fictional North", attrs={"value": "11"}),
+        Node("option", "Fictional South", attrs={"value": "22"})])
+    async def navigate(url, **kwargs):
+        page.url = url
+        page.root.children = [entry] if "/waitingroom?" in url else [roster, page.row]
+    monkeypatch.setattr(page, "goto", navigate)
+    assert await browser._enter_from_waiting_room() is True
+    assert await browser._verify_scope() == "11"
+    assert browser._draft_entry_url == target and len(context.calls) == 1
+    assert page.button.clicks == 0
+    roster.attrs["value"] = "22"
+    with pytest.raises(ValueError, match="roster selection"):
+        await browser._verify_scope()
+    roster.attrs["value"] = "11"
+    page.url = target.replace("fictional-member", "different-member")
+    with pytest.raises(ValueError, match="draft member"):
+        await browser._verify_scope()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("change", ["teamId=22", "leagueId=456"])
+async def test_waiting_room_entry_rejects_other_team_or_league(connected, monkeypatch, change):
+    browser, page, context = connected
+    browser._managed = True
+    original = "teamId=11" if change.startswith("teamId") else "leagueId=123"
+    entry = Node("link", "Enter The Draft", attrs={"href": URL.replace(original, change) + "&memberId=fictional-member"})
+    async def navigate(url, **kwargs):
+        page.url = url
+        page.root.children = [entry]
+    monkeypatch.setattr(page, "goto", navigate)
+    with pytest.raises(ValueError, match="requested draft team"):
+        await browser._enter_from_waiting_room()
+    assert browser._draft_entry_url is None and context.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("checked", [False, True])
+async def test_custom_autopick_reads_hidden_input_in_exact_visible_container(connected, checked):
+    browser, page, _ = connected
+    control = Node(attrs={"type": "checkbox"}, checked=checked, visible=False)
+    container = Node(attrs={"selector": "div.autoPick-container"}, children=[
+        Node(text="Autopick", attrs={"selector": "label.autoPick-label"}), control])
+    unrelated = Node(attrs={"type": "checkbox"}, checked=not checked)
+    page.root.children = [page.team_link, container, unrelated]
+    assert await browser._autopick() is checked
+    assert control.clicks == 0 and unrelated.clicks == 0
+
+
+@pytest.mark.asyncio
+async def test_custom_autopick_duplicate_input_is_unknown(connected):
+    browser, page, _ = connected
+    page.root.children = [Node(attrs={"selector": "div.autoPick-container"}, children=[
+        Node(text="Autopick", attrs={"selector": "label.autoPick-label"}),
+        Node(attrs={"type": "checkbox"}), Node(attrs={"type": "checkbox"})])]
+    assert await browser._autopick() is None
+
+
+@pytest.mark.asyncio
+async def test_player_name_placeholder_requires_verified_waiting_room_entry(connected):
+    browser, page, _ = connected
+    search = Node("textbox", attrs={"placeholder": "Player Name"})
+    page.root.children.append(search)
+    with pytest.raises(ValueError, match="no unique player-search"):
+        await browser._search_player(SimpleNamespace(name="Runner Alpha", position="RB", team="ABC"))
+    browser._draft_entry_url = URL + "&memberId=fictional-member"
+    await browser._search_player(SimpleNamespace(name="Runner Alpha", position="RB", team="ABC"))
+    assert search.text == "Runner Alpha"
+
+
+@pytest.mark.asyncio
+async def test_player_search_counts_one_element_matching_placeholder_and_accessible_name_once(connected):
+    browser, page, _ = connected
+    search = Node("textbox", "Search Players", attrs={"placeholder": "Player Name"})
+    page.root.children.append(search)
+    browser._draft_entry_url = URL + "&memberId=fictional-member"
+    await browser._search_player(SimpleNamespace(name="Runner Alpha", position="RB", team="ABC"))
+    assert search.text == "Runner Alpha" and page.button.clicks == 0
+
+
+@pytest.mark.asyncio
+async def test_player_search_still_rejects_two_distinct_matching_elements(connected):
+    browser, page, _ = connected
+    first = Node("textbox", "Search Players", attrs={"placeholder": "Player Name"})
+    second = Node("searchbox", "Search Players", attrs={"placeholder": "Player Name"})
+    page.root.children.extend([first, second])
+    browser._draft_entry_url = URL + "&memberId=fictional-member"
+    with pytest.raises(ValueError, match="no unique player-search"):
+        await browser._search_player(SimpleNamespace(name="Runner Alpha", position="RB", team="ABC"))
+    assert first.text == second.text == "Search Players" and page.button.clicks == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("capture_failure", [False, True])
+async def test_incomplete_history_uses_outer_tab_and_restores_players(connected, monkeypatch, capture_failure):
+    browser, page, _ = connected
+    page.clock = 4
+    players = Node("tab", "Players", attrs={"aria-selected": "true"}, children=[Node("tab", "Players")])
+    history = Node("tab", "Pick History", attrs={"aria-selected": "false"}, children=[Node("tab", "Pick History")])
+    def select_history():
+        players.attrs["aria-selected"], history.attrs["aria-selected"] = "false", "true"
+    def select_players():
+        players.attrs["aria-selected"], history.attrs["aria-selected"] = "true", "false"
+    history.on_click, players.on_click = select_history, select_players
+    page.root.children.extend([players, history])
+    original = page.locator
+    async def history_text(**kwargs):
+        return "ON THE CLOCK: PICK 4\nENABLE AUTOPICK\nPick History"
+    async def accessible(**kwargs):
+        assert history.attrs["aria-selected"] == "true"
+        if capture_failure:
+            raise RuntimeError("Fictional history capture failure")
+        return ('- text: "ON THE CLOCK: PICK 3"\n'
+                '- row "1 Runner Alpha ABC RB Fictional North":\n'
+                '- row "2 Runner Beta ABC RB Fictional South":\n'
+                '- row "3 Runner Gamma ABC RB Fictional South":')
+    def locate(selector):
+        if selector == "body" and history.attrs["aria-selected"] == "true":
+            return SimpleNamespace(inner_text=history_text, aria_snapshot=accessible)
+        return original(selector)
+    monkeypatch.setattr(page, "locator", locate)
+    if capture_failure:
+        with pytest.raises(RuntimeError, match="history capture failure"):
+            await browser.observe()
+    else:
+        snapshot = await browser.observe()
+        assert [pick.player_id for pick in snapshot.picks] == ["101", "102", "103"]
+        assert snapshot.source.browser.current_pick == 4
+    assert players.attrs["aria-selected"] == "true"
+    assert history.clicks == players.clicks == 1
+    assert players.children[0].clicks == history.children[0].clicks == page.button.clicks == 0
 
 
 @pytest.mark.asyncio
@@ -458,3 +716,53 @@ async def test_invalid_connection_scope_never_starts_browser(tmp_path, monkeypat
     with pytest.raises(ValueError):
         await browser.connect(league, team, season)
     start.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("position,team,label", [("RB", "ABC", "Runner Alpha ABC RB"),
+                                               ("DST", "33", "Runner Alpha BAL D/ST")])
+async def test_autocomplete_requires_exact_suggestion_before_row_appears(connected, position, team, label):
+    browser, page, context = connected
+    player = SimpleNamespace(name="Runner Alpha", position=position, team=team)
+    page.root.children.remove(page.row)
+    search = Node("textbox", "Search Players", attrs={"placeholder": "Player Name"})
+    suggestion = Node("button", label, visible=False)
+    misleading = Node("button", "Runner Alpha Jr. ABC RB")
+    search.on_fill = lambda value: setattr(suggestion, "visible", True)
+    suggestion.on_click = lambda: page.root.children.append(page.row)
+    page.root.children.extend([search, suggestion, misleading])
+    await browser._search_player(player)
+    assert search.text == player.name and suggestion.clicks == 1
+    assert misleading.clicks == page.button.clicks == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["duplicate", "disabled", "wrong_team", "wrong_position", "wrong_name", "unknown_team"])
+async def test_autocomplete_ambiguous_or_wrong_identity_never_selects(connected, case):
+    browser, page, _ = connected
+    page.root.children.remove(page.row)
+    player = SimpleNamespace(name="Runner Alpha", position="RB", team="ABC" if case != "unknown_team" else "999")
+    search = Node("textbox", "Search Players")
+    labels = {"wrong_team": "Runner Alpha XYZ RB", "wrong_position": "Runner Alpha ABC WR",
+              "wrong_name": "Runner Alpha Jr. ABC RB"}
+    suggestion = Node("button", labels.get(case, "Runner Alpha ABC RB"), enabled=case != "disabled")
+    page.root.children.extend([search, suggestion])
+    duplicate = Node("button", "Runner Alpha ABC RB")
+    if case == "duplicate":
+        page.root.children.append(duplicate)
+    with pytest.raises((ValueError, TimeoutError)):
+        await browser._search_player(player)
+    assert suggestion.clicks == duplicate.clicks == page.button.clicks == 0
+
+
+@pytest.mark.asyncio
+async def test_autocomplete_rechecks_scope_after_input_changes_page(connected):
+    browser, page, _ = connected
+    page.root.children.remove(page.row)
+    search = Node("textbox", "Search Players")
+    suggestion = Node("button", "Runner Alpha ABC RB")
+    search.on_fill = lambda value: setattr(page, "url", URL.replace("leagueId=123", "leagueId=456"))
+    page.root.children.extend([search, suggestion])
+    with pytest.raises(ValueError, match="exact connected"):
+        await browser._search_player(SimpleNamespace(name="Runner Alpha", position="RB", team="ABC"))
+    assert suggestion.clicks == page.button.clicks == 0

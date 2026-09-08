@@ -1,5 +1,19 @@
 # Release the package
 
+## Version 0.2.2 candidate
+
+Version 0.2.2 includes the compatibility changes from the second live draft trial.
+The local suite passed 509 tests in 31.78 seconds, including 15 isolated Chrome cases.
+Read the [acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for platform fallback picks, manual recovery, and runtime provenance.
+Live draft source evidence does not automatically verify writes from an installed wheel.
+Installed checks, the exact release commit, CI results, and uploaded asset hashes must be recorded after publication.
+
+The reusable CI workflow tests the exact requested commit before packaging.
+Its browser job includes the public draft autocomplete case.
+The PyPI workflow consumes those same-run artifacts after its configured publication gate.
+
+## Historical v0.2.1 evidence
+
 The [v0.2.1 compatibility preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1) is published as a prerelease.
 It uses release commit `ea72798c3bb6b08bb1bcd37e82ce1cfe5fb08d36`.
 All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34186633175) passed.
