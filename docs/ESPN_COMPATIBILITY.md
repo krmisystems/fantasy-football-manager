@@ -48,8 +48,8 @@ The second draft trial used installed v0.2.1 dependencies and changing working-t
 | Autocomplete did not filter the player grid after text entry | At pick 131, manual suggestion selection was too late. ESPN Autopick selected a player. The proposal reconciled as `not_selected`. | Failure recorded. Exact autocomplete selection now has a fictional Chrome regression. |
 | History recovery after restart | Availability and secondary-position labels exposed parser gaps. Manual recovery and patches restored complete history. | Recovery recorded. No claim of uninterrupted operation. |
 | Second draft completion | All 160 league selections were verified. The selected roster contained 16 players: 13 manager-confirmed picks and 3 ESPN Autopicks. | Completed with failures and interventions. No duplicate submissions were observed. |
-| Server season checks | After the fourth draft, all four exact Week 1 contexts had fresh browser observations and verified selected-team locks. | The [verified handoff](SERVER_ACCEPTANCE.md) recorded zero new lineup authorizations and zero unresolved authorized claims. Live server lineup submission remains Not Tested. |
-| Future evaluation | All three additional draft trials are complete. The fifth roster's season handoff and a five-team season trial remain pending. | Planned. Each completed draft retains its own runtime, failure, and execution-source limits. |
+| Server season checks | After the fifth draft, all five exact Week 1 contexts had fresh browser observations, verified selected-team locks, and current accepted lineup calculations. | The [verified handoff](SERVER_ACCEPTANCE.md) recorded zero new lineup authorizations and zero unresolved authorized claims. Live server lineup submission remains Not Tested. |
+| Future evaluation | All three additional draft trials and five-team Week 1 observation are complete. Five-team season outcomes remain pending. | Planned. Each completed draft retains its own runtime, failure, and execution-source limits. |
 | Third draft trial | Host-capture reconciliation verified all 160 picks against the stored 133-pick prefix. Thirteen manager picks and three platform fallbacks filled the roster. | Team-name whitespace, a D/ST selector failure, and a late browser handoff required recovery. The final import has a separate source provider. Read the [third-draft record](THIRD_DRAFT_ACCEPTANCE.md). |
 | Fourth draft trial | All 160 league picks and 16 manager-confirmed selections were verified. Zero ESPN Autopicks and zero host-browser draft clicks occurred. | Installed v0.3.1 execution methods were unchanged. A private launcher handled collection and lifecycle. No package patches, restart, or manual recovery were required during the run. Read the [fourth-draft record](FOURTH_DRAFT_ACCEPTANCE.md). |
 | Fourth draft preauthorization error | One `browser_control` error occurred at the first turn. Its exact text was unavailable. | A later check recovered before submission. The error remains recorded despite all 16 confirmed selections. |
@@ -79,7 +79,8 @@ The recorded v0.3.1 Windows run passed **611 tests**, including **17 isolated Ch
 The separate Linux PostgreSQL run passed **23 archive tests**.
 These counts describe the recorded runs. Re-run the gates for a changed candidate.
 The v0.3.2 source passed 611 tests with 19 skips in the base run, then all 17 separate Chrome cases.
-Together, these runs passed **628 tests**, with two remaining skips. Its seven-job CI gate remains pending.
+Together, these runs passed **628 tests**, with two remaining local skips.
+All seven [v0.3.2 source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278096118) passed, including PostgreSQL and Chrome integration.
 
 Run all three Chrome fixture files with installed Google Chrome.
 On Linux or macOS:

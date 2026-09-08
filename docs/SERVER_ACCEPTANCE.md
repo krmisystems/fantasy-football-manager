@@ -1,12 +1,80 @@
 # Server and archive acceptance
 
-**Status: Verified archive import, four-team Week 1 observation, historical backup recovery, and service restart.**
+**Status: Verified five-team Week 1 observation and analysis, archive import, historical backup recovery, and service restart.**
 
-This record retains the v0.3.0 checks and the v0.3.1 third-team and fourth-team handoffs on 2026-09-08.
+This record includes the v0.3.2 five-team handoff and retains the earlier versioned checks on 2026-09-08.
 Deployment identities, account information, manifests, and raw evidence remain private.
 The checks below describe the tested configuration. They do not establish unattended season operation.
 
-## Four-team season handoff and backup
+## Five-team season handoff
+
+The [fifth draft](FIFTH_DRAFT_ACCEPTANCE.md) required operator recovery after an opponent selection with no season projection blocked history.
+Its final host capture verified all 160 league picks and matched the stored 132-pick prefix.
+The result retains 13 manager confirmations, two direct host-browser confirmations, and one unattributed selection.
+The v0.3.2 recovery import used a separate source provider and the original host observation time.
+It preserved all 501 earlier player records and their projection timestamp. Only the missing opponent identity was added, with unknown projected points.
+
+The recovery and activation helpers passed 57 isolated checks and independent review.
+Their transaction guards reject changed history, configuration revisions, and unresolved authorized claims.
+The original gate that required 16 manager confirmations remained blocked and unchanged.
+
+Before the upgrade, the archive recorded five separate event cutoffs and preserved every existing immutable run.
+Five new collection runs use `null` runtime and code revision fields because their exports include earlier history.
+The prior draft remains attributed to unchanged installed v0.3.1 methods and a private orchestration launcher.
+The later history recovery and season observations use v0.3.2.
+
+All 22 installed files matched the reviewed v0.3.2 wheel after the upgrade. Dependency versions remained unchanged.
+The coordinator started at **21:12:39 UTC** with five explicit 2026 Week 1 team contexts.
+Activation preserved the four existing contexts and policies.
+
+At **21:15:18 UTC**, two complete coordinator cycles had passed.
+All five teams had complete, fresh `espn_browser` observations, verified selected-team locks, and current accepted lineup calculations with status `ok`.
+The calculations matched the saved state and configuration revisions and their input fingerprints.
+Source ages ranged from 62 to 75 seconds, rounded, within the configured 300-second limit.
+All five lineup modes were automatic and unpaused, with a 1.5-point minimum improvement.
+There were zero unresolved claims and zero new lineup authorizations.
+
+An independent check after three completed cycles confirmed the same conditions.
+No post-start error or attention transition appeared in the checked durable events.
+A privileged journal read also found no error entries during the checked window.
+The review account could not read the journal directly; the privileged read resolved that evidence gap without a permission change.
+
+These checks verify five-team observation and analysis. No live server lineup swap occurred during the checked cycles.
+Live server lineup submission and an unattended season remain **Not Tested**.
+Automatic week rollover, live waivers, drops, acquisitions, and trades are not implemented.
+Read [the multi-team evaluation plan](MULTI_TEAM_ACCEPTANCE.md) for the remaining season evidence.
+
+## Five-team archive and backup verification
+
+At **21:22:15 UTC**, every outbox event through each checked cutoff was present in the archive:
+
+| Anonymous source | Checked events | Missing events |
+|---|---:|---:|
+| Team A | 3,126 | 0 |
+| Team B | 3,129 | 0 |
+| Team C | 1,101 | 0 |
+| Team D | 1,432 | 0 |
+| Team E | 1,378 | 0 |
+
+All earlier immutable run metadata remained unchanged.
+The fifth draft's selections at 146 and 155 received `host_browser` executor labels from their exact host receipts.
+Selection 135 received an `unknown` label. A missing manager receipt was not treated as evidence of Autopick.
+The label update preserved all earlier operator labels, source contexts, and run metadata.
+These counts verify storage coverage. Mixed-history collections can repeat evidence and do not represent independent outcomes.
+
+The backup created at **21:23:32 UTC** contains eight files: one PostgreSQL dump, five SQLite databases, and two private configuration files.
+All eight sizes and SHA-256 checksums matched their manifest entries.
+Every SQLite backup passed `PRAGMA quick_check` and matched its expected fresh Week 1 context.
+`pg_restore --list` read the PostgreSQL dump successfully. A new PostgreSQL restore was **Not Tested**.
+
+The final check at **21:25:11 UTC** passed after ten completed coordinator cycles.
+All five current lineup calculations, contexts, locks, and effective policies still passed.
+Source ages ranged from 31.8 to 46.2 seconds. There were zero unresolved claims, new lineup authorizations, or manager lineup submissions.
+Team B already had the target lineup. Teams A, C, D, and E had no admissible single exchange under their limits.
+The archive, backup, and discovery timers were active. Their latest service results were successful with exit code zero.
+The coordinator continued five-team visits after verification.
+
+## Historical four-team season handoff and backup
 
 The [fourth draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own picks and captured 160 picks through the live server browser.
 Its private launcher exited successfully and released the shared profile before season activation.
@@ -46,7 +114,8 @@ A new PostgreSQL restore was **Not Tested** for this backup. The historical rest
 
 The archive, backup, and discovery timers were active. Their latest service results were successful.
 The coordinator continued four-team visits after verification.
-One further draft and five-team season evaluation remain [Planned](MULTI_TEAM_ACCEPTANCE.md).
+At that checkpoint, one further draft and the five-team evaluation remained planned.
+The subsequent fifth draft and five-team observations appear above.
 
 ## Historical version 0.3.1 third-team handoff
 

@@ -1,14 +1,14 @@
 # Discovery and distribution acceptance
 
-**Scope: v0.3.0 discovery changes and v0.3.1 distribution checks. Updated: 2026-09-08.**
+**Scope: v0.3.2 distribution checks and historical discovery evidence. Updated: 2026-09-08.**
 
 This record separates implemented changes from publication and measured adoption.
 Deployment identities, credentials, traffic snapshots, and private league records remain outside the repository.
 
-Version 0.3.1 adds the tested fixes from the [third draft](THIRD_DRAFT_ACCEPTANCE.md).
-GitHub, PyPI, and MCP Registry publication checks passed. The local plugin update is verified.
-Remote v0.3.1 SSH command checks passed with the state-isolation limit recorded below.
-The historical v0.3.0 records retain their original evidence scope.
+Version 0.3.2 adds the tested player-identity fix from the [fifth draft](FIFTH_DRAFT_ACCEPTANCE.md).
+GitHub, PyPI, and MCP Registry publication checks passed. Fresh public installation and the local plugin update are verified.
+The v0.3.2 server upgrade and remote SSH command checks passed with the state-isolation limit recorded below.
+Historical release records retain their original evidence scope.
 
 ## Findings and verification
 
@@ -28,6 +28,56 @@ The repository description is:
 
 Topics are `browser-automation`, `codex`, `codex-plugin`, `espn`, `fantasy-draft`, `fantasy-football`, `lineup-optimization`, `mcp`, `mcp-server`, `monte-carlo`, `python`, and `self-hosted`.
 
+## Version 0.3.2 distribution checks
+
+The release source commit is `2810a7503073a52b4f80aacc4a35bf8d987530c5`.
+All seven [main CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278096118) passed.
+Local checks passed **628 tests with two skips** across the base suite and separate Chrome run.
+All **17 isolated Chrome cases** passed. PostgreSQL configuration and Windows symlink privileges account for the remaining skips.
+
+| Channel | Verified state |
+|---|---|
+| GitHub releases | [v0.3.2](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.2) is published as a prerelease. All five public asset downloads matched the reviewed hashes. |
+| PyPI | [v0.3.2](https://pypi.org/project/fantasy-football-manager/0.3.2/) is published. All seven checks and publication passed in the [approved workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278117606). Public metadata and downloaded distributions matched the reviewed build. |
+| MCP Registry | The [v0.3.2 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.2) was active and latest at 21:09:50 UTC on 2026-09-08. Exact-version and latest responses matched the reviewed metadata. The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278805847) passed. |
+| Local Codex plugin | Version 0.3.2 is installed and enabled with a Codex cachebuster. All six installed files match the cache. The private SSH configuration, including `PROGRAMDATA`, remains byte-identical. |
+
+Both public PyPI distributions matched these reviewed values:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `fantasy_football_manager-0.3.2-py3-none-any.whl` | 105304 | `da18734a6af2fbad0d1cdb07399212fdc912a4c067665205e9e7737b7958dbb3` |
+| `fantasy_football_manager-0.3.2.tar.gz` | 322304 | `b54c3084abd69151a6e004c890852d5b01b0706f6837b1d33f3246b0d09120a5` |
+
+A fresh Python 3.12.13 environment installed `fantasy-football-manager==0.3.2` from the public PyPI index with cache disabled.
+At 21:10:03 UTC, both installed commands reported version 0.3.2 and listed 17 manager tools and 13 ESPN tools.
+The manager capability check and ESPN status check passed.
+This check did not open a browser, load real league state, or submit a live action.
+
+The first fresh installation could not find version 0.3.2 in the public simple index, although metadata and distribution files were visible.
+The second fresh installation passed after the simple index listed the version.
+The failed attempt and successful retry remain separate private receipts.
+
+The Registry record describes the manager entry point and links the paired installation guide.
+Live browser actions require the ESPN companion entry point or the two-server Codex plugin.
+These distribution checks do not establish official Codex marketplace inclusion.
+A new Codex thread must load the updated local plugin.
+
+The server upgrade completed separately at 21:11:49 UTC on 2026-09-08.
+All 22 installed package files matched the reviewed v0.3.2 CI wheel. Dependency versions remained unchanged.
+At 21:13:17 UTC, the preserved manager SSH target reported version 0.3.2 and 17 tools.
+The ESPN command reported version 0.3.2 and 13 tools through the same SSH transport, environment, and installed executable.
+Only its state directory changed to an isolated temporary directory, which was removed after the check.
+The private MCP configuration remained unchanged.
+
+The ESPN check did not launch the preserved league target or connect a provider browser.
+No live action occurred. This isolation prevented lifecycle status writes to the coordinator's league database.
+The five-team coordinator separately passed fresh Week 1 observation and current lineup analysis.
+The final [server acceptance check](SERVER_ACCEPTANCE.md) verified ten coordinator cycles, all five archive cutoffs, and an eight-file backup.
+The backup check verified file hashes, five SQLite integrity checks, and the PostgreSQL dump catalog. It did not perform a new PostgreSQL restore.
+**Not Tested:** live draft submission through the corrected installed v0.3.2 wheel.
+The [fifth draft record](FIFTH_DRAFT_ACCEPTANCE.md) separates its v0.3.1 live execution from the v0.3.2 fixture checks.
+
 ## Version 0.3.1 distribution checks
 
 The release source commit is `5fd4727d0f21751508c9caac3fba62ba03c8c756`.
@@ -39,7 +89,7 @@ The local suite passed **611 tests with two skips**, including **17 isolated Chr
 | GitHub releases | [v0.3.1](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.1) is published as a prerelease. All five public downloads matched the reviewed hashes and sizes. |
 | PyPI | [v0.3.1](https://pypi.org/project/fantasy-football-manager/0.3.1/) is published. The [approved workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262132640) passed. A fresh public installation passed checks for both MCP commands. |
 | MCP Registry | The [v0.3.1 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.1) was active and latest at 18:28:25 UTC on 2026-09-08. Exact-version and latest responses matched the reviewed metadata. The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262942173) passed from the release commit. |
-| Local Codex plugin | Version 0.3.1 is installed and enabled with a Codex cachebuster. All six installed files match the cache. The private SSH configuration, including `PROGRAMDATA`, remains byte-identical. |
+| Local Codex plugin | Version 0.3.1 was installed and enabled with a Codex cachebuster at this check. All six installed files matched the cache. The private SSH configuration, including `PROGRAMDATA`, remained byte-identical. |
 
 A fresh Python 3.12.13 environment installed `fantasy-football-manager==0.3.1` from the public PyPI index.
 The check disabled cache and local configuration and removed environment overrides.
@@ -115,7 +165,12 @@ Installed v0.3.1 execution methods remained unchanged. A private orchestration l
 One preauthorization browser error recovered without operator intervention. No platform fallback or manual selection was required.
 Live D/ST selection passed. The exact autocomplete branch remains separate fixture evidence.
 
-The server verified four-team Week 1 observation and analysis without a qualifying single lineup swap.
+The [fifth draft](FIFTH_DRAFT_ACCEPTANCE.md) verified 13 manager selections, two direct host selections, and one selection with an unidentified executor.
+The final host capture contains all 160 picks and matches the stored 132-pick prefix.
+An opponent's missing season projection blocked the unchanged v0.3.1 parser. Version 0.3.2 has separate fixture evidence for the correction.
+Five-team Week 1 observation, current lineup calculations, archive cutoff coverage, and backup checks passed.
+
+The earlier server checks verified four-team Week 1 observation and analysis without a qualifying single lineup swap.
 The archive contained every event through four checked cutoffs. All four SQLite backups passed checksum, context, and quick checks.
 The five-team season evaluation remains planned. Read the [multi-team plan](MULTI_TEAM_ACCEPTANCE.md) for draft trial status.
 

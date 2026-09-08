@@ -57,8 +57,12 @@ All 132 previously stored picks matched the captured prefix exactly.
 The comparison retained the existing 501 player records and added the missing verified opponent identity with `projection=None`.
 Unknown projected points remained unknown. The comparison did not invent a zero-point forecast.
 
-Stored-history import and fresh Week 1 observation for this roster remain **Planned** at this documentation checkpoint.
-The existing four-team server result remains in [server acceptance](SERVER_ACCEPTANCE.md).
+The reviewed v0.3.2 runtime imported this history with provider `espn_host_browser_reconciliation`.
+The import preserved the draft configuration, 501 prior player records, projection timestamp, and selection attribution.
+A transaction guard rejected changed revisions, changed history, and unresolved claims before any import mutation.
+The private recovery and activation helpers passed 57 isolated checks and independent review.
+Fresh Week 1 observations are recorded separately in [server acceptance](SERVER_ACCEPTANCE.md).
+That handoff verified all five teams, current lineup calculations, archive cutoff coverage, and an eight-file backup.
 A complete host capture does not establish current server browser state or permission to submit a season action.
 
 ## Measured work
@@ -71,6 +75,11 @@ All 13 manager receipts contain authorization and platform observation timestamp
 Their median interval was **2.449 seconds**, with a **1.323 to 3.500 second range**, rounded from the retained timestamps.
 This measures authorization to platform observation. It does not measure exact click time, network latency, or the full decision cycle.
 The two host receipts record separate observation and click-return times. They are excluded from the manager timing summary.
+
+The primary read-only supervisor collected 1,051 samples without a read error.
+Before the parser failure, 872 samples showed source ages no greater than 8 seconds and no enabled Autopick flag.
+An optional error-capture helper exited with SSH code 1 and no retained error output. Its cause remains unknown.
+That helper restarted with error capture. The primary supervisor remained active, and the draft worker was not restarted.
 
 The simulation uses conditional player availability and projected value over a two-pick horizon.
 More trials do not establish independent outcome samples, better selections, or championship odds.
@@ -87,7 +96,9 @@ The [parser tests](../tests/test_espn_data.py) cover API, Activity, plain histor
 The [engine tests](../tests/test_draft.py) check roster occupancy, excluded scoring inputs, and missing weekly evidence.
 The base local run passed 611 tests with 19 skips. The separate Chrome run passed all 17 integration cases.
 Combined, these runs passed **628 tests**, with two remaining skips for PostgreSQL configuration and Windows symlink privileges.
-The seven-job CI gate remains pending at this checkpoint. Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for publication records.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278096118) passed for commit `2810a7503073a52b4f80aacc4a35bf8d987530c5`.
+The jobs covered Windows and Ubuntu on Python 3.11 and 3.14, Chrome integration, PostgreSQL integration, and packaging.
+Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for publication records.
 No live draft used version 0.3.2. Its fixture results do not relabel this v0.3.1 run as corrected-wheel acceptance.
 
 The [compatibility matrix](ESPN_COMPATIBILITY.md) records the fix and its limits.

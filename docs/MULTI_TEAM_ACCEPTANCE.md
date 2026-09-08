@@ -1,16 +1,19 @@
 # Multi-team acceptance plan
 
-**Status: Two additional drafts completed. One draft and the five-team season evaluation remain Planned.**
+**Status: All three additional drafts completed. Five-team Week 1 observation passed. Season outcomes remain Planned.**
 The [third team draft](THIRD_DRAFT_ACCEPTANCE.md) is the first of the three additional trials.
 It verified all 160 selections and a 16-player roster, with 13 manager-confirmed picks and three platform fallbacks.
 The [fourth team draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own selections and captured all 160 league picks.
 It used unchanged installed version 0.3.1 execution methods with a private orchestration launcher.
 One preauthorization browser error recovered without operator intervention. No platform fallback or manual selection was required.
+The [fifth team draft](FIFTH_DRAFT_ACCEPTANCE.md) completed with 13 manager-confirmed picks, two direct host-browser picks, and one unattributed selection.
+Missing opponent projection data blocked history normalization. Operator recovery completed the roster.
+The final host capture matched all 132 previously stored picks and established all 160 league selections.
 The five-team season evaluation remains planned. Season outcomes are not yet recorded.
 
 Version 0.3.0 adds a serial season coordinator with separate league databases and a shared server browser.
-Four-team Week 1 server observation is recorded in [server acceptance](SERVER_ACCEPTANCE.md).
-Five-team season acceptance remains planned.
+Five-team Week 1 server observation and current lineup calculations are recorded in [server acceptance](SERVER_ACCEPTANCE.md).
+These checks do not establish unattended season completion or a live server lineup submission.
 
 ## Failures to retain
 
@@ -32,6 +35,9 @@ The private runtime workaround, planned restart, late browser handoff, and three
 Version 0.3.1 fixes both compatibility cases in isolated tests.
 The fourth draft adds live evidence for the installed adapter, including a confirmed D/ST selection.
 That receipt does not establish which player-search branch was used.
+The fifth draft exposed a separate missing-projection failure after 132 stored picks.
+Version 0.3.2 retains verified opponent identities without assigning projected points.
+The missed turn, two host selections, and unverified executor remain in the fifth report after the fix.
 
 ## Separate state and browser access
 
@@ -42,9 +48,9 @@ The manager and ESPN processes for one league must use the same state directory.
 Use `FFM_BROWSER_DATA_DIR` when controllers must share one authenticated browser profile.
 The profile lease permits only one active controller at a time.
 The current source can retain separate league state while controllers use that profile in sequence.
-Live acceptance of five-team scheduling and profile transitions remains pending.
+Five-team serial visits passed with fresh Week 1 data and current lineup calculations.
 
-The diagram shows the planned five-team evaluation using the implemented season coordinator.
+The diagram shows the tested five-team configuration using the season coordinator.
 Use the [server instructions](SERVER.md) to configure explicit team and week contexts.
 
 ```mermaid
@@ -79,7 +85,7 @@ Keep deliberate fault injection in isolated browser tests.
 |---|---|---|
 | Draft A | Verify waiting-room entry, identity, disabled Autopick, and readiness before the first turn. | Completed as the third team draft. Failures required operator recovery. Thirteen picks have manager confirmations, and three have operator fallback labels. |
 | Draft B | Repeat automatic selection with autocomplete, complete history, and platform receipts. | Completed as the fourth team draft. All 16 own selections have manager confirmations. Live D/ST selection passed. The exact autocomplete branch remains fixture evidence. |
-| Draft C | Repeat through roster completion and verify the resulting league context for season monitoring. | Pending. |
+| Draft C | Repeat through roster completion and verify the resulting league context for season monitoring. | Completed as the fifth team draft. Thirteen manager picks, two host picks, and one unattributed selection filled the roster. Missing projection data required recovery. The final host capture and later Week 1 observation passed separately. |
 
 For each run:
 

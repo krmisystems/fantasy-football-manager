@@ -11,6 +11,8 @@ Version 0.3.2 separates verified opponent identity from season projection availa
 An opponent draft selection can retain `projection=None` when its identity and owner are verified.
 The engine counts that player's position and roster occupancy. It excludes the player from scoring and recommendation pools.
 Available and selected-team players still require season projections. Ambiguous identity and incorrect ownership still block the snapshot.
+The manager capability response links to the versioned compatibility report.
+This replaces the single `pending` acceptance label without granting additional execution capabilities.
 
 The [parser tests](../tests/test_espn_data.py) cover API, Activity, plain history, and accessibility history inputs.
 They also cover absent records, empty statistics, preserved projection timestamps, and a complete 160-pick replay.
@@ -18,7 +20,8 @@ The [engine tests](../tests/test_draft.py) verify roster caps, excluded scoring 
 The base local run passed **611 tests with 19 skips in 17.46 seconds**.
 The separate Chrome integration run passed **17 tests in 19.59 seconds**.
 Combined, these runs passed **628 tests**, with two remaining skips for PostgreSQL configuration and Windows symlink privileges.
-The seven-job CI gate remains pending.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278096118) passed for commit `2810a7503073a52b4f80aacc4a35bf8d987530c5`.
+This includes Windows and Ubuntu on Python 3.11 and 3.14, Chrome, PostgreSQL, and package checks.
 No live draft used version 0.3.2. Its tests do not establish installed-wheel live submission acceptance.
 
 The [fifth draft](FIFTH_DRAFT_ACCEPTANCE.md) used unchanged installed v0.3.1 execution methods and a private orchestration launcher.
@@ -30,7 +33,11 @@ Autopick was off before and after both direct clicks. No evidence establishes th
 The final host capture contains **160 ordered selections and all 16 own picks**.
 Private checks matched every row's identity, position, NFL team, and snake-order owner.
 All 132 stored picks matched the capture. The existing 501 player records remained unchanged during comparison.
-Stored-history import and the fifth roster's fresh Week 1 handoff remain pending.
+The reviewed v0.3.2 runtime imported the full history with provider `espn_host_browser_reconciliation`.
+The import retained the original host observation time and selection attribution. It did not grant permission for a live draft action.
+The private recovery and activation helpers passed 57 isolated checks and independent review.
+Read [server acceptance](SERVER_ACCEPTANCE.md) for the separate fresh Week 1 handoff.
+Its final check passed after ten coordinator cycles, with five current lineup calculations, zero unresolved claims, five complete archive cutoffs, and an eight-file backup.
 This trial required recovery and does not establish unattended draft completion.
 
 The frozen manager record contains **1,124 completed, accepted calls and 44,960 completed trials**.
@@ -92,7 +99,7 @@ The [MCP Registry v0.3.1 record](https://registry.modelcontextprotocol.io/v0.1/s
 Exact-version and latest responses matched the reviewed metadata.
 The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262942173) passed from the release commit.
 
-The local Codex plugin is installed and enabled at version 0.3.1 with a Codex cachebuster.
+The local Codex plugin was installed and enabled at version 0.3.1 with a Codex cachebuster at that check.
 All six installed files matched the cache. The private SSH configuration, including `PROGRAMDATA`, remained byte-identical.
 The separate server upgrade verified all 22 installed v0.3.1 package files without dependency version changes.
 The preserved manager SSH connection passed initialization, 17-tool listing, capability, and source-status checks.

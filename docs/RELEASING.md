@@ -3,6 +3,40 @@
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for current publication status.
 The records below retain their original version and validation scope.
 
+## Published v0.3.2 evidence
+
+Version 0.3.2 preserves a verified opponent identity when its season projection is missing.
+That identity can complete draft history but cannot enter scoring or candidate selection.
+The [fifth draft record](FIFTH_DRAFT_ACCEPTANCE.md) preserves the failure and direct host recovery that led to this correction.
+Local checks passed 628 tests with two skips across the base suite and separate Chrome run.
+All 17 isolated Chrome cases passed.
+
+The [v0.3.2 GitHub prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.2) uses commit `2810a7503073a52b4f80aacc4a35bf8d987530c5`.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278096118) passed.
+All five public asset downloads matched the reviewed hashes.
+
+The [v0.3.2 PyPI package](https://pypi.org/project/fantasy-football-manager/0.3.2/) passed all seven checks and publication in the [approved workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278117606).
+Public metadata and downloaded distributions matched the reviewed wheel and source archive.
+A fresh public installation passed STDIO checks for 17 manager tools and 13 ESPN tools at 21:10:03 UTC on 2026-09-08.
+Both commands reported version 0.3.2. No browser connection or live action occurred.
+The first installation could not find the version in the public simple index. A fresh retry passed after the index listed it.
+
+The [MCP Registry v0.3.2 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.2) was active and latest at 21:09:50 UTC on 2026-09-08.
+Exact-version and latest responses matched the reviewed metadata.
+The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278805847) passed.
+
+The local plugin is installed and enabled at version 0.3.2 with a Codex cachebuster.
+All six installed plugin files matched the cache. The private SSH configuration remained byte-identical.
+The separate server upgrade matched all 22 package files to the reviewed v0.3.2 CI wheel. Dependency versions remained unchanged.
+SSH checks passed for 17 manager tools through the preserved target and 13 ESPN tools through temporary isolated state.
+Both commands reported version 0.3.2. The private MCP configuration remained unchanged.
+The ESPN check did not launch the preserved league target, connect a provider browser, or submit an action.
+Fresh five-team Week 1 observation and current lineup calculations passed.
+The [final server check](SERVER_ACCEPTANCE.md) verified ten coordinator cycles, five archive cutoffs with no missing events, and the eight-file backup.
+Five SQLite integrity checks and the PostgreSQL dump catalog check passed. No new PostgreSQL restore was performed.
+Live draft submission through the corrected installed v0.3.2 wheel remains **Not Tested**.
+Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md#version-032-distribution-checks) for artifact hashes and installation limits.
+
 ## Published v0.3.1 evidence
 
 Version 0.3.1 fixes team-name whitespace and slash delimiters in D/ST selectors.
@@ -22,7 +56,7 @@ The [MCP Registry v0.3.1 record](https://registry.modelcontextprotocol.io/v0.1/s
 Exact-version and latest responses matched the reviewed metadata at 18:28:25 UTC on 2026-09-08.
 The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262942173) passed from the release commit.
 
-The local plugin is installed and enabled at version 0.3.1 with a Codex cachebuster.
+The local plugin was installed and enabled at version 0.3.1 with a Codex cachebuster at this check.
 All six installed plugin files matched the cache, and the private SSH configuration remained byte-identical.
 After the separate server upgrade, SSH checks passed for the v0.3.1 manager and ESPN commands.
 The manager used the preserved target. ESPN used temporary isolated state to avoid lifecycle writes to the running coordinator.
@@ -152,7 +186,7 @@ The plugin registers both commands. A direct MCP installation must register each
 Publish the Python package before submitting registry metadata.
 The README contains the matching `mcp-name` marker needed for PyPI package ownership checks.
 
-The manual [Registry workflow](../.github/workflows/registry.yml) publishes the reviewed v0.3.1 record from `main`.
+The manual [Registry workflow](../.github/workflows/registry.yml) publishes the reviewed version from `main`.
 It checks out the exact dispatch commit and validates the metadata.
 It checks the public PyPI version, ownership marker, and distribution files before authentication.
 It stops if that Registry version already exists or the availability check fails.
@@ -160,7 +194,7 @@ The workflow verifies the pinned publisher download against its SHA-256 digest.
 It then authenticates with GitHub OIDC and publishes the staged record.
 The workflow uses a temporary identity token. It does not require a stored Registry token.
 
-Dispatch the workflow with version `0.3.1` after the package checks pass.
+For a new release, dispatch the workflow with the reviewed version after the package checks pass.
 Verify the published namespace, version, and package in the Registry response.
 For a later release, review the version choice and metadata digest before dispatch.
 See the [official GitHub OIDC instructions](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/github-actions.mdx).
