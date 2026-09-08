@@ -27,9 +27,12 @@ All six installed plugin files matched the cache, and the private SSH configurat
 After the separate server upgrade, SSH checks passed for the v0.3.1 manager and ESPN commands.
 The manager used the preserved target. ESPN used temporary isolated state to avoid lifecycle writes to the running coordinator.
 
-The corrected source has fixture evidence, but no completed live draft trial.
-The final host capture matched the stored draft prefix and completed a separately labeled history import.
-All three teams then passed fresh Week 1 browser observation. No live server lineup swap was submitted.
+The [fourth draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own selections with unchanged installed v0.3.1 execution methods.
+A private launcher collected the remaining league picks. All 160 picks came from the live server browser.
+One preauthorization browser error recovered without operator intervention. Live D/ST selection passed, with its exact search branch unverified.
+Four teams then passed fresh Week 1 browser observation, archive cutoff checks, and backup validation.
+No live server lineup swap qualified during the checked cycles. Read [server acceptance](SERVER_ACCEPTANCE.md) for the exact verification limits.
+The earlier third-draft host-capture import remains a separate historical result.
 See [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the complete channel checks and installation limits.
 
 ## Published v0.3.0 evidence
@@ -169,7 +172,8 @@ See [MCP Registry package types](https://modelcontextprotocol.io/registry/packag
 ## Evidence for live operation
 
 Run the complete offline suite before release. Record its actual count and platform in the release notes.
-Keep packaged live acceptance marked untested until authenticated draft and lineup actions confirm their respective full paths.
+Track draft and lineup acceptance separately. Require authenticated action receipts for each claimed path.
+Record the installed package, private launchers, and interventions with each live result.
 Isolated Chrome fixture tests verify browser mechanics without changing a real league.
 Earlier direct browser picks do not establish packaged selector compatibility.
 Distinguish implemented lineup automation from live acceptance testing.

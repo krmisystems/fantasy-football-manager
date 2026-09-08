@@ -123,7 +123,7 @@ uv run pytest -q
 | Fresh server draft-room observation after completion | Not established. Both reconnection attempts failed. A separately labeled host-capture import completed reconciliation. |
 | Season handoff for this roster | Verified after the v0.3.1 server upgrade. Three exact Week 1 contexts produced fresh browser observations, verified selected-team locks, and zero unresolved claims. |
 | Unchanged installed v0.3.0 live execution | Not Tested by this modified runtime. |
-| Final corrected source in a live draft | Not Tested. The source fixes passed isolated regression tests after the failures. |
+| Final corrected source in this live draft | Not Tested by this run. The source fixes passed isolated tests afterward. The separate [fourth draft](FOURTH_DRAFT_ACCEPTANCE.md) records later installed v0.3.1 execution. |
 | Unattended completion and automatic fallback recovery | Not established. Operator interventions were required. |
 
 The [compatibility matrix](ESPN_COMPATIBILITY.md) records supported layouts and earlier failures.

@@ -1,12 +1,15 @@
 # Multi-team acceptance plan
 
-**Status: One additional draft completed with failures and operator recovery. Two drafts remain planned.**
+**Status: Two additional drafts completed. One draft and the five-team season evaluation remain Planned.**
 The [third team draft](THIRD_DRAFT_ACCEPTANCE.md) is the first of the three additional trials.
 It verified all 160 selections and a 16-player roster, with 13 manager-confirmed picks and three platform fallbacks.
+The [fourth team draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own selections and captured all 160 league picks.
+It used unchanged installed version 0.3.1 execution methods with a private orchestration launcher.
+One preauthorization browser error recovered without operator intervention. No platform fallback or manual selection was required.
 The five-team season evaluation remains planned. Season outcomes are not yet recorded.
 
 Version 0.3.0 adds a serial season coordinator with separate league databases and a shared server browser.
-Three-team Week 1 server observation is recorded in [server acceptance](SERVER_ACCEPTANCE.md).
+Four-team Week 1 server observation is recorded in [server acceptance](SERVER_ACCEPTANCE.md).
 Five-team season acceptance remains planned.
 
 ## Failures to retain
@@ -26,7 +29,9 @@ See the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for the final r
 
 The third team draft exposed two further compatibility failures: API team-name whitespace and a D/ST selector delimiter.
 The private runtime workaround, planned restart, late browser handoff, and three platform fallbacks remain recorded in the [third draft report](THIRD_DRAFT_ACCEPTANCE.md).
-Version 0.3.1 fixes both compatibility cases in isolated tests. The corrected source still needs a live draft trial.
+Version 0.3.1 fixes both compatibility cases in isolated tests.
+The fourth draft adds live evidence for the installed adapter, including a confirmed D/ST selection.
+That receipt does not establish which player-search branch was used.
 
 ## Separate state and browser access
 
@@ -73,7 +78,7 @@ Keep deliberate fault injection in isolated browser tests.
 | Run | Planned focus | Result |
 |---|---|---|
 | Draft A | Verify waiting-room entry, identity, disabled Autopick, and readiness before the first turn. | Completed as the third team draft. Failures required operator recovery. Thirteen picks have manager confirmations, and three have operator fallback labels. |
-| Draft B | Repeat automatic selection with autocomplete, complete history, and platform receipts. | Pending. |
+| Draft B | Repeat automatic selection with autocomplete, complete history, and platform receipts. | Completed as the fourth team draft. All 16 own selections have manager confirmations. Live D/ST selection passed. The exact autocomplete branch remains fixture evidence. |
 | Draft C | Repeat through roster completion and verify the resulting league context for season monitoring. | Pending. |
 
 For each run:

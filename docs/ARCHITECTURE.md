@@ -113,7 +113,8 @@ Per-launch status preserves a startup failure without replacing another worker's
 
 Saved state and proposals survive normal restarts through SQLite.
 The worker is not an operating-system service and has no automatic reboot recovery.
-See the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for authenticated submission evidence and its runtime limits.
+See the [fourth draft record](FOURTH_DRAFT_ACCEPTANCE.md) for installed v0.3.1 submissions with a private orchestration launcher.
+The earlier [live draft record](LIVE_DRAFT_ACCEPTANCE.md) retains its development-runtime limits and recovery failures.
 Live lineup submission still needs a separate acceptance check.
 
 ## Draft entry and season handoff

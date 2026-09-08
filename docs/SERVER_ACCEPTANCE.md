@@ -1,12 +1,54 @@
 # Server and archive acceptance
 
-**Status: Verified archive import, three-team Week 1 observation, historical backup recovery, and service restart.**
+**Status: Verified archive import, four-team Week 1 observation, historical backup recovery, and service restart.**
 
-This record retains the v0.3.0 checks and the v0.3.1 third-team handoff on 2026-09-08.
+This record retains the v0.3.0 checks and the v0.3.1 third-team and fourth-team handoffs on 2026-09-08.
 Deployment identities, account information, manifests, and raw evidence remain private.
 The checks below describe the tested configuration. They do not establish unattended season operation.
 
-## Version 0.3.1 season handoff
+## Four-team season handoff and backup
+
+The [fourth draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own picks and captured 160 picks through the live server browser.
+Its private launcher exited successfully and released the shared profile before season activation.
+The activation preserved the three existing contexts and policies. It added the fourth team's explicit Week 1 context.
+All 22 installed package files still matched the reviewed v0.3.1 wheel.
+
+The check at 19:39:56 UTC passed after two complete coordinator cycles.
+All four contexts used fresh `espn_browser` observations and verified selected-team locks.
+Their observed source ages ranged from 51 to 61 seconds.
+All four lineup modes were automatic and unpaused, with a 1.5-point minimum improvement.
+The coordinator reported healthy status and zero unresolved or newly authorized lineup claims.
+
+Team B already had the target lineup. Teams A, C, and D had no admissible single exchange.
+No live server lineup swap was submitted during these checked cycles.
+This verifies four-team observation and analysis. Live server lineup submission still requires a qualifying action and a confirmed result.
+
+At the 19:38:32 UTC archive check, every outbox event through each checked cutoff was present:
+
+| Anonymous source | Checked events | Missing events |
+|---|---:|---:|
+| Team A | 3,024 | 0 |
+| Team B | 3,027 | 0 |
+| Team C | 1,000 | 0 |
+| Team D | 1,329 | 0 |
+
+Existing immutable run metadata remained unchanged.
+The fourth source began with a fresh database and retains v0.3.1 source provenance plus the private launcher's collection scope.
+The earlier mixed-history collection runs retain their existing version limits.
+These storage counts do not represent independent outcomes or a draft success rate.
+
+The backup created at 19:39:10 UTC followed the four-team coordinator start.
+It contains seven files: one PostgreSQL dump, four SQLite databases, and two private configuration files.
+All seven sizes and SHA-256 checksums matched their manifest entries.
+Each SQLite backup passed `PRAGMA quick_check` and its exact Week 1 context check.
+`pg_restore --list` read the PostgreSQL dump successfully.
+A new PostgreSQL restore was **Not Tested** for this backup. The historical restore check remains below.
+
+The archive, backup, and discovery timers were active. Their latest service results were successful.
+The coordinator continued four-team visits after verification.
+One further draft and five-team season evaluation remain [Planned](MULTI_TEAM_ACCEPTANCE.md).
+
+## Historical version 0.3.1 third-team handoff
 
 The [third draft record](THIRD_DRAFT_ACCEPTANCE.md) preserves the completed roster, failures, recovery steps, and final host-capture reconciliation.
 The final snapshot contains 160 picks and zero unresolved authorized claims.
@@ -32,7 +74,7 @@ The ESPN command listed 13 tools through the same SSH transport and executable, 
 That isolation prevented lifecycle status writes to a live league database. The temporary state was removed after verification.
 The check did not launch the preserved ESPN league target or connect another browser.
 
-## Three-team archive and backup verification
+## Historical three-team archive and backup verification
 
 The final check at 18:38 UTC recorded six completed coordinator cycles and fresh observations for all three teams.
 The archive preserved every earlier immutable run payload.

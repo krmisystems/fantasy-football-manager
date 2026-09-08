@@ -78,6 +78,14 @@ Its estimates use a **two-pick horizon**, projected player values, and simulated
 Availability estimates are conditional. They do not guarantee that a player survives to the next pick.
 More trials do not correct stale inputs or projection errors. The model does not report championship odds.
 
+The [fourth draft trial](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/FOURTH_DRAFT_ACCEPTANCE.md) verified all **160 league selections and 16 manager-confirmed picks**.
+It recorded **zero ESPN Autopicks and zero host-browser `DRAFT` clicks**.
+Installed v0.3.1 execution methods were unchanged. A private launcher handled collection and lifecycle.
+
+One browser-control error occurred before the first authorization. A later check recovered before submission.
+The run required no package patches, restart, or manual recovery.
+A live Ravens D/ST selection succeeded. The record does not establish which autocomplete branch ran.
+
 The [live draft trial](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/LIVE_DRAFT_ACCEPTANCE.md) completed a 16-player roster in a 10-team PPR snake draft.
 It recorded **13 manager-confirmed picks and 3 ESPN Autopicks**.
 Startup failures and an autocomplete timeout caused platform fallback selections.
@@ -100,10 +108,11 @@ Each team keeps a separate SQLite database, policy, explicit week, and pending c
 One shared profile lease prevents simultaneous browser control.
 The optional PostgreSQL archive preserves labeled evidence. Private backups preserve the operational databases and configuration.
 
-The server passed **three-team Week 1 observation and analysis checks with zero live server lineup swaps**.
-No single swap qualified under the configured limits. This does not verify live server lineup submission or an unattended season.
+After the fourth draft, the server verified fresh Week 1 observations and selected-team locks for **four exact team contexts**.
+The verified handoff recorded zero new lineup authorizations and zero unresolved authorized claims.
+These observations do not verify live server lineup submission or an unattended season.
 Read [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md) for restart, archive, and recovery evidence.
-One of three additional draft trials is complete. Two drafts and a five-team season trial remain [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
+Two of three additional draft trials are complete. One draft and a five-team season trial remain [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
 
 ## Install from PyPI
 

@@ -127,7 +127,9 @@ The worker is not an operating-system service and does not resume automatically 
 
 Automated tests use browser stubs, offline observations, and fictional players.
 Isolated Chrome tests exercise the adapters against local page fixtures.
-Packaged draft and lineup submissions have not yet completed live account acceptance tests.
+The [fourth draft](FOURTH_DRAFT_ACCEPTANCE.md) verified all 16 own selections with unchanged installed v0.3.1 execution methods.
+A private orchestration launcher collected the remaining league history. One preauthorization error recovered without operator intervention.
+Live lineup submission remains **Not Tested** in the recorded server acceptance checks.
 See the exact test checkpoint in [validation status](VALIDATION.md).
 Earlier direct browser picks were verified separately. They do not prove this package's selector compatibility.
 ESPN's fantasy read endpoints and page structure are unofficial integration surfaces.

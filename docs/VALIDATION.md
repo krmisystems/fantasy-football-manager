@@ -1,7 +1,7 @@
 # Validation status
 
 Version 0.3.0 adds a server coordinator and labeled evidence archive.
-Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, three-team observations, backup recovery, and verification limits.
+Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, team observations, backup recovery, and verification limits.
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
 The historical results below retain their original runtime scope.
 
@@ -14,6 +14,29 @@ Both D/ST display variants failed before the selector fix and passed afterward.
 The [third draft acceptance record](THIRD_DRAFT_ACCEPTANCE.md) preserves the live failures, platform fallbacks, and operator interventions.
 That trial used installed v0.3.0 with private runtime changes. It does not verify live execution of the corrected v0.3.1 source.
 Check [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for publication and installation status.
+
+## Fourth live draft: Verified installed v0.3.1 execution
+
+The [fourth draft acceptance record](FOURTH_DRAFT_ACCEPTANCE.md) verifies all **160 league picks and 16 manager-confirmed selections**.
+The run recorded **zero ESPN Autopicks and zero host-browser `DRAFT` clicks**.
+All 22 installed package files matched the reviewed v0.3.1 wheel from commit `5fd4727d0f21751508c9caac3fba62ba03c8c756`.
+The installed execution methods remained unchanged. A private orchestration launcher handled collection and lifecycle.
+No package patch, restart, or manual recovery was required during the run.
+
+One `browser_control` error occurred before authorization at the first turn.
+Its exact text was unavailable. A later check recovered before submission.
+A live Ravens D/ST selection succeeded.
+The record does not establish that the exact D/ST autocomplete branch ran.
+
+The durable calculation record contains **1,073 accepted calls and 42,920 completed trials**.
+The 16 authorization-to-platform-observation intervals ranged from **1.348 to 4.315 seconds**, with a **2.762-second median**.
+These intervals do not measure exact click time, total decision time, or a general latency bound.
+Trial counts do not establish independent samples, better picks, or season results.
+
+After handoff, all four exact Week 1 contexts had fresh browser observations and verified selected-team locks.
+The [server acceptance record](SERVER_ACCEPTANCE.md) verifies zero new lineup authorizations and zero unresolved authorized claims after handoff.
+Live server lineup submission and an unattended season remain unverified.
+Two of three additional draft trials are complete. One draft and the five-team season evaluation remain planned.
 
 ## Published v0.3.1 evidence
 
@@ -48,7 +71,8 @@ The third draft's saved host capture matched all 133 existing server picks and c
 That import uses a separate reconciliation source. It does not establish a fresh server draft-room observation.
 After the v0.3.1 server upgrade, all three Week 1 contexts produced fresh season observations and zero unresolved claims.
 Selected-team locks were verified. No single lineup swap qualified under the configured limits.
-The corrected v0.3.1 source has no completed live write trial.
+Those third-draft checks did not establish live writes from the corrected package.
+The subsequent fourth draft provides separate installed v0.3.1 execution evidence above.
 
 ## Published v0.3.0 evidence
 

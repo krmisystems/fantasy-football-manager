@@ -227,6 +227,6 @@ After recovery, the archive importer can replay durable local evidence without d
 - Overlapping drafts require independently authenticated profiles and separate workers.
 - Live waivers, acquisitions, drops, and trades remain planned.
 - An expired ESPN session requires sign-in. A running service alone does not prove healthy observations.
-- Three-team Week 1 observation does not establish five-team season acceptance or an unattended season.
+- Four-team Week 1 observation does not establish five-team season acceptance or an unattended season.
 
 Read the [multi-team acceptance plan](MULTI_TEAM_ACCEPTANCE.md) before extending the evaluation.

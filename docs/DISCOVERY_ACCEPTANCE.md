@@ -110,7 +110,13 @@ The final host capture matched the stored 133-pick prefix and completed the stor
 This import has a separate source provider. The completed server draft page could not be reopened for fresh observation.
 The third roster then passed fresh Week 1 browser observation after the server upgrade to v0.3.1.
 
-The server verified three-team Week 1 observation and analysis without a qualifying single lineup swap.
+The [fourth draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own picks and captured 160 league picks through the live server browser.
+Installed v0.3.1 execution methods remained unchanged. A private orchestration launcher collected the final league history.
+One preauthorization browser error recovered without operator intervention. No platform fallback or manual selection was required.
+Live D/ST selection passed. The exact autocomplete branch remains separate fixture evidence.
+
+The server verified four-team Week 1 observation and analysis without a qualifying single lineup swap.
+The archive contained every event through four checked cutoffs. All four SQLite backups passed checksum, context, and quick checks.
 The five-team season evaluation remains planned. Read the [multi-team plan](MULTI_TEAM_ACCEPTANCE.md) for draft trial status.
 
 See [draft acceptance](LIVE_DRAFT_ACCEPTANCE.md), [server acceptance](SERVER_ACCEPTANCE.md), and [validation status](VALIDATION.md).
