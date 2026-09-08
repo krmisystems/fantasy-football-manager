@@ -8,6 +8,7 @@ These tests verify browser mechanics. They do not establish live ESPN acceptance
 
 from copy import deepcopy
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -194,3 +195,40 @@ async def test_duplicate_visible_player_rows_block_before_authorization(browser_
     assert service.draft.get(proposal["proposal_id"])["status"] == "pending"
     assert service.draft.pending() == []
     assert service.manager.state()[0].picks == []
+
+
+@pytest.mark.parametrize("position_label", ["D/ST", "DST"])
+async def test_defense_autocomplete_escapes_slashes_in_real_selector(browser_case, position_label):
+    load, _, _ = browser_case
+    service, adapter, page = await load()
+    html = '''<!doctype html><html lang="en"><body>
+      <a href="/football/team?leagueId=123&amp;teamId=1&amp;seasonId=2026">My Team</a>
+      <input aria-label="Search Players" oninput="document.getElementById('suggestions').hidden=false">
+      <div id="suggestions" hidden>
+        <button onclick="count('wrong')">Fictional Example D/ST CHI D/ST</button>
+        <button onclick="count('wrong')">Fictional Example D/ST DEN RB</button>
+        <button onclick="choose()">Fictional Example D/ST DEN POSITION_LABEL</button>
+      </div>
+      <table><tbody><tr id="target" hidden>
+        <td>Fictional Example D/ST</td><td>POSITION_LABEL</td>
+        <td><button onclick="count('drafted')">DRAFT</button></td>
+      </tr></tbody></table>
+      <output id="selected">0</output><output id="drafted">0</output><output id="wrong">0</output>
+      <script>
+      function count(id){const item=document.getElementById(id);item.textContent=String(Number(item.textContent)+1);}
+      function choose(){count('selected');document.getElementById('suggestions').hidden=true;
+                        document.getElementById('target').hidden=false;}
+      </script></body></html>'''.replace("POSITION_LABEL", position_label)
+    await page.set_content(html)
+    player = SimpleNamespace(name="Fictional Example D/ST", position="DST", team="DEN")
+    assert await adapter._find_button(player) is None
+
+    await adapter._search_player(player)
+    button = await adapter._find_button(player)
+    assert button is not None
+    await button.click()
+
+    assert await page.locator("#selected").inner_text() == "1"
+    assert await page.locator("#drafted").inner_text() == "1"
+    assert await page.locator("#wrong").inner_text() == "0"
+    assert service.draft.pending() == []

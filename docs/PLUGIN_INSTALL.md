@@ -8,6 +8,7 @@ It requires an authenticated browser connection. Season mode supports lineup swa
 ## Install the commands
 
 Version 0.3.0 adds server season scheduling and an evidence archive to the draft and lineup tools.
+Version 0.3.1 fixes draft team-name whitespace and D/ST selectors.
 Read the [installation instructions](../README.md#install-from-pypi) for the published package and plugin assets.
 Check [validation status](VALIDATION.md) for installed-command and live acceptance evidence.
 Check [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for verified package, registry, and plugin availability.
@@ -16,7 +17,7 @@ The plugin archive contains registrations and skills. Install the Python wheel s
 Install the published commands:
 
 ```sh
-uv tool install fantasy-football-manager==0.3.0
+uv tool install fantasy-football-manager
 fantasy-football-manager --help
 fantasy-football-espn --help
 ```

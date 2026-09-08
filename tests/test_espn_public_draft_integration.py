@@ -44,7 +44,7 @@ def public_payloads():
             "scoringSettings": {"scoringType": "H2H_POINTS", "scoringItems": [
                 {"statId": 53, "points": 1}, {"statId": 24, "points": .1}]}},
         "teams": [{"id": 11, "name": "Fictional North"},
-                  {"id": 22, "name": "Fictional South"}],
+                  {"id": 22, "name": "Fictional South "}],
         "draftDetail": {"drafted": False, "picks": [
             {"overallPickNumber": number, "roundId": (number - 1) // 2 + 1,
              "roundPickNumber": (number - 1) % 2 + 1, "teamId": owner, "playerId": -1}

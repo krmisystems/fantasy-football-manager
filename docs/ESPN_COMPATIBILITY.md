@@ -1,8 +1,8 @@
 # ESPN compatibility matrix
 
-**Record version: 1. Target version: v0.3.0. Updated: 2026-09-08.**
+**Record version: 2. Target version: v0.3.1. Updated: 2026-09-08.**
 
-This matrix describes the v0.3.0 implementation and recorded validation evidence.
+This matrix describes the v0.3.1 source and recorded validation evidence.
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for verified publication status on each channel.
 It does not guarantee compatibility with every ESPN layout or future website change.
 Use [the ESPN workflow](ESPN_AUTOMATION.md) for operating instructions.
@@ -32,6 +32,8 @@ The test source contains inline fixtures where no separate HTML file is linked.
 | v0.2.2 | Shared browser profile across separate league databases; standalone startup receipt | [Profile configuration tests](../tests/test_browser_profile_config.py), [service tests](../tests/test_espn_service.py) | Verified, fictional and installed observation checks. One controller holds the profile lease at a time. |
 | v0.3.0 | Serial season visits, explicit league and week, graceful stop, health, pending claim recovery | [Coordinator tests](../tests/test_server.py), [server acceptance](SERVER_ACCEPTANCE.md) | Verified, fictional and two-team server reads. Zero live server lineup swaps were submitted. |
 | v0.3.0 | Durable evidence, PostgreSQL import, consistent SQLite snapshots, private backup sets | [Archive tests](../tests/test_archive.py), [backup tests](../tests/test_server_backup.py), [server acceptance](SERVER_ACCEPTANCE.md) | Verified with local tests and recorded server import and recovery checks. The archive is not a public dataset. |
+| v0.3.1 | Surrounding whitespace in an API team name | [Waiting-room tests](../tests/test_espn_browser.py), [public draft Chrome test](../tests/test_espn_public_draft_integration.py) | Verified, fictional. Name normalization retains exact team, member, and roster checks. The live trial required a private workaround. |
+| v0.3.1 | Slash delimiters in D/ST autocomplete and position selectors | [D/ST Chrome tests](../tests/test_browser_integration.py) | Both `D/ST` and `DST` display variants reproduced the failure before the fix and passed afterward. Wrong-team and wrong-position suggestions remain blocked. Corrected source has no live draft acceptance yet. |
 
 The version column identifies the implementation series. It does not relabel historical live runs as released-wheel acceptance.
 The public draft trial used installed v0.2.1 dependencies and changing working-tree patches.
@@ -47,6 +49,7 @@ The public draft trial used installed v0.2.1 dependencies and changing working-t
 | Completed live draft | All 160 league selections were verified. The selected roster contained 16 players: 13 manager-confirmed picks and 3 ESPN Autopicks. | Completed with failures and interventions. No duplicate submissions were observed. |
 | Server season checks | Two configured team contexts produced current reads and analysis. Zero live server lineup swaps were submitted. | Observation verified. Saved automatic modes did not encounter a qualifying swap. Live server lineup submission remains Not Tested. |
 | Future evaluation | Three additional draft trials and a five-team season trial. | Planned. No future completion, performance, or growth result is claimed. |
+| Third draft trial | Visible history verified all 160 picks. Thirteen manager picks and three platform fallbacks filled the roster. | Team-name whitespace, a D/ST selector failure, and a late browser handoff required recovery. Read the [third-draft record](THIRD_DRAFT_ACCEPTANCE.md). |
 
 Read the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for failures, interventions, and receipt timing.
 Read [server acceptance](SERVER_ACCEPTANCE.md) for deployment, archive, backup, and restart evidence.
@@ -67,7 +70,7 @@ uv run pytest -q
 ```
 
 That command skips Chrome and PostgreSQL integration cases unless their settings are supplied.
-The recorded Windows candidate run passed **579 tests**, including **15 isolated Chrome cases**, with one optional PostgreSQL case skipped.
+The latest Windows candidate run passed **611 tests**, including **17 isolated Chrome cases**, with two skips for PostgreSQL configuration and Windows symlink privileges.
 The separate Linux PostgreSQL run passed **23 archive tests**.
 These counts describe the recorded runs. Re-run the gates for a changed candidate.
 
@@ -85,7 +88,7 @@ $env:FFM_BROWSER_TESTS = "1"
 uv run pytest -q tests/test_browser_integration.py tests/test_season_browser_integration.py tests/test_espn_public_draft_integration.py
 ```
 
-The 15 recorded Chrome cases comprise 5 draft cases and 10 season cases.
+The 17 recorded Chrome cases comprise 7 draft cases and 10 season cases.
 They validate browser mechanics against fictional fixtures, not the current ESPN service.
 
 Set `FFM_ARCHIVE_TEST_DSN` to a private PostgreSQL test database before the archive integration run:

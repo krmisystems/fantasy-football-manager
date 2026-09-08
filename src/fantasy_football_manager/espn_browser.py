@@ -44,6 +44,11 @@ def _identifier(value, label):
     return str(value)
 
 
+def _selector_regex(pattern, flags=0):
+    # Playwright uses slash delimiters. Python's re.escape leaves slashes unchanged.
+    return re.compile(pattern.replace("/", r"\/"), flags)
+
+
 def _loopback_url(value):
     try:
         parsed = urlsplit(value)
@@ -196,7 +201,7 @@ class ESPNBrowser:
         payload = await self._read_json(espn_data.league_read_url(league, season))
         if str(payload.get("id")) != league or payload.get("seasonId") != season:
             raise ValueError("The waiting-room league response has a different identity.")
-        names = {str(item["id"]): (item.get("name") or " ".join(str(item.get(key) or "").strip() for key in ("location", "nickname")).strip())
+        names = {str(item["id"]): (item.get("name") or " ".join(str(item.get(key) or "").strip() for key in ("location", "nickname"))).strip()
                  for item in payload.get("teams", [])}
         if team not in names or not all(names.values()):
             raise ValueError("The league response does not identify every roster selector option.")
@@ -455,7 +460,7 @@ class ESPNBrowser:
         candidates = []
         for row in await _visible(rows):
             exact_names = await _visible(row.get_by_text(player.name, exact=True))
-            positions = await _visible(row.get_by_text(re.compile(r"^" + position + r"$")))
+            positions = await _visible(row.get_by_text(_selector_regex(r"^" + position + r"$")))
             if len(exact_names) != 1 or not positions:
                 continue
             buttons = await _visible(row.get_by_role("button", name=re.compile(r"^DRAFT$", re.I)))
@@ -487,7 +492,7 @@ class ESPNBrowser:
         team = PRO_TEAM_ABBREVIATIONS.get(player.team, player.team)
         if re.fullmatch(r"[A-Z]{2,4}", team, re.I):
             position = "(?:DST|D/ST)" if player.position == "DST" else re.escape(player.position)
-            label = re.compile(r"^" + re.escape(name) + r"\s+" + re.escape(team) + r"\s+" + position + r"$", re.I)
+            label = _selector_regex(r"^" + re.escape(name) + r"\s+" + re.escape(team) + r"\s+" + position + r"$", re.I)
             suggestions = self._page.get_by_role("button", name=label)
             await rows.or_(suggestions).filter(visible=True).first.wait_for(state="visible", timeout=3000)
             candidates = await _visible(suggestions)

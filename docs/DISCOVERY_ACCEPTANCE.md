@@ -5,6 +5,10 @@
 This record separates implemented changes from publication and measured adoption.
 Deployment identities, credentials, traffic snapshots, and private league records remain outside the repository.
 
+Version 0.3.1 adds the tested fixes from the [third draft](THIRD_DRAFT_ACCEPTANCE.md).
+Its source checks passed. Publication and installation of that patch are pending.
+The verified v0.3.0 channel records below remain unchanged.
+
 ## Findings and verification
 
 | Finding | Change | Verification |

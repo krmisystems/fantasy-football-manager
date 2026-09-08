@@ -6,9 +6,9 @@ on:
       version:
         description: Exact reviewed package version already available on PyPI
         required: true
-        default: '0.3.0'
+        default: '0.3.1'
         type: choice
-        options: ['0.3.0']
+        options: ['0.3.1']
 
 permissions:
   contents: read
@@ -55,15 +55,15 @@ jobs:
                   raise SystemExit(message)
 
           version = os.environ["RELEASE_VERSION"]
-          require(version == "0.3.0", "This workflow only publishes the reviewed 0.3.0 metadata.")
+          require(version == "0.3.1", "This workflow only publishes the reviewed 0.3.1 metadata.")
           project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
           require(project["name"] == "fantasy-football-manager" and project["version"] == version,
                   "The checkout package version does not match the requested version.")
           server = json.loads(Path("docs/registry/server.json").read_text(encoding="utf-8"))
           canonical = json.dumps(server, sort_keys=True, separators=(",", ":")).encode("utf-8")
           require(hashlib.sha256(canonical).hexdigest() ==
-                  "63297f99190ad8647153078b9123f00658d14994c1c44d9e6fd4f7fda8e972ec",
-                  "Registry metadata differs from the reviewed 0.3.0 document.")
+                  "c54a6ca0a9344ff9b4ee97565585cfaaa006ff2f253fda7a8950a3073aa6bfcd",
+                  "Registry metadata differs from the reviewed 0.3.1 document.")
 
           class RejectRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self, request, response, code, message, headers, new_url):

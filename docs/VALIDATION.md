@@ -5,6 +5,16 @@ Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, two-team obser
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
 The historical results below retain their original runtime scope.
 
+## Version 0.3.1 source checks
+
+Version 0.3.1 fixes team-name whitespace and slash delimiters in D/ST browser selectors.
+The complete Windows suite passed **611 tests with two skips in 35.63 seconds**, including all **17 Chrome cases**.
+The skips required PostgreSQL configuration and Windows symlink privileges.
+Both D/ST display variants failed before the selector fix and passed afterward.
+The [third draft acceptance record](THIRD_DRAFT_ACCEPTANCE.md) preserves the live failures, platform fallbacks, and operator interventions.
+That trial used installed v0.3.0 with private runtime changes. It does not verify live execution of the corrected v0.3.1 source.
+Check [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for publication and installation status.
+
 ## Published v0.3.0 evidence
 
 Version 0.3.0 is published on [GitHub](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) and [PyPI](https://pypi.org/project/fantasy-football-manager/0.3.0/).
@@ -163,7 +173,7 @@ Published assets remain fixed to the release commit. Later documentation commits
 ```sh
 uv run pytest -q
 uv run fantasy-football-manager --demo
-uv run python scripts/validate_release.py --version 0.3.0
+uv run python scripts/validate_release.py --version 0.3.1
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
 uv run python scripts/build_plugin_zip.py

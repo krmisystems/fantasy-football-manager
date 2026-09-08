@@ -554,8 +554,11 @@ async def test_waiting_room_change_during_identity_read_blocks_draft_navigation(
 
 
 @pytest.mark.asyncio
-async def test_waiting_room_entry_verifies_member_and_selected_roster(connected, monkeypatch):
+@pytest.mark.parametrize("name_suffix", ["", " "])
+async def test_waiting_room_entry_verifies_member_and_selected_roster(connected, monkeypatch, name_suffix):
     browser, page, context = connected
+    # Whitespace on another team's API name must not invalidate this roster.
+    context.league["teams"][1]["name"] += name_suffix
     browser._managed = True
     target = URL + "&memberId=fictional-member"
     entry = Node("link", "Enter The Draft", attrs={"href": target})
@@ -568,6 +571,7 @@ async def test_waiting_room_entry_verifies_member_and_selected_roster(connected,
     monkeypatch.setattr(page, "goto", navigate)
     assert await browser._enter_from_waiting_room() is True
     assert await browser._verify_scope() == "11"
+    assert browser._draft_team_names == {"11": "Fictional North", "22": "Fictional South"}
     assert browser._draft_entry_url == target and len(context.calls) == 1
     assert page.button.clicks == 0
     roster.attrs["value"] = "22"

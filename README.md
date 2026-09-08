@@ -85,6 +85,10 @@ The run required compatibility patches and manual recovery. It was not an unatte
 Its runtime used installed v0.2.1 dependencies with changing working-tree patches.
 Do not attribute that live result to an unchanged released wheel.
 
+The [third draft trial](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/THIRD_DRAFT_ACCEPTANCE.md) also finished with 13 manager-confirmed picks and three platform fallbacks.
+It exposed team-name whitespace and D/ST selector failures. Version 0.3.1 fixes both cases in isolated Chrome tests.
+The browser handoff missed the final two turns. This trial also required operator recovery.
+
 ## Keep team management running
 
 `espn_start_automation` runs inside the MCP process.
@@ -103,13 +107,14 @@ Three additional draft trials and a five-team season trial are [planned](https:/
 
 ## Install from PyPI
 
-Version 0.3.0 adds server season scheduling, durable evidence, and a PostgreSQL archive.
-The [0.3.0 package is published on PyPI](https://pypi.org/project/fantasy-football-manager/0.3.0/).
-The manager has an active [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0).
+Version 0.3.1 fixes draft team-name whitespace and D/ST selectors.
+Version 0.3.0 introduced server season scheduling, durable evidence, and a PostgreSQL archive.
+Check the [PyPI project](https://pypi.org/project/fantasy-football-manager/) and [distribution status](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) for available releases.
+The manager has an active [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/latest).
 Use Python 3.11 or later, [uv](https://docs.astral.sh/uv/), and installed Google Chrome.
 
 ```sh
-uv tool install fantasy-football-manager==0.3.0
+uv tool install fantasy-football-manager
 fantasy-football-manager --help
 fantasy-football-espn --help
 ```
@@ -160,7 +165,7 @@ Follow the [release instructions](https://github.com/krmisystems/fantasy-footbal
 | Server team manager | Serial team visits, graceful stop, health, durable evidence, PostgreSQL archive, backups | Explicit weeks. Shared browser control is serial. |
 | Planned season actions | Live waivers, free-agent additions, drops, trades, and automatic week rollover | These execution adapters are not implemented. |
 
-The final local validation passed **608 tests on Windows**, including **15 isolated Chrome cases**.
+The latest local validation passed **611 tests on Windows**, including **17 isolated Chrome cases**.
 The two skips were PostgreSQL configuration and Windows symlink permissions.
 Separate Linux checks passed **23 archive tests** with PostgreSQL and **28 discovery collector tests**.
 These test counts are distinct from live account acceptance.

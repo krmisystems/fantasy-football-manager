@@ -3,6 +3,13 @@
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for current publication status.
 The records below retain their original version and validation scope.
 
+## Version 0.3.1 patch preparation
+
+Version 0.3.1 fixes team-name whitespace and slash delimiters in D/ST selectors.
+Its local suite passed 611 tests with two skips, including all 17 isolated Chrome cases.
+The [third draft record](THIRD_DRAFT_ACCEPTANCE.md) retains the failures that led to these regressions.
+Publication remains subject to the exact commit, CI, artifact review, and public channel checks below.
+
 ## Published v0.3.0 evidence
 
 The [v0.3.0 GitHub release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) uses commit `d3acc32150ad71b0d85847f603fcd7649a2436b7`.
@@ -120,7 +127,7 @@ The plugin registers both commands. A direct MCP installation must register each
 Publish the Python package before submitting registry metadata.
 The README contains the matching `mcp-name` marker needed for PyPI package ownership checks.
 
-The manual [Registry workflow](../.github/workflows/registry.yml) publishes the reviewed v0.3.0 record from `main`.
+The manual [Registry workflow](../.github/workflows/registry.yml) publishes the reviewed v0.3.1 record from `main`.
 It checks out the exact dispatch commit and validates the metadata.
 It checks the public PyPI version, ownership marker, and distribution files before authentication.
 It stops if that Registry version already exists or the availability check fails.
@@ -128,7 +135,7 @@ The workflow verifies the pinned publisher download against its SHA-256 digest.
 It then authenticates with GitHub OIDC and publishes the staged record.
 The workflow uses a temporary identity token. It does not require a stored Registry token.
 
-Dispatch the workflow with version `0.3.0` after the package checks pass.
+Dispatch the workflow with version `0.3.1` after the package checks pass.
 Verify the published namespace, version, and package in the Registry response.
 For a later release, review the version choice and metadata digest before dispatch.
 See the [official GitHub OIDC instructions](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/github-actions.mdx).
