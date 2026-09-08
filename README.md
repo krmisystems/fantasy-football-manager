@@ -50,6 +50,9 @@ registers both commands. It does not install the Python package.
 The release includes a [plugin file manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.2/fantasy-football-manager-0.2.2-plugin-manifest.json)
 and an asset checksum file.
 Published v0.2.0 and v0.2.1 assets remain unchanged.
+All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34192876128) passed.
+Both installed commands passed STDIO checks. The installed ESPN command also passed an authenticated Week 1 advisory monitor check.
+See [published-package evidence](docs/VALIDATION.md#published-v022-evidence) for the exact commit and verification limits.
 
 ## Install from source
 

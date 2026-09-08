@@ -25,9 +25,39 @@ A fresh Week 1 season connection and sync observed that roster and produced line
 The snapshot contained 1,036 player records, including 494 weekly projections, with verified locks for the selected team only.
 All 9 starter slots were filled. Current and optimized lineups both had an estimated 125.35 points, with 0.0 improvement.
 No season action was submitted, and no pending claim remained.
-Release publication remains pending.
+Version 0.2.2 is published. Its package and installation evidence appears below.
 This working-tree run does not establish live write acceptance for an installed v0.2.2 wheel.
 Read the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for the failure log, manual interventions, receipts, and evidence boundaries.
+
+## Published v0.2.2 evidence
+
+The [v0.2.2 prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.2) uses commit
+[`b15f1a506aac83ca44365df5511fcd15b43e1d44`](https://github.com/krmisystems/fantasy-football-manager/commit/b15f1a506aac83ca44365df5511fcd15b43e1d44).
+All six jobs in its [GitHub CI run](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34192876128) passed.
+The jobs covered Windows and Ubuntu with Python 3.11 and 3.14, isolated Chrome cases, and packaging.
+Artifact inspection verified 103 archive members and manifest entries against the release source.
+All five published asset downloads matched the approved local hashes.
+
+The installed wheel passed STDIO checks for all 17 manager tools and 13 ESPN tools.
+The checks included synthetic draft, lineup, power-ranking, and waiver calculations.
+The ESPN command rejected an unknown proposal and preserved its disconnected state.
+
+The installed ESPN MCP command also passed authenticated Week 1 connection, sync, and a five-second advisory monitor check.
+It reported `monitoring_lineup`, current observations, lineup status `ok`, and no pending actions.
+The current lineup matched the calculated lineup. No live action was needed or submitted.
+The monitor stopped and disconnected cleanly. The saved configuration is paused.
+
+The local Codex plugin was installed and enabled at version 0.2.2.
+Both local command registrations use the selected league's separate database and the existing shared browser profile root.
+The earlier league database remains separate.
+
+Windows initially blocked the wheel replacement because older manager command processes held the tool directory open.
+The operator stopped those identified manager processes and repeated installation successfully.
+That installation recovery did not terminate the user's Chrome browser.
+
+Installed-wheel draft writes and live lineup writes remain **Not Tested**.
+PyPI and MCP Registry publication remain incomplete.
+Published assets remain fixed to the release commit. Later documentation commits do not replace them.
 
 ## Version 0.2.1 patch status
 

@@ -122,7 +122,7 @@ The private report retains the source observations and calculation results outsi
 | Unattended operation | Not established. The run required manual interventions, source fixes, and restarts. |
 | Installed v0.2.2 wheel live submission | Not Tested by this working-tree run. |
 | Week 1 observation and lineup analysis | Verified through a fresh season connection and sync. The 16-player roster produced lineup status `ok`. |
-| Release publication | Pending. |
+| Release publication | [v0.2.2 published](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.2). See [installed-package evidence](VALIDATION.md#published-v022-evidence). |
 | Live lineup submission | Not Tested in this run. |
 
 Raw receipts and captures remain in private storage outside the public repository.

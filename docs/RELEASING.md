@@ -1,12 +1,17 @@
 # Release the package
 
-## Version 0.2.2 candidate
+## Published v0.2.2 evidence
 
 Version 0.2.2 includes the compatibility changes from the second live draft trial.
 The local suite passed 509 tests in 31.78 seconds, including 15 isolated Chrome cases.
 Read the [acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for platform fallback picks, manual recovery, and runtime provenance.
 Live draft source evidence does not automatically verify writes from an installed wheel.
-Installed checks, the exact release commit, CI results, and uploaded asset hashes must be recorded after publication.
+The [v0.2.2 prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.2) uses commit `b15f1a506aac83ca44365df5511fcd15b43e1d44`.
+All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34192876128) passed.
+All five published asset downloads matched the verified local hashes.
+The installed wheel passed both STDIO checks and an authenticated ESPN advisory monitor check.
+The local plugin is installed and enabled at version 0.2.2.
+See [validation status](VALIDATION.md#published-v022-evidence) for the installation evidence and its limits.
 
 The reusable CI workflow tests the exact requested commit before packaging.
 Its browser job includes the public draft autocomplete case.
