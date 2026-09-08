@@ -15,7 +15,7 @@ Deployment identities, credentials, traffic snapshots, and private league record
 | Specific search terms lack a clear explanation | The README explains ESPN MCP, browser sign-in without manual cookie copying, and lineup changes with approval. | Capability fit is verified. Search volume and conversion improvement are not measured. |
 | Compatibility evidence is scattered | The [compatibility matrix](ESPN_COMPATIBILITY.md) links layouts, failures, fictional fixtures, repeatable commands, and live evidence. | The matrix preserves platform fallback and manual intervention records. |
 | Weekly discovery measurements are absent | A [collector and measurement guide](DISCOVERY_MEASUREMENT.md) cover views, clones, referrers, and star counts. | Local tests verify deduplication, partial responses, repository scope, and atomic storage. Deployment verification appears below. |
-| Distribution is incomplete | The project has a package workflow, Codex plugin, registry metadata, and configured PyPI trusted publisher. | Channel-specific publication status appears below. Prepared metadata is not proof of publication. |
+| Distribution is incomplete | The project has published GitHub and PyPI packages, a Codex plugin, and a Registry publication workflow. | Channel-specific publication status appears below. Prepared metadata is not proof of publication. |
 
 The repository description is:
 
@@ -27,9 +27,9 @@ Topics are `browser-automation`, `codex`, `codex-plugin`, `espn`, `fantasy-draft
 
 | Channel | Verified state |
 |---|---|
-| GitHub releases | v0.2.2 remains published. The v0.3.0 release is prepared and awaits final commit checks and publication. |
-| PyPI | Account verification and a pending trusted publisher are configured. Package upload is not yet verified. |
-| MCP Registry | Official publisher authentication and metadata validation passed. Registry publication is not yet verified. |
+| GitHub releases | [v0.3.0](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) is published from commit `d3acc32150ad71b0d85847f603fcd7649a2436b7`. All five asset downloads matched the reviewed hashes. Earlier assets remain unchanged. |
+| PyPI | [v0.3.0](https://pypi.org/project/fantasy-football-manager/0.3.0/) is published. The [trusted-publisher workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34198024653) passed. Both public distribution hashes match the reviewed CI artifact. The ownership marker is present. |
+| MCP Registry | Official metadata validation passed. The reviewed workflow uses GitHub OIDC for the organization namespace. Registry publication is not yet verified. |
 | Local Codex plugin | The v0.3.0 plugin passed SSH STDIO checks for 17 manager tools and 13 ESPN tools. This is a personal installation. |
 
 The registry record describes the manager entry point.

@@ -1,0 +1,129 @@
+name: Reviewed MCP Registry publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact reviewed package version already available on PyPI
+        required: true
+        default: '0.3.0'
+        type: choice
+        options: ['0.3.0']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-registry-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ github.repository == 'krmisystems/fantasy-football-manager' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: '3.12'
+      - name: Validate release metadata
+        run: uv run --no-project --python 3.12 python scripts/validate_release.py --version "$RELEASE_VERSION"
+      - name: Verify the reviewed metadata and public PyPI package
+        shell: bash
+        run: |
+          uv run --no-project --python 3.12 python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import tomllib
+          import urllib.error
+          import urllib.request
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+          version = os.environ["RELEASE_VERSION"]
+          require(version == "0.3.0", "This workflow only publishes the reviewed 0.3.0 metadata.")
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+          require(project["name"] == "fantasy-football-manager" and project["version"] == version,
+                  "The checkout package version does not match the requested version.")
+          server = json.loads(Path("docs/registry/server.json").read_text(encoding="utf-8"))
+          canonical = json.dumps(server, sort_keys=True, separators=(",", ":")).encode("utf-8")
+          require(hashlib.sha256(canonical).hexdigest() ==
+                  "63297f99190ad8647153078b9123f00658d14994c1c44d9e6fd4f7fda8e972ec",
+                  "Registry metadata differs from the reviewed 0.3.0 document.")
+
+          class RejectRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, request, response, code, message, headers, new_url):
+                  raise SystemExit("The public metadata check refused a redirect.")
+
+          url = f"https://pypi.org/pypi/fantasy-football-manager/{version}/json"
+          request = urllib.request.Request(url, headers={
+              "Accept": "application/json", "User-Agent": "ffm-registry-release-check"})
+          with urllib.request.build_opener(RejectRedirect()).open(request, timeout=30) as response:
+              require(response.geturl() == url, "The PyPI response URL changed.")
+              body = response.read(4_000_001)
+          require(len(body) <= 4_000_000, "The PyPI response exceeds the metadata limit.")
+          published = json.loads(body)
+          info = published.get("info", {})
+          require(info.get("name") == project["name"] and info.get("version") == version,
+                  "The exact package version is not available on PyPI.")
+          marker = "mcp-name: io.github.krmisystems/fantasy-football-manager"
+          require(marker in info.get("description", ""), "The public PyPI README lacks the ownership marker.")
+          expected_files = {
+              f"fantasy_football_manager-{version}-py3-none-any.whl": "bdist_wheel",
+              f"fantasy_football_manager-{version}.tar.gz": "sdist",
+          }
+          files = {item.get("filename"): item for item in published.get("urls", [])}
+          for name, kind in expected_files.items():
+              item = files.get(name, {})
+              require(item.get("packagetype") == kind and item.get("yanked") is False
+                      and re.fullmatch(r"[0-9a-f]{64}", item.get("digests", {}).get("sha256", "")),
+                      "An expected PyPI distribution is missing, yanked, or has no valid digest.")
+          registry_url = ("https://registry.modelcontextprotocol.io/v0.1/servers/"
+                          "io.github.krmisystems%2Ffantasy-football-manager/versions/" + version)
+          request = urllib.request.Request(registry_url, headers={
+              "Accept": "application/json", "User-Agent": "ffm-registry-release-check"})
+          try:
+              with urllib.request.build_opener(RejectRedirect()).open(request, timeout=30):
+                  raise SystemExit("This Registry version already exists. Review it before any further publication.")
+          except urllib.error.HTTPError as error:
+              require(error.code == 404, "The Registry version check failed.")
+          print("Verified the reviewed Registry metadata, public PyPI version, distributions, and ownership marker.")
+          PY
+      - name: Prepare the pinned publisher in a private temporary directory
+        id: publisher
+        shell: bash
+        env:
+          # Official release: https://github.com/modelcontextprotocol/registry/releases/tag/v1.8.1
+          PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          umask 077
+          registry_dir="$(mktemp -d "$RUNNER_TEMP/ffm-registry.XXXXXX")"
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --output "$registry_dir/publisher.tar.gz" \
+            https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz
+          printf '%s  %s\n' "$PUBLISHER_SHA256" "$registry_dir/publisher.tar.gz" | sha256sum --check --strict
+          tar -xzf "$registry_dir/publisher.tar.gz" --directory "$registry_dir" mcp-publisher
+          chmod 700 "$registry_dir/mcp-publisher"
+          cp docs/registry/server.json "$registry_dir/server.json"
+          printf 'directory=%s\n' "$registry_dir" >> "$GITHUB_OUTPUT"
+      - name: Authenticate and publish with GitHub OIDC
+        # Official guide: https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/github-actions.mdx
+        working-directory: ${{ steps.publisher.outputs.directory }}
+        shell: bash
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish server.json

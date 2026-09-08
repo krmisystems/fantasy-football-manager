@@ -3,6 +3,17 @@
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for current publication status.
 The records below retain their original version and validation scope.
 
+## Published v0.3.0 evidence
+
+The [v0.3.0 GitHub release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) uses commit `d3acc32150ad71b0d85847f603fcd7649a2436b7`.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34197957763) passed.
+All five public asset downloads matched the reviewed hashes and sizes.
+The package adds the season coordinator, PostgreSQL evidence archive, and discovery measurement collector.
+The [v0.3.0 PyPI package](https://pypi.org/project/fantasy-football-manager/0.3.0/) was published by the [reviewed release workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34198024653).
+Both public distribution hashes match the reviewed CI artifact.
+All 22 wheel package files and 92 source archive files matched the release commit before approval.
+See [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the separate PyPI and MCP Registry checks.
+
 ## Published v0.2.2 evidence
 
 Version 0.2.2 includes the compatibility changes from the second live draft trial.
@@ -27,7 +38,7 @@ It uses release commit `ea72798c3bb6b08bb1bcd37e82ce1cfe5fb08d36`.
 All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34186633175) passed.
 All five uploaded asset downloads matched the local artifact hashes.
 The installed wheel passed both STDIO checks and an authenticated ESPN connection and sync check.
-The local plugin was installed and enabled at version 0.2.1. PyPI and MCP Registry publication remain incomplete.
+The local plugin was installed and enabled at version 0.2.1. PyPI and MCP Registry publication were incomplete at that release check.
 Its complete local run passed 400 tests, including 14 isolated Chrome cases.
 The patch addresses weekly `columnheader` parsing, player-response request identity, selected-team lock coverage, ownership cache invalidation, and delayed navigation.
 Authenticated observation, lineup calculation, and a three-poll advisory monitor passed through the development ESPN service and Chrome.
@@ -105,10 +116,20 @@ The same Python distribution includes the `fantasy-football-espn` companion comm
 The plugin registers both commands. A direct MCP installation must register each required server.
 
 Publish the Python package before submitting registry metadata.
-Authenticate as the namespace owner through the registry's documented process.
-Copy the template to the publisher's working directory as `server.json`.
-Validate it with the current registry publisher before submission.
 The README contains the matching `mcp-name` marker needed for PyPI package ownership checks.
+
+The manual [Registry workflow](../.github/workflows/registry.yml) publishes the reviewed v0.3.0 record from `main`.
+It checks out the exact dispatch commit and validates the metadata.
+It checks the public PyPI version, ownership marker, and distribution files before authentication.
+It stops if that Registry version already exists or the availability check fails.
+The workflow verifies the pinned publisher download against its SHA-256 digest.
+It then authenticates with GitHub OIDC and publishes the staged record.
+The workflow uses a temporary identity token. It does not require a stored Registry token.
+
+Dispatch the workflow with version `0.3.0` after the package checks pass.
+Verify the published namespace, version, and package in the Registry response.
+For a later release, review the version choice and metadata digest before dispatch.
+See the [official GitHub OIDC instructions](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/github-actions.mdx).
 
 Namespace ownership is not established by this file.
 The registry contains discovery metadata; it does not host this server or its user data.

@@ -8,18 +8,20 @@ It requires an authenticated browser connection. Season mode supports lineup swa
 ## Install the commands
 
 Version 0.3.0 adds server season scheduling and an evidence archive to the draft and lineup tools.
-Read the [preview installation instructions](../README.md#preview-installation) for the wheel and plugin assets.
+Read the [installation instructions](../README.md#install-from-pypi) for the published package and plugin assets.
 Check [validation status](VALIDATION.md) for installed-command and live acceptance evidence.
 Check [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for verified package, registry, and plugin availability.
 The plugin archive contains registrations and skills. Install the Python wheel separately.
 
-From the repository root, run:
+Install the published commands:
 
 ```sh
-uv tool install --force .
+uv tool install fantasy-football-manager==0.3.0
 fantasy-football-manager --help
 fantasy-football-espn --help
 ```
+
+For development, use the [source installation](../README.md#install-from-source).
 
 Check that the Codex process can find both commands on `PATH`.
 Restart Codex if you changed its environment.
@@ -73,6 +75,7 @@ See the [connection and handoff steps](ESPN_AUTOMATION.md#separate-league-state-
 
 ## Prepare a personal plugin
 
+Clone the repository to use its plugin installer.
 The installer uses the helper files from Codex's `plugin-creator` skill.
 Set `PLUGIN_CREATOR_SKILL_ROOT` to the directory that contains that skill's `SKILL.md`.
 This is an external Codex tool. It is not bundled with this project.

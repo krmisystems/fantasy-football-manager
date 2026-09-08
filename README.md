@@ -16,7 +16,7 @@ Use browser sign-in without manually copying cookies between profiles.
 Authenticated sign-in, roster sync, and advisory lineup analysis are verified workflows.
 Start in advisory mode to inspect the recommendation before enabling live actions.
 
-1. [Install and connect both MCP servers](#install-from-source).
+1. [Install and connect both MCP servers](#install-from-pypi).
 2. Read the saved action modes with `get_manager_config`.
 3. Keep `set_lineup` in advisory mode for the first check.
 4. Call `espn_connect` with your league ID, team ID, season, `phase="season"`, and scoring `week`.
@@ -101,11 +101,21 @@ No qualifying swap was needed. This does not verify live server lineup submissio
 Read [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md) for restart, archive, and recovery evidence.
 Three additional draft trials and a five-team season trial are [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
 
-## Install from source
+## Install from PyPI
 
 Version 0.3.0 adds server season scheduling, durable evidence, and a PostgreSQL archive.
-Use this checkout for source installation. Check [distribution status](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) for versioned package availability.
+The [0.3.0 package is published on PyPI](https://pypi.org/project/fantasy-football-manager/0.3.0/).
 Use Python 3.11 or later, [uv](https://docs.astral.sh/uv/), and installed Google Chrome.
+
+```sh
+uv tool install fantasy-football-manager==0.3.0
+fantasy-football-manager --help
+fantasy-football-espn --help
+```
+
+## Install from source
+
+For development, run these commands from the repository checkout:
 
 ```sh
 uv sync --locked --dev
@@ -113,6 +123,8 @@ uv tool install --force .
 fantasy-football-manager --help
 fantasy-football-espn --help
 ```
+
+## Connect the commands
 
 Register both commands with Codex, or use the [Codex plugin instructions](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PLUGIN_INSTALL.md):
 
