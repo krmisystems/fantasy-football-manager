@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "automation": {
+    "preset": "advisory",
+    "paused": false,
+    "actions": {
+      "draft_pick": "advisory",
+      "set_lineup": "advisory",
+      "waiver_claim": "advisory",
+      "free_agent_add": "advisory",
+      "drop_player": "advisory",
+      "trade_offer": "advisory",
+      "trade_accept": "advisory"
+    }
+  },
+  "limits": {
+    "protected_ids": [],
+    "drop_mode": "listed_only",
+    "allowed_drop_ids": [],
+    "max_weekly_moves": 3,
+    "faab_per_claim": 10,
+    "faab_per_week": 20,
+    "faab_per_season": 70,
+    "faab_reserve": 30,
+    "min_lineup_improvement": 1.5,
+    "max_draft_age_seconds": 15,
+    "max_season_age_seconds": 300,
+    "max_adp_reach": null,
+    "batch_trials": 40
+  },
+  "strategy": {
+    "draft": "balanced_value",
+    "season": "projected_points",
+    "waiver": "immediate_starter"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "fantasy-football-manager": {
+      "command": "fantasy-football-manager",
+      "args": []
+    }
+  }
+}

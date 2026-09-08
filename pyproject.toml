@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fantasy-football-manager"
+version = "0.1.0"
+description = "Local MCP tools for fantasy football draft and weekly team decisions."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "krmisystems"}]
+dependencies = ["mcp>=2.2,<3", "pydantic>=2.11,<3"]
+keywords = ["mcp", "fantasy-football", "codex", "draft", "lineup"]
+
+[project.urls]
+Repository = "https://github.com/krmisystems/fantasy-football-manager"
+Issues = "https://github.com/krmisystems/fantasy-football-manager/issues"
+
+[project.scripts]
+fantasy-football-manager = "fantasy_football_manager.mcp_server:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "build>=1.2,<2", "twine>=7,<8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fantasy_football_manager"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

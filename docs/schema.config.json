@@ -1,0 +1,200 @@
+{
+  "$defs": {
+    "Automation": {
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "default": "advisory",
+          "enum": [
+            "advisory",
+            "review",
+            "bounded_automation",
+            "custom"
+          ],
+          "title": "Preset",
+          "type": "string"
+        },
+        "paused": {
+          "default": false,
+          "title": "Paused",
+          "type": "boolean"
+        },
+        "actions": {
+          "additionalProperties": {
+            "enum": [
+              "disabled",
+              "advisory",
+              "review",
+              "automatic"
+            ],
+            "type": "string"
+          },
+          "title": "Actions",
+          "type": "object"
+        }
+      },
+      "title": "Automation",
+      "type": "object"
+    },
+    "Limits": {
+      "additionalProperties": false,
+      "properties": {
+        "protected_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Protected Ids",
+          "type": "array"
+        },
+        "drop_mode": {
+          "default": "listed_only",
+          "enum": [
+            "listed_only",
+            "any_unprotected"
+          ],
+          "title": "Drop Mode",
+          "type": "string"
+        },
+        "allowed_drop_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Drop Ids",
+          "type": "array"
+        },
+        "max_weekly_moves": {
+          "default": 3,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Max Weekly Moves",
+          "type": "integer"
+        },
+        "faab_per_claim": {
+          "default": 10,
+          "minimum": 0,
+          "title": "Faab Per Claim",
+          "type": "integer"
+        },
+        "faab_per_week": {
+          "default": 20,
+          "minimum": 0,
+          "title": "Faab Per Week",
+          "type": "integer"
+        },
+        "faab_per_season": {
+          "default": 70,
+          "minimum": 0,
+          "title": "Faab Per Season",
+          "type": "integer"
+        },
+        "faab_reserve": {
+          "default": 30,
+          "minimum": 0,
+          "title": "Faab Reserve",
+          "type": "integer"
+        },
+        "min_lineup_improvement": {
+          "default": 1.5,
+          "minimum": 0,
+          "title": "Min Lineup Improvement",
+          "type": "number"
+        },
+        "max_draft_age_seconds": {
+          "default": 15,
+          "maximum": 300,
+          "minimum": 1,
+          "title": "Max Draft Age Seconds",
+          "type": "integer"
+        },
+        "max_season_age_seconds": {
+          "default": 300,
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "Max Season Age Seconds",
+          "type": "integer"
+        },
+        "max_adp_reach": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Adp Reach"
+        },
+        "batch_trials": {
+          "default": 40,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Batch Trials",
+          "type": "integer"
+        }
+      },
+      "title": "Limits",
+      "type": "object"
+    },
+    "Strategy": {
+      "additionalProperties": false,
+      "properties": {
+        "draft": {
+          "default": "balanced_value",
+          "enum": [
+            "balanced_value",
+            "rb_priority",
+            "wr_priority",
+            "hero_rb",
+            "zero_rb"
+          ],
+          "title": "Draft",
+          "type": "string"
+        },
+        "season": {
+          "default": "projected_points",
+          "enum": [
+            "projected_points",
+            "floor",
+            "upside"
+          ],
+          "title": "Season",
+          "type": "string"
+        },
+        "waiver": {
+          "default": "immediate_starter",
+          "enum": [
+            "immediate_starter",
+            "bench_upside",
+            "conserve_faab"
+          ],
+          "title": "Waiver",
+          "type": "string"
+        }
+      },
+      "title": "Strategy",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "automation": {
+      "$ref": "#/$defs/Automation"
+    },
+    "limits": {
+      "$ref": "#/$defs/Limits"
+    },
+    "strategy": {
+      "$ref": "#/$defs/Strategy"
+    }
+  },
+  "title": "ManagerConfig",
+  "type": "object"
+}

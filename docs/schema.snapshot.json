@@ -1,0 +1,483 @@
+{
+  "$defs": {
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "balance": {
+          "minimum": 0,
+          "title": "Balance",
+          "type": "integer"
+        },
+        "spent_week": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Spent Week",
+          "type": "integer"
+        },
+        "spent_season": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Spent Season",
+          "type": "integer"
+        },
+        "pending_amount": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pending Amount"
+        },
+        "pending_moves": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pending Moves"
+        },
+        "roster_moves_week": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Roster Moves Week",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "balance"
+      ],
+      "title": "Budget",
+      "type": "object"
+    },
+    "Pick": {
+      "additionalProperties": false,
+      "properties": {
+        "pick_no": {
+          "maximum": 1280,
+          "minimum": 1,
+          "title": "Pick No",
+          "type": "integer"
+        },
+        "player_id": {
+          "title": "Player Id",
+          "type": "string"
+        },
+        "slot": {
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Slot",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pick_no",
+        "player_id",
+        "slot"
+      ],
+      "title": "Pick",
+      "type": "object"
+    },
+    "Player": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "position": {
+          "enum": [
+            "QB",
+            "RB",
+            "WR",
+            "TE",
+            "DST",
+            "K"
+          ],
+          "title": "Position",
+          "type": "string"
+        },
+        "eligible_positions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Eligible Positions",
+          "type": "array"
+        },
+        "team": {
+          "default": "",
+          "title": "Team",
+          "type": "string"
+        },
+        "projection": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Projection",
+          "type": "number"
+        },
+        "weekly_projection": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weekly Projection"
+        },
+        "weekly_floor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weekly Floor"
+        },
+        "weekly_ceiling": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weekly Ceiling"
+        },
+        "adp": {
+          "default": 999,
+          "exclusiveMinimum": 0,
+          "title": "Adp",
+          "type": "number"
+        },
+        "availability": {
+          "default": "UNKNOWN",
+          "title": "Availability",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "bye": {
+          "anyOf": [
+            {
+              "maximum": 18,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bye"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "position"
+      ],
+      "title": "Player",
+      "type": "object"
+    },
+    "Rules": {
+      "additionalProperties": false,
+      "properties": {
+        "teams": {
+          "default": 14,
+          "maximum": 32,
+          "minimum": 2,
+          "title": "Teams",
+          "type": "integer"
+        },
+        "slot": {
+          "default": 1,
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Slot",
+          "type": "integer"
+        },
+        "rounds": {
+          "default": 14,
+          "maximum": 40,
+          "minimum": 1,
+          "title": "Rounds",
+          "type": "integer"
+        },
+        "snake": {
+          "default": true,
+          "title": "Snake",
+          "type": "boolean"
+        },
+        "starters": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Starters",
+          "type": "object"
+        },
+        "caps": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Caps",
+          "type": "object"
+        },
+        "flex_eligible": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flex Eligible",
+          "type": "array"
+        },
+        "bench": {
+          "default": 5,
+          "maximum": 30,
+          "minimum": 0,
+          "title": "Bench",
+          "type": "integer"
+        },
+        "ir": {
+          "default": 2,
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Ir",
+          "type": "integer"
+        }
+      },
+      "title": "Rules",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "complete": {
+          "default": true,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "locks_verified": {
+          "default": false,
+          "title": "Locks Verified",
+          "type": "boolean"
+        },
+        "synthetic": {
+          "default": false,
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "projections_observed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Projections Observed At"
+        }
+      },
+      "required": [
+        "provider",
+        "observed_at"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Team": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "slot": {
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Slot",
+          "type": "integer"
+        },
+        "roster_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roster Ids",
+          "type": "array"
+        },
+        "reserve_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reserve Ids",
+          "type": "array"
+        },
+        "lineup": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Lineup",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "slot"
+      ],
+      "title": "Team",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "league_id": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "League Id",
+      "type": "string"
+    },
+    "team_id": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Team Id",
+      "type": "string"
+    },
+    "season": {
+      "maximum": 2100,
+      "minimum": 2020,
+      "title": "Season",
+      "type": "integer"
+    },
+    "week": {
+      "default": 1,
+      "maximum": 18,
+      "minimum": 1,
+      "title": "Week",
+      "type": "integer"
+    },
+    "phase": {
+      "default": "season",
+      "enum": [
+        "draft",
+        "season"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "rules": {
+      "$ref": "#/$defs/Rules"
+    },
+    "players": {
+      "items": {
+        "$ref": "#/$defs/Player"
+      },
+      "maxItems": 10000,
+      "minItems": 1,
+      "title": "Players",
+      "type": "array"
+    },
+    "teams": {
+      "items": {
+        "$ref": "#/$defs/Team"
+      },
+      "maxItems": 32,
+      "minItems": 2,
+      "title": "Teams",
+      "type": "array"
+    },
+    "picks": {
+      "items": {
+        "$ref": "#/$defs/Pick"
+      },
+      "title": "Picks",
+      "type": "array"
+    },
+    "budget": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Budget"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "league_id",
+    "team_id",
+    "season",
+    "source",
+    "rules",
+    "players",
+    "teams"
+  ],
+  "title": "LeagueSnapshot",
+  "type": "object"
+}

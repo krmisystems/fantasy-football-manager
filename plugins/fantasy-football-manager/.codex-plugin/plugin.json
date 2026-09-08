@@ -1,0 +1,22 @@
+{
+  "name": "fantasy-football-manager",
+  "version": "0.1.0",
+  "description": "Local fantasy draft and weekly team workflows with synthetic-only execution.",
+  "author": {
+    "name": "krmisystems",
+    "url": "https://github.com/krmisystems"
+  },
+  "repository": "https://github.com/krmisystems/fantasy-football-manager",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Fantasy Football Manager",
+    "shortDescription": "Plan fantasy draft picks and weekly lineups.",
+    "longDescription": "Use local MCP tools for validated league imports, draft estimates, weekly lineups, and action policy. Version 0.1 executes synthetic changes only.",
+    "developerName": "krmisystems",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["Run the synthetic draft demo.", "Review my weekly lineup from an imported snapshot.", "Explain my automation limits and effective capabilities."]
+  },
+  "mcpServers": "./.mcp.json"
+}
