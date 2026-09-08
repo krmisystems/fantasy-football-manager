@@ -1,13 +1,14 @@
 # Discovery and distribution acceptance
 
-**Scope: discovery changes for v0.3.0. Updated: 2026-09-08. Status: all seven findings addressed and checked.**
+**Scope: v0.3.0 discovery changes and v0.3.1 distribution checks. Updated: 2026-09-08.**
 
 This record separates implemented changes from publication and measured adoption.
 Deployment identities, credentials, traffic snapshots, and private league records remain outside the repository.
 
 Version 0.3.1 adds the tested fixes from the [third draft](THIRD_DRAFT_ACCEPTANCE.md).
-Its source checks passed. Publication and installation of that patch are pending.
-The verified v0.3.0 channel records below remain unchanged.
+GitHub, PyPI, and MCP Registry publication checks passed. The local plugin update is verified.
+Remote v0.3.1 SSH command checks passed with the state-isolation limit recorded below.
+The historical v0.3.0 records retain their original evidence scope.
 
 ## Findings and verification
 
@@ -27,13 +28,46 @@ The repository description is:
 
 Topics are `browser-automation`, `codex`, `codex-plugin`, `espn`, `fantasy-draft`, `fantasy-football`, `lineup-optimization`, `mcp`, `mcp-server`, `monte-carlo`, `python`, and `self-hosted`.
 
-## Distribution checks
+## Version 0.3.1 distribution checks
+
+The release source commit is `5fd4727d0f21751508c9caac3fba62ba03c8c756`.
+All seven [main CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262013806) passed.
+The local suite passed **611 tests with two skips**, including **17 isolated Chrome cases**.
+
+| Channel | Verified state |
+|---|---|
+| GitHub releases | [v0.3.1](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.1) is published as a prerelease. All five public downloads matched the reviewed hashes and sizes. |
+| PyPI | [v0.3.1](https://pypi.org/project/fantasy-football-manager/0.3.1/) is published. The [approved workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262132640) passed. A fresh public installation passed checks for both MCP commands. |
+| MCP Registry | The [v0.3.1 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.1) was active and latest at 18:28:25 UTC on 2026-09-08. Exact-version and latest responses matched the reviewed metadata. The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262942173) passed from the release commit. |
+| Local Codex plugin | Version 0.3.1 is installed and enabled with a Codex cachebuster. All six installed files match the cache. The private SSH configuration, including `PROGRAMDATA`, remains byte-identical. |
+
+A fresh Python 3.12.13 environment installed `fantasy-football-manager==0.3.1` from the public PyPI index.
+The check disabled cache and local configuration and removed environment overrides.
+Both commands reported version 0.3.1 and listed 17 manager tools and 13 ESPN tools.
+The manager capability check and ESPN status check passed.
+Both downloaded distributions matched the reviewed PyPI hashes and sizes.
+This check did not open a browser, use real league state, or submit a live action.
+
+The first installation could not find version 0.3.1 in the public simple index, although package metadata and files were visible.
+The same installation check passed after the simple index listed the version.
+The failed attempt and successful retry remain separate private receipts.
+
+The server package was upgraded separately after the local plugin installation.
+All 22 installed package files matched the reviewed v0.3.1 wheel. Dependency versions remained unchanged.
+The preserved manager SSH connection reported version 0.3.1 and 17 tools. Capability and source-status calls passed.
+The ESPN SSH check reported version 0.3.1 and 13 tools through the same transport, environment, and installed executable.
+Only its state directory changed to an isolated temporary directory, which was removed after the check.
+This prevented lifecycle status writes to the running coordinator's league database.
+The preserved ESPN league target was not launched during this check. No browser connection or live action occurred.
+A new Codex thread must load the updated plugin.
+
+## Historical v0.3.0 distribution checks
 
 | Channel | Verified state |
 |---|---|
 | GitHub releases | [v0.3.0](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) is published from commit `d3acc32150ad71b0d85847f603fcd7649a2436b7`. All five asset downloads matched the reviewed hashes. Earlier assets remain unchanged. |
 | PyPI | [v0.3.0](https://pypi.org/project/fantasy-football-manager/0.3.0/) is published. The [trusted-publisher workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34198024653) passed. Both public distribution hashes match the reviewed CI artifact. The ownership marker is present. |
-| MCP Registry | The [v0.3.0 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) is active and latest. Exact-version and latest responses match the reviewed metadata. The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34199217116) passed. |
+| MCP Registry | The [v0.3.0 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) was active and latest at publication. Exact-version and latest responses matched the reviewed metadata. The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34199217116) passed. |
 | Local Codex plugin | The v0.3.0 plugin passed SSH STDIO checks for 17 manager tools and 13 ESPN tools. This is a personal installation. |
 
 The registry record describes the manager entry point.
@@ -55,7 +89,7 @@ The installed service then completed a second collection with exit code 0.
 Its weekly timer is active and enabled for startup. The next scheduled run is 2026-09-14.
 Both reports remain private. Successful manual service execution does not establish a future scheduled result.
 
-The final Windows run passed **608 tests with two skips in 33.48 seconds**, including all 15 Chrome cases.
+The v0.3.0 Windows run passed **608 tests with two skips in 33.48 seconds**, including all 15 Chrome cases.
 The skips required PostgreSQL configuration and Windows symlink privileges.
 Separate Linux runs passed **23 PostgreSQL archive tests** and **28 discovery collector tests**.
 Release metadata, known private-pattern checks, MCP examples, and local documentation links passed validation.
@@ -66,9 +100,17 @@ Review reporting delays and the repository's age before drawing conclusions from
 
 ## Product evidence boundaries
 
-The recorded live draft ended with 13 manager-confirmed picks and three ESPN Autopicks after compatibility failures and manual recovery.
+The second live draft ended with 13 manager-confirmed picks and three ESPN Autopicks after compatibility failures and manual recovery.
 It used changing development patches, not one unchanged released wheel.
-The server verified two-team observation and analysis without a qualifying live lineup swap.
-The five-team season evaluation and three additional drafts remain planned.
+
+The [third draft](THIRD_DRAFT_ACCEPTANCE.md) also verified 13 manager-confirmed selections and three ESPN Autopicks.
+Its visible history contains all 160 selections, and its selected roster contains 16 players.
+That runtime used v0.3.0 with private recovery changes. The corrected v0.3.1 source has separate fixture evidence.
+The final host capture matched the stored 133-pick prefix and completed the stored 160-pick history.
+This import has a separate source provider. The completed server draft page could not be reopened for fresh observation.
+The third roster then passed fresh Week 1 browser observation after the server upgrade to v0.3.1.
+
+The server verified three-team Week 1 observation and analysis without a qualifying single lineup swap.
+The five-team season evaluation remains planned. Read the [multi-team plan](MULTI_TEAM_ACCEPTANCE.md) for draft trial status.
 
 See [draft acceptance](LIVE_DRAFT_ACCEPTANCE.md), [server acceptance](SERVER_ACCEPTANCE.md), and [validation status](VALIDATION.md).

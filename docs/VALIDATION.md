@@ -1,7 +1,7 @@
 # Validation status
 
 Version 0.3.0 adds a server coordinator and labeled evidence archive.
-Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, two-team observations, backup recovery, and verification limits.
+Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, three-team observations, backup recovery, and verification limits.
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
 The historical results below retain their original runtime scope.
 
@@ -15,10 +15,45 @@ The [third draft acceptance record](THIRD_DRAFT_ACCEPTANCE.md) preserves the liv
 That trial used installed v0.3.0 with private runtime changes. It does not verify live execution of the corrected v0.3.1 source.
 Check [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for publication and installation status.
 
+## Published v0.3.1 evidence
+
+The [v0.3.1 GitHub prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.1) uses commit `5fd4727d0f21751508c9caac3fba62ba03c8c756`.
+All seven [main CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262013806) passed.
+All five published asset downloads matched the reviewed hashes and sizes.
+
+The [v0.3.1 PyPI package](https://pypi.org/project/fantasy-football-manager/0.3.1/) passed the [approved publication workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262132640).
+A fresh public PyPI installation passed STDIO checks for 17 manager tools and 13 ESPN tools.
+Both commands reported version 0.3.1. Capability and status calls passed.
+Both public PyPI distributions matched the reviewed hashes and sizes.
+The check used a fresh Python 3.12.13 environment with cache, local configuration, and environment overrides disabled.
+
+The initial installation could not find the version in the public simple index.
+The same check passed after the index listed version 0.3.1.
+These checks did not open a browser or submit a live action.
+
+The [MCP Registry v0.3.1 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.1) was active and latest at 18:28:25 UTC on 2026-09-08.
+Exact-version and latest responses matched the reviewed metadata.
+The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34262942173) passed from the release commit.
+
+The local Codex plugin is installed and enabled at version 0.3.1 with a Codex cachebuster.
+All six installed files matched the cache. The private SSH configuration, including `PROGRAMDATA`, remained byte-identical.
+The separate server upgrade verified all 22 installed v0.3.1 package files without dependency version changes.
+The preserved manager SSH connection passed initialization, 17-tool listing, capability, and source-status checks.
+The ESPN SSH check used the saved transport and executable with only the state directory redirected to temporary isolated state.
+It passed initialization, 13-tool listing, and disconnected status checks. The temporary state was removed afterward.
+This avoided lifecycle status writes to the running coordinator. The preserved ESPN league target was not launched during this check.
+A new thread must load the updated local plugin.
+
+The third draft's saved host capture matched all 133 existing server picks and completed the stored 160-pick history.
+That import uses a separate reconciliation source. It does not establish a fresh server draft-room observation.
+After the v0.3.1 server upgrade, all three Week 1 contexts produced fresh season observations and zero unresolved claims.
+Selected-team locks were verified. No single lineup swap qualified under the configured limits.
+The corrected v0.3.1 source has no completed live write trial.
+
 ## Published v0.3.0 evidence
 
 Version 0.3.0 is published on [GitHub](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) and [PyPI](https://pypi.org/project/fantasy-football-manager/0.3.0/).
-The [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) is active and latest.
+The [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) was active and latest at publication.
 The package source commit is `d3acc32150ad71b0d85847f603fcd7649a2436b7`.
 The separate [Registry workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34199217116) published unchanged package metadata from documentation and workflow commit `dd5ce3a50dbc2145b8ead701e8b9ddb593d2a62c`.
 

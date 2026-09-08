@@ -1,16 +1,17 @@
 # Multi-team acceptance plan
 
-**Status: Planned.** The next test session will include three additional drafts.
-The following evaluation will cover five teams through a season.
-Start times, final results, and season outcomes are not yet recorded.
+**Status: One additional draft completed with failures and operator recovery. Two drafts remain planned.**
+The [third team draft](THIRD_DRAFT_ACCEPTANCE.md) is the first of the three additional trials.
+It verified all 160 selections and a 16-player roster, with 13 manager-confirmed picks and three platform fallbacks.
+The five-team season evaluation remains planned. Season outcomes are not yet recorded.
 
 Version 0.3.0 adds a serial season coordinator with separate league databases and a shared server browser.
-Two-team server verification is recorded in [validation status](VALIDATION.md).
+Three-team Week 1 server observation is recorded in [server acceptance](SERVER_ACCEPTANCE.md).
 Five-team season acceptance remains planned.
 
 ## Failures to retain
 
-The current live draft exposed failures that the next runs must address:
+The second live draft exposed these failures:
 
 - Adapter startup failed before the first two selected-team turns. ESPN Autopick made those selections.
 - A later player search required an autocomplete selection. The adapter timed out, and ESPN Autopick made that selection.
@@ -22,6 +23,10 @@ The Week 1 connection and advisory lineup analysis also passed. No season action
 Keep these events in the acceptance record after fixes pass.
 A later successful selection does not remove an earlier missed turn or manual intervention.
 See the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for the final result and runtime details.
+
+The third team draft exposed two further compatibility failures: API team-name whitespace and a D/ST selector delimiter.
+The private runtime workaround, planned restart, late browser handoff, and three platform fallbacks remain recorded in the [third draft report](THIRD_DRAFT_ACCEPTANCE.md).
+Version 0.3.1 fixes both compatibility cases in isolated tests. The corrected source still needs a live draft trial.
 
 ## Separate state and browser access
 
@@ -67,7 +72,7 @@ Keep deliberate fault injection in isolated browser tests.
 
 | Run | Planned focus | Result |
 |---|---|---|
-| Draft A | Verify waiting-room entry, identity, disabled Autopick, and readiness before the first turn. | Pending. |
+| Draft A | Verify waiting-room entry, identity, disabled Autopick, and readiness before the first turn. | Completed as the third team draft. Failures required operator recovery. Thirteen picks have manager confirmations, and three have operator fallback labels. |
 | Draft B | Repeat automatic selection with autocomplete, complete history, and platform receipts. | Pending. |
 | Draft C | Repeat through roster completion and verify the resulting league context for season monitoring. | Pending. |
 

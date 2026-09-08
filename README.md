@@ -100,10 +100,10 @@ Each team keeps a separate SQLite database, policy, explicit week, and pending c
 One shared profile lease prevents simultaneous browser control.
 The optional PostgreSQL archive preserves labeled evidence. Private backups preserve the operational databases and configuration.
 
-The development server passed **two-team observation and analysis checks with zero live server lineup swaps**.
-No qualifying swap was needed. This does not verify live server lineup submission or an unattended season.
+The server passed **three-team Week 1 observation and analysis checks with zero live server lineup swaps**.
+No single swap qualified under the configured limits. This does not verify live server lineup submission or an unattended season.
 Read [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md) for restart, archive, and recovery evidence.
-Three additional draft trials and a five-team season trial are [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
+One of three additional draft trials is complete. Two drafts and a five-team season trial remain [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
 
 ## Install from PyPI
 
@@ -149,9 +149,9 @@ The package includes Playwright and uses installed Chrome.
 An optional `cdp_url` can connect to an explicit loopback browser debugging endpoint.
 Keep profiles, credentials, databases, logs, and real league exports outside Git. Read the [privacy notes](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PRIVACY.md).
 
-The [v0.3.0 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) identifies the versioned
-[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.0/fantasy_football_manager-0.3.0-py3-none-any.whl),
-[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.0/fantasy-football-manager-0.3.0-plugin.zip), and checksums.
+The [v0.3.1 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.1) identifies the versioned
+[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.1/fantasy_football_manager-0.3.1-py3-none-any.whl),
+[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.1/fantasy-football-manager-0.3.1-plugin.zip), and checksums.
 The [distribution acceptance record](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) tracks verified GitHub, PyPI, and MCP Registry publication separately.
 Follow the [release instructions](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/RELEASING.md) for publisher setup. Earlier published assets remain unchanged.
 

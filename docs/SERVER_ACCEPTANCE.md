@@ -1,12 +1,68 @@
 # Server and archive acceptance
 
-**Status: Verified archive import, two-team season observation, backup recovery, and service restart.**
+**Status: Verified archive import, three-team Week 1 observation, historical backup recovery, and service restart.**
 
-This record covers the v0.3.0 development candidate on 2026-09-08.
+This record retains the v0.3.0 checks and the v0.3.1 third-team handoff on 2026-09-08.
 Deployment identities, account information, manifests, and raw evidence remain private.
 The checks below describe the tested configuration. They do not establish unattended season operation.
 
-## Regression verification
+## Version 0.3.1 season handoff
+
+The [third draft record](THIRD_DRAFT_ACCEPTANCE.md) preserves the completed roster, failures, recovery steps, and final host-capture reconciliation.
+The final snapshot contains 160 picks and zero unresolved authorized claims.
+Its reconciliation provider does not establish fresh browser state or permission for a live action.
+
+The server installed the reviewed v0.3.1 wheel after the draft evidence was saved.
+All 22 installed package files matched the reviewed wheel. Dependency versions remained unchanged.
+The archive, backup, and discovery timers resumed after the package update.
+The third team's activation preserved the two existing league contexts and their policies.
+
+The coordinator then observed all three exact Week 1 contexts through the authenticated browser.
+All three sources used `espn_browser` and verified selected-team locks.
+All three lineup modes were automatic and unpaused, with a 1.5-point minimum improvement.
+The coordinator reported healthy status, fresh observations, and zero unresolved claims.
+
+One team already had the current target lineup.
+The other two teams had no admissible single exchange under the configured limits.
+No live server lineup swap was submitted.
+These checks verify observation and analysis. They do not establish live lineup submission or unattended season completion.
+
+The remote manager command passed the preserved plugin's SSH initialization and listed 17 tools at version 0.3.1.
+The ESPN command listed 13 tools through the same SSH transport and executable, with its state directory temporarily isolated.
+That isolation prevented lifecycle status writes to a live league database. The temporary state was removed after verification.
+The check did not launch the preserved ESPN league target or connect another browser.
+
+## Three-team archive and backup verification
+
+The final check at 18:38 UTC recorded six completed coordinator cycles and fresh observations for all three teams.
+The archive preserved every earlier immutable run payload.
+Three new collection runs contain mixed historical and post-upgrade evidence.
+Their runtime version and code revision fields are `null`, because the exporter also reads earlier database events.
+A private cutover record identifies the installed v0.3.1 package and the event boundaries.
+The original third-draft run retains its v0.3.0 private-bootstrap provenance.
+
+The archive imported three explicit operator-observation labels for the third draft's platform fallback selections.
+It contained every outbox event through the checked cutoffs:
+
+| Anonymous source | Checked events | Missing events |
+|---|---:|---:|
+| Team A | 2,958 | 0 |
+| Team B | 2,960 | 0 |
+| Team C | 934 | 0 |
+
+These are storage checks. Mixed-history exports can repeat earlier evidence under a separate collection run.
+The record counts do not represent independent draft or season outcomes.
+
+The completed backup contains a PostgreSQL dump, all three SQLite databases, and two private configuration files.
+All six files matched their recorded sizes and SHA-256 checksums.
+Each SQLite backup passed `PRAGMA quick_check` and matched its expected Week 1 context.
+`pg_restore --list` read the PostgreSQL dump successfully.
+A new PostgreSQL restore was **Not Tested** for this backup. The earlier restore check remains recorded below.
+
+The archive, backup, and discovery timers were active. Each timer's latest service result was successful.
+The coordinator continued its three-team visits after verification.
+
+## Historical v0.3.0 regression verification
 
 The Windows run passed **579 tests**, with one optional PostgreSQL test skipped, in 35.20 seconds.
 It used Python 3.12 and included all 15 isolated Chrome cases through `FFM_BROWSER_TESTS=1`.
@@ -78,7 +134,7 @@ The sanitized backfill passed checks for known private member identifiers, fanta
 The archive retains private league and team identifiers for context matching.
 It is not a public dataset.
 
-## Server season observation
+## Initial two-team season observation
 
 The server observed both configured team contexts through its authenticated browser.
 Saved lineup modes were `automatic`, with a minimum projected improvement of 1.5 points.
