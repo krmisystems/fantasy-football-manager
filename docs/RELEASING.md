@@ -1,9 +1,10 @@
 # Release the package
 
-These files prepare version 0.2.0 for review.
-The planned GitHub tag is `v0.2.0`, with the release marked as a prerelease.
-GitHub preview publication is pending. Version 0.2.0 is not published on PyPI.
-They do not prove that a repository, package, registry entry, or trusted publisher exists.
+The [v0.2.0 GitHub preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) is published as a prerelease.
+It contains the verified artifacts from commit `f9825892f4af64d7abc501e5ef15b46ef5501411`.
+All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34185668423) passed.
+Version 0.2.0 is not published on PyPI or the MCP Registry. Those publication steps remain separate.
+Keep the published preview artifacts unchanged. Use a new version for subsequent package changes.
 Check [validation status](VALIDATION.md) before each release.
 
 ## Build the artifacts

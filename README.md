@@ -17,17 +17,20 @@ Live waiver, free-agent, drop, and trade adapters remain planned. Complete seaso
 
 ## Preview installation
 
-The planned preview tag is `v0.2.0`. Publication of these assets is pending.
-This version is not published on PyPI. After the GitHub preview is published, use its wheel:
+The [v0.2.0 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) is published on GitHub as a prerelease.
+This version is not published on PyPI or the MCP Registry. Install the published wheel:
 
 ```sh
 uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy_football_manager-0.2.0-py3-none-any.whl"
 ```
 
-Planned assets: [preview release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0),
+Published assets: [preview release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0),
 [plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy-football-manager-0.2.0-plugin.zip),
 and [SHA-256 manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy-football-manager-0.2.0-plugin-manifest.json).
 The plugin ZIP registers both commands. It does not install the Python package.
+All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34185668423) passed.
+The published downloads matched the local artifact hashes. Both installed commands passed STDIO checks.
+See the exact release commit and validation evidence in [validation status](docs/VALIDATION.md).
 
 ## Install from source
 

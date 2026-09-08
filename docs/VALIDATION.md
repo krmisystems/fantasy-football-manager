@@ -15,11 +15,24 @@ The run used `FFM_BROWSER_TESTS=1` and included **13 isolated Chrome tests**: 4 
 | Earlier direct browser draft actions | Verified in the original live session. This separate evidence does not validate the packaged adapter. |
 | Live waivers, acquisitions, drops, and trades | Planned. Adapters are not implemented. |
 | Automatic scoring-week rollover | Planned. Season operation uses an explicit connected week. |
-| Version 0.2.0 public assets | Publication pending. The planned GitHub preview tag is `v0.2.0`. This version is not published on PyPI. |
+| Version 0.2.0 public assets | Verified published GitHub prerelease. All five uploaded asset downloads matched the local artifact hashes. |
+| Installed commands and plugin | Verified wheel STDIO checks: 17 manager tools and 13 ESPN tools. Local plugin version 0.2.0 installed and enabled. |
+| PyPI and MCP Registry publication | Not published. Separate publisher setup remains required. |
 
 Automated tests do not submit picks or lineup changes to a real league.
 Local fixture tests do not establish compatibility with current ESPN pages or live account acceptance.
 Source checks do not establish publisher ownership or a public marketplace listing.
+
+## Published preview evidence
+
+The [v0.2.0 prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) uses commit
+[`f9825892f4af64d7abc501e5ef15b46ef5501411`](https://github.com/krmisystems/fantasy-football-manager/commit/f9825892f4af64d7abc501e5ef15b46ef5501411).
+All six jobs in its [GitHub CI run](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34185668423) passed.
+The run covered Windows and Ubuntu tests, isolated Chrome fixtures, and packaging.
+The five uploaded assets passed download and hash comparisons after publication.
+The installed wheel passed both STDIO checks. The local plugin was installed and enabled at version 0.2.0.
+These installation checks did not authenticate ESPN or submit a real action.
+Published assets remain fixed to the release commit. Later documentation commits do not replace them.
 
 ## Release checks
 
