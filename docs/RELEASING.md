@@ -1,6 +1,11 @@
 # Release the package
 
-Version 0.2.1 is a compatibility patch pending publication.
+The [v0.2.1 compatibility preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1) is published as a prerelease.
+It uses release commit `ea72798c3bb6b08bb1bcd37e82ce1cfe5fb08d36`.
+All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34186633175) passed.
+All five uploaded asset downloads matched the local artifact hashes.
+The installed wheel passed both STDIO checks and an authenticated ESPN connection and sync check.
+The local plugin was installed and enabled at version 0.2.1. PyPI and MCP Registry publication remain incomplete.
 Its complete local run passed 400 tests, including 14 isolated Chrome cases.
 The patch addresses weekly `columnheader` parsing, player-response request identity, selected-team lock coverage, ownership cache invalidation, and delayed navigation.
 Authenticated observation, lineup calculation, and a three-poll advisory monitor passed through the development ESPN service and Chrome.

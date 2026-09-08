@@ -19,7 +19,19 @@ An authenticated read was verified through the development ESPN service and Chro
 | Live draft or lineup submission | **Not Tested.** No real action was submitted. |
 
 This evidence verifies authenticated observation and calculation. It does not verify acceptance of a live action.
-Version 0.2.1 is not published. The v0.2.0 evidence below applies only to its recorded release commit.
+
+## Published v0.2.1 evidence
+
+The [v0.2.1 prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1) uses commit
+[`ea72798c3bb6b08bb1bcd37e82ce1cfe5fb08d36`](https://github.com/krmisystems/fantasy-football-manager/commit/ea72798c3bb6b08bb1bcd37e82ce1cfe5fb08d36).
+All six jobs in its [GitHub CI run](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34186633175) passed.
+All five uploaded asset downloads matched the local artifact hashes.
+The installed v0.2.1 wheel passed STDIO checks for 17 manager tools and 13 ESPN tools.
+The installed ESPN MCP command also completed an authenticated connection and sync in advisory mode.
+The browser reported ready. No action was submitted, and no pending action remained.
+The local plugin was installed and enabled at version 0.2.1.
+PyPI and MCP Registry publication remain incomplete. Live write acceptance remains **Not Tested**.
+Published assets remain fixed to the release commit. The v0.2.0 evidence below is historical.
 
 ## Verified v0.2.0 baseline
 
@@ -46,7 +58,7 @@ Automated tests do not submit picks or lineup changes to a real league.
 Local fixture tests do not establish compatibility with current ESPN pages or live account acceptance.
 Source checks do not establish publisher ownership or a public marketplace listing.
 
-## Published preview evidence
+## Published v0.2.0 evidence
 
 The [v0.2.0 prerelease](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) uses commit
 [`f9825892f4af64d7abc501e5ef15b46ef5501411`](https://github.com/krmisystems/fantasy-football-manager/commit/f9825892f4af64d7abc501e5ef15b46ef5501411).

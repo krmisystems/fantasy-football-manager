@@ -4,13 +4,14 @@ Local MCP tools for draft decisions, weekly team analysis, and ESPN draft and li
 
 <!-- mcp-name: io.github.krmisystems/fantasy-football-manager -->
 
-Version **0.2.1** is a pending compatibility patch to the published v0.2.0 preview.
+Version **0.2.1** is a published compatibility preview for the ESPN companion.
 The package provides two MCP servers: 17 manager tools and 13 ESPN companion tools.
 The manager calculates recommendations and controls policy.
 The ESPN companion observes league state and can submit real draft picks or weekly lineup swaps.
 
 Version 0.2.1 passed 400 tests, including 14 isolated Chrome cases using local fixtures.
 Authenticated reading and an advisory monitor were verified through the ESPN service and Chrome.
+The installed v0.2.1 ESPN MCP command also connected and synced successfully in advisory mode without pending actions.
 **Live account acceptance of packaged draft picks and lineup swaps remains untested.**
 Earlier direct browser picks were verified during a live draft. That separate evidence does not validate this package.
 
@@ -19,7 +20,7 @@ Live waiver, free-agent, drop, and trade adapters remain planned. Complete seaso
 
 ## Compatibility patch
 
-The pending v0.2.1 patch addresses compatibility gaps found during signed-in, read-only validation:
+The v0.2.1 patch addresses compatibility gaps found during signed-in, read-only validation:
 
 - Read the weekly team header when ESPN exposes it as a `columnheader`.
 - Bind player responses without league identifiers to the verified request URL.
@@ -31,24 +32,24 @@ The authenticated check read complete league rosters and produced a legal nine-s
 An advisory monitor completed three polls and stopped cleanly without pending actions.
 League-wide power rankings correctly remained incomplete because only the selected team's locks were verified.
 This check did not submit a real pick or lineup change.
-The patch is not yet published. Published v0.2.0 assets remain unchanged.
+The patch is published as a prerelease. Published v0.2.0 assets remain unchanged.
 
 ## Preview installation
 
-The [v0.2.0 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) is published on GitHub as a prerelease.
-The v0.2.1 patch is not yet published. The wheel below installs the earlier v0.2.0 preview without the pending fixes.
-Neither version is published on PyPI or the MCP Registry. To install the published baseline:
+The [v0.2.1 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1) is published on GitHub as a prerelease.
+This version is not published on PyPI or the MCP Registry. Install the published preview wheel:
 
 ```sh
-uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy_football_manager-0.2.0-py3-none-any.whl"
+uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.1/fantasy_football_manager-0.2.1-py3-none-any.whl"
 ```
 
-Published assets: [preview release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0),
-[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy-football-manager-0.2.0-plugin.zip),
-and [SHA-256 manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy-football-manager-0.2.0-plugin-manifest.json).
+Published assets: [preview release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.1),
+[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.1/fantasy-football-manager-0.2.1-plugin.zip),
+and [SHA-256 manifest](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.1/fantasy-football-manager-0.2.1-plugin-manifest.json).
 The plugin ZIP registers both commands. It does not install the Python package.
-All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34185668423) passed.
-The published downloads matched the local artifact hashes. Both installed commands passed STDIO checks.
+All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34186633175) passed.
+All five uploaded asset downloads matched the local artifact hashes. Both installed commands passed STDIO checks.
+The installed ESPN command passed authenticated connection and sync checks in advisory mode. No live action was submitted.
 See the exact release commit and validation evidence in [validation status](docs/VALIDATION.md).
 
 ## Install from source
