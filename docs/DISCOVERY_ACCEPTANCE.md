@@ -1,6 +1,6 @@
 # Discovery and distribution acceptance
 
-**Scope: discovery changes for v0.3.0. Updated: 2026-09-08.**
+**Scope: discovery changes for v0.3.0. Updated: 2026-09-08. Status: all seven findings addressed and checked.**
 
 This record separates implemented changes from publication and measured adoption.
 Deployment identities, credentials, traffic snapshots, and private league records remain outside the repository.
@@ -15,7 +15,7 @@ Deployment identities, credentials, traffic snapshots, and private league record
 | Specific search terms lack a clear explanation | The README explains ESPN MCP, browser sign-in without manual cookie copying, and lineup changes with approval. | Capability fit is verified. Search volume and conversion improvement are not measured. |
 | Compatibility evidence is scattered | The [compatibility matrix](ESPN_COMPATIBILITY.md) links layouts, failures, fictional fixtures, repeatable commands, and live evidence. | The matrix preserves platform fallback and manual intervention records. |
 | Weekly discovery measurements are absent | A [collector and measurement guide](DISCOVERY_MEASUREMENT.md) cover views, clones, referrers, and star counts. | Local tests verify deduplication, partial responses, repository scope, and atomic storage. Deployment verification appears below. |
-| Distribution is incomplete | The project has published GitHub and PyPI packages, a Codex plugin, and a Registry publication workflow. | Channel-specific publication status appears below. Prepared metadata is not proof of publication. |
+| Distribution is incomplete | GitHub and PyPI packages are published. The manager is listed in the MCP Registry. The local Codex plugin includes both MCP commands. | Public downloads, fresh installation, Registry responses, and local plugin checks passed. Channel details appear below. |
 
 The repository description is:
 
@@ -29,12 +29,17 @@ Topics are `browser-automation`, `codex`, `codex-plugin`, `espn`, `fantasy-draft
 |---|---|
 | GitHub releases | [v0.3.0](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) is published from commit `d3acc32150ad71b0d85847f603fcd7649a2436b7`. All five asset downloads matched the reviewed hashes. Earlier assets remain unchanged. |
 | PyPI | [v0.3.0](https://pypi.org/project/fantasy-football-manager/0.3.0/) is published. The [trusted-publisher workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34198024653) passed. Both public distribution hashes match the reviewed CI artifact. The ownership marker is present. |
-| MCP Registry | Official metadata validation passed. The reviewed workflow uses GitHub OIDC for the organization namespace. Registry publication is not yet verified. |
+| MCP Registry | The [v0.3.0 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) is active and latest. Exact-version and latest responses match the reviewed metadata. The [GitHub OIDC workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34199217116) passed. |
 | Local Codex plugin | The v0.3.0 plugin passed SSH STDIO checks for 17 manager tools and 13 ESPN tools. This is a personal installation. |
 
 The registry record describes the manager entry point.
 Live browser actions require the ESPN companion entry point or the two-server Codex plugin.
 Package and registry publication do not establish official Codex marketplace inclusion.
+
+A fresh Python 3.12.13 environment installed `fantasy-football-manager==0.3.0` from the public PyPI index with cache and local configuration disabled.
+Both installed commands passed STDIO initialization and tool listing: 17 manager tools and 13 ESPN tools.
+Both reported version 0.3.0. Read-only capability and status calls passed.
+This installation check did not open a browser or submit a live action.
 
 ## Measurement checks
 

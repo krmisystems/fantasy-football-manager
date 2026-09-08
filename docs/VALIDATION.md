@@ -2,7 +2,33 @@
 
 Version 0.3.0 adds a server coordinator and labeled evidence archive.
 Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, two-team observations, backup recovery, and verification limits.
+Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
 The historical results below retain their original runtime scope.
+
+## Published v0.3.0 evidence
+
+Version 0.3.0 is published on [GitHub](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.0) and [PyPI](https://pypi.org/project/fantasy-football-manager/0.3.0/).
+The [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) is active and latest.
+The package source commit is `d3acc32150ad71b0d85847f603fcd7649a2436b7`.
+The separate [Registry workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34199217116) published unchanged package metadata from documentation and workflow commit `dd5ce3a50dbc2145b8ead701e8b9ddb593d2a62c`.
+
+The final Windows run passed **608 tests with two skips in 33.48 seconds**, including 15 isolated Chrome cases.
+The skips required PostgreSQL configuration and Windows symlink privileges.
+Separate Linux runs passed 23 PostgreSQL archive tests and 28 discovery collector tests.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34197957763) passed.
+The [PyPI workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34198024653) passed the same seven gates before approved publication.
+
+All five GitHub asset downloads matched their reviewed hashes and sizes.
+Both PyPI distributions matched the reviewed CI artifact hashes.
+Before PyPI approval, all 22 wheel package files and 92 source archive files matched the source commit.
+The Windows GitHub build and Linux PyPI build have separate archive hashes. Each build was checked against the same source commit.
+
+A fresh Python 3.12.13 environment installed version 0.3.0 from the public PyPI index with cache and local configuration disabled.
+Both installed commands passed STDIO initialization and tool listing: 17 manager tools and 13 ESPN tools.
+Both reported version 0.3.0. Read-only capability and status calls passed.
+The local Codex plugin also passed both SSH STDIO checks against the installed server package.
+These checks did not submit a live draft pick or lineup change.
+Package publication and a personal plugin installation do not establish official Codex marketplace inclusion.
 
 ## Working-tree live draft: Complete with failures and manual interventions
 
@@ -60,7 +86,7 @@ The operator stopped those identified manager processes and repeated installatio
 That installation recovery did not terminate the user's Chrome browser.
 
 Installed-wheel draft writes and live lineup writes remain **Not Tested**.
-PyPI and MCP Registry publication remain incomplete.
+PyPI and MCP Registry publication were incomplete at that release check.
 Published assets remain fixed to the release commit. Later documentation commits do not replace them.
 
 ## Version 0.2.1 patch status
@@ -93,7 +119,7 @@ The installed v0.2.1 wheel passed STDIO checks for 17 manager tools and 13 ESPN 
 The installed ESPN MCP command also completed an authenticated connection and sync in advisory mode.
 The browser reported ready. No action was submitted, and no pending action remained.
 The local plugin was installed and enabled at version 0.2.1.
-PyPI and MCP Registry publication remain incomplete. Live write acceptance remains **Not Tested**.
+PyPI and MCP Registry publication were incomplete at that release check. Live write acceptance remained **Not Tested**.
 Published assets remain fixed to the release commit. The v0.2.0 evidence below is historical.
 
 ## Verified v0.2.0 baseline
@@ -115,7 +141,7 @@ The run used `FFM_BROWSER_TESTS=1` and included **13 isolated Chrome tests**: 4 
 | Automatic scoring-week rollover | Planned. Season operation uses an explicit connected week. |
 | Version 0.2.0 public assets | Verified published GitHub prerelease. All five uploaded asset downloads matched the local artifact hashes. |
 | Installed commands and plugin | Verified wheel STDIO checks: 17 manager tools and 13 ESPN tools. Local plugin version 0.2.0 installed and enabled. |
-| PyPI and MCP Registry publication | Not published. Separate publisher setup remains required. |
+| PyPI and MCP Registry publication | Version 0.2.0 was not published on these channels. Publisher setup was incomplete at that check. |
 
 Automated tests do not submit picks or lineup changes to a real league.
 Local fixture tests do not establish compatibility with current ESPN pages or live account acceptance.
@@ -137,7 +163,7 @@ Published assets remain fixed to the release commit. Later documentation commits
 ```sh
 uv run pytest -q
 uv run fantasy-football-manager --demo
-uv run python scripts/validate_release.py --version 0.2.2
+uv run python scripts/validate_release.py --version 0.3.0
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
 uv run python scripts/build_plugin_zip.py

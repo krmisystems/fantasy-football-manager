@@ -105,6 +105,7 @@ Three additional draft trials and a five-team season trial are [planned](https:/
 
 Version 0.3.0 adds server season scheduling, durable evidence, and a PostgreSQL archive.
 The [0.3.0 package is published on PyPI](https://pypi.org/project/fantasy-football-manager/0.3.0/).
+The manager has an active [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0).
 Use Python 3.11 or later, [uv](https://docs.astral.sh/uv/), and installed Google Chrome.
 
 ```sh

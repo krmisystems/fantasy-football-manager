@@ -12,7 +12,9 @@ The package adds the season coordinator, PostgreSQL evidence archive, and discov
 The [v0.3.0 PyPI package](https://pypi.org/project/fantasy-football-manager/0.3.0/) was published by the [reviewed release workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34198024653).
 Both public distribution hashes match the reviewed CI artifact.
 All 22 wheel package files and 92 source archive files matched the release commit before approval.
-See [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the separate PyPI and MCP Registry checks.
+The [MCP Registry v0.3.0 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.0) is active and latest.
+The [GitHub OIDC publication](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34199217116) passed from commit `dd5ce3a50dbc2145b8ead701e8b9ddb593d2a62c`.
+See [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for fresh PyPI installation and local plugin checks.
 
 ## Published v0.2.2 evidence
 
