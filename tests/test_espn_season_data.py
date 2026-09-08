@@ -10,7 +10,7 @@ from fantasy_football_manager.espn_season_data import (
     normalize_espn_season, season_player_read_headers, season_player_read_url, season_read_url,
 )
 from fantasy_football_manager.models import ManagerConfig
-from fantasy_football_manager.season import recommend_lineup
+from fantasy_football_manager.season import power_rankings, recommend_lineup
 
 
 URL = "https://fantasy.espn.com/football/team?leagueId=123&teamId=1&seasonId=2026"
@@ -108,8 +108,13 @@ def test_default_api_lock_flags_do_not_establish_editability():
 def test_complete_own_ui_locks_verify_own_team_without_unlocking_free_agents():
     snap = parse(player_locks=own_locks())
     assert snap.source.locks_verified
+    assert snap.source.locks_scope == "selected_team"
     assert all(not p.locked for p in snap.players if p.id in own_locks())
     assert all(p.locked for p in snap.players if p.id not in own_locks())
+    assert recommend_lineup(snap, ManagerConfig())["status"] == "ok"
+    rankings = power_rankings(snap, ManagerConfig())
+    assert rankings["status"] == "incomplete" and rankings["rankings"] == []
+    assert any("every team" in error for error in rankings["errors"])
 
 
 def test_locked_starter_and_bench_controls_constrain_lineup_recommendation():
@@ -220,6 +225,48 @@ def test_wrong_period_or_scope_cannot_be_imported(case):
         league["draftDetail"]["drafted"] = False
     with pytest.raises(ESPNDataError):
         parse(league, pool)
+
+
+def test_players_only_response_requires_the_exact_verified_season_read_url():
+    league, pool = fixture()
+    only_players = {"players": pool["players"]}
+    expected_url = season_player_read_url(123, 2026, 1)
+    snap = parse(league, only_players, player_response_url=expected_url)
+    assert len(snap.players) == 9 and snap.week == 1
+    assert snap.own_team().lineup == {"RB1": "101", "FLEX1": "102"}
+    assert snap.players[0].weekly_projection == 12
+    with pytest.raises(ESPNDataError):
+        parse(league, only_players)
+    for wrong_url in (season_player_read_url(456, 2026, 1), season_player_read_url(123, 2025, 1),
+                      season_player_read_url(123, 2026, 2), expected_url.replace("https:", "http:"),
+                      expected_url + "&extra=unverified"):
+        with pytest.raises(ESPNDataError):
+            parse(league, only_players, player_response_url=wrong_url)
+
+
+@pytest.mark.parametrize("present", [{"id": 123}, {"seasonId": 2026}])
+def test_partial_player_response_identity_also_requires_verified_request_scope(present):
+    league, pool = fixture()
+    partial = {"players": pool["players"], **present}
+    with pytest.raises(ESPNDataError):
+        parse(league, partial)
+    assert parse(league, partial, player_response_url=season_player_read_url(123, 2026, 1)).week == 1
+
+
+@pytest.mark.parametrize("identity", [{"id": 456}, {"seasonId": 2025}, {"id": None},
+                                       {"scoringPeriodId": 2}, {"scoringPeriodId": True},
+                                       {"gameId": 2}, {"segmentId": 1}])
+def test_verified_request_url_cannot_override_conflicting_player_response_fields(identity):
+    league, pool = fixture()
+    payload = {"players": pool["players"], **identity}
+    with pytest.raises(ESPNDataError):
+        parse(league, payload, player_response_url=season_player_read_url(123, 2026, 1))
+
+
+def test_full_response_identity_cannot_override_a_wrong_verified_request_url():
+    league, pool = fixture()
+    with pytest.raises(ESPNDataError):
+        parse(league, pool, player_response_url=season_player_read_url(123, 2026, 2))
 
 
 def test_empty_or_duplicate_weekly_records_do_not_create_points():

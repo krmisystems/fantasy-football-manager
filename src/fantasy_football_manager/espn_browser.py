@@ -95,6 +95,7 @@ class ESPNBrowser:
         self._managed = False
         self._scope = None
         self._players_payload = self._projections_at = self._snapshot = None
+        self._player_response_url = None
         self._attempted = set()
         self._status = {"connected": False, "ready": False, "status": "disconnected", "error": None}
 
@@ -147,6 +148,7 @@ class ESPNBrowser:
             self._lease = lease
             self._scope = (league, team, season)
             self._players_payload = self._projections_at = self._snapshot = None
+            self._player_response_url = None
             try:
                 self._playwright = await _start_playwright()
                 self._managed = cdp_url is None
@@ -173,6 +175,12 @@ class ESPNBrowser:
                                 "mode": "managed_profile" if self._managed else "loopback_cdp",
                                 "league_id": league, "team_id": team, "season": season, "error": None}
                 try:
+                    if self._url_matches(self._page.url, draft=True):
+                        from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+                        try:
+                            await self._page.get_by_role("link", name="My Team", exact=True).first.wait_for(state="visible", timeout=5000)
+                        except (TimeoutError, PlaywrightTimeoutError):
+                            pass
                     await self._verify_scope()
                     self._status.update(ready=True, status="connected")
                 except ValueError as exc:
@@ -217,8 +225,10 @@ class ESPNBrowser:
         payload = await self._read_json(espn_data.league_read_url(league, season))
         now = datetime.now(timezone.utc)
         if self._players_payload is None or self._projections_at is None or (now - self._projections_at).total_seconds() >= 300:
-            players = await self._read_json(espn_data.player_read_url(league, season), espn_data.player_read_headers(season))
+            player_url = espn_data.player_read_url(league, season)
+            players = await self._read_json(player_url, espn_data.player_read_headers(season))
             self._players_payload = players
+            self._player_response_url = player_url
             self._projections_at = datetime.now(timezone.utc)
         selected_team = await self._verify_scope()
         body = await self._page.locator("body").inner_text(timeout=5000)
@@ -232,7 +242,8 @@ class ESPNBrowser:
         snapshot = espn_data.normalize_espn_draft(
             payload, self._players_payload, team_id=team, visible_text=body, page_url=self._page.url,
             observed_at=observed_at, previous=previous,
-            observed_team_id=selected_team, projections_observed_at=self._projections_at)
+            observed_team_id=selected_team, projections_observed_at=self._projections_at,
+            player_response_url=self._player_response_url)
         if snapshot.source.browser is None:
             raise ValueError("The ESPN observation has no verified browser metadata.")
         snapshot.source.browser = snapshot.source.browser.model_copy(update={"autopick_enabled": autopick})

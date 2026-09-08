@@ -10,7 +10,7 @@ Their calculations must not modify supplied objects.
 
 `LeagueSnapshot` fields:
 - `schema_version=1`, `league_id`, `team_id`, `season`, `week`.
-- `source`: `provider`, UTC `observed_at`, `complete`, `locks_verified`, `synthetic`, optional `projections_observed_at`, and optional `browser` observation.
+- `source`: `provider`, UTC `observed_at`, `complete`, `locks_verified`, `locks_scope` (`league` or `selected_team`), `synthetic`, optional `projections_observed_at`, and optional `browser` observation.
 Browser observations identify the page URL, league, team, current pick, Autopick state, and draft completion.
 - `rules`: `teams`, `slot`, `rounds`, `snake`, `starters` count mapping, `caps` mapping, `flex_eligible` list.
 - `players`: player objects with `id`, `name`, `position`, `eligible_positions`, NFL `team`, nullable season `projection`, optional nullable `weekly_projection`, `weekly_floor`, `weekly_ceiling`, `adp`, `availability`, `locked`, optional `bye`.
@@ -23,6 +23,7 @@ Use configured starter counts. Every player can fill at most one slot.
 Players in the user's roster are selected by `snapshot.team_id`.
 Every player has one primary position and can have additional eligible positions.
 Source observation age and weekly projection completeness must remain visible.
+Lock evidence must identify its scope. Selected-team locks do not authorize league-wide power rankings.
 Snapshot validators reject duplicate ownership, duplicate picks, gaps, wrong snake owners, and unknown players.
 
 `ManagerConfig` fields:

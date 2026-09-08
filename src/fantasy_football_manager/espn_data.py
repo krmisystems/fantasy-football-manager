@@ -85,6 +85,27 @@ def player_read_url(league_id, season):
     return f"{BASE}/seasons/{year}/segments/0/leagues/{league}?view=kona_player_info"
 
 
+def _verify_player_response_scope(payload, league, season, expected_url, observed_url):
+    """Verify explicit identity fields or the adapter's exact player request URL.
+
+    ESPN can return only ``players``. Such a response needs request metadata
+    from the adapter. A caller must not infer or insert missing identity fields.
+    """
+    _object(payload, "ESPN player payload")
+    league, season = _scope(league, season)
+    if "id" in payload and _numeric_id(payload["id"], "Player response league ID") != league:
+        raise ESPNDataError("The ESPN player payload identifies a different league scope.")
+    if "seasonId" in payload and _scope(league, payload["seasonId"])[1] != season:
+        raise ESPNDataError("The ESPN player payload identifies a different season scope.")
+    if observed_url is not None and observed_url != expected_url:
+        raise ESPNDataError("The verified player response URL does not match the requested league and season scope.")
+    if ("id" not in payload or "seasonId" not in payload) and observed_url != expected_url:
+        raise ESPNDataError("A player response without league or season identity requires its exact verified request URL.")
+    if (_integer(payload.get("gameId", 1), "Player response game ID") != 1
+            or _integer(payload.get("segmentId", 0), "Player response segment ID") != 0):
+        raise ESPNDataError("The ESPN player payload is not a supported football league segment.")
+
+
 def player_read_headers(season=None):
     """Request a broad player pool with projection statistics.
 
@@ -309,24 +330,25 @@ def _visible_picks(text, players, count):
 
 def normalize_espn_draft(league_payload, players_payload, *, team_id, visible_text,
                          page_url, observed_at, previous=None, observed_team_id=None,
-                         projections_observed_at=None) -> LeagueSnapshot:
+                         projections_observed_at=None, player_response_url=None) -> LeagueSnapshot:
     """Build a complete draft snapshot from fresh browser observations.
 
     ``observed_team_id`` must come from a verified My Team link when the page
     URL lacks ``teamId``. The configured target alone does not prove identity.
     ``previous`` contributes only confirmed picks from the same draft scope.
     A cached player response must retain its actual download timestamp.
+    A player-only response requires its exact verified request URL.
     """
     target = _numeric_id(team_id, "Requested team ID")
     league, season, verified_team = _page_scope(page_url, target, observed_team_id)
     if not isinstance(visible_text, str) or not visible_text.strip():
         raise ESPNDataError("The visible draft observation is empty.")
-    for payload in (league_payload, players_payload):
-        _object(payload, "ESPN payload")
-        if _scope(payload.get("id"), payload.get("seasonId")) != (league, season):
-            raise ESPNDataError("The ESPN payload and page identify different league or season scopes.")
-        if payload.get("gameId", 1) != 1 or payload.get("segmentId", 0) != 0:
-            raise ESPNDataError("The ESPN payload is not a supported football league segment.")
+    _object(league_payload, "ESPN league payload")
+    if _scope(league_payload.get("id"), league_payload.get("seasonId")) != (league, season):
+        raise ESPNDataError("The ESPN payload and page identify different league or season scopes.")
+    if league_payload.get("gameId", 1) != 1 or league_payload.get("segmentId", 0) != 0:
+        raise ESPNDataError("The ESPN payload is not a supported football league segment.")
+    _verify_player_response_scope(players_payload, league, season, player_read_url(league, season), player_response_url)
     rules, order, names, raw_picks = _rules(league_payload, target)
     if previous is not None:
         if (not isinstance(previous, LeagueSnapshot) or previous.league_id != league

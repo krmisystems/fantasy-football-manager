@@ -7,7 +7,8 @@ It requires an authenticated browser connection. Season mode supports lineup swa
 
 ## Install the commands
 
-For the published `v0.2.0` GitHub preview assets, use the [preview installation instructions](../README.md#preview-installation).
+The source currently prepares version 0.2.1. Local patch validation passed; publication is pending.
+For the earlier published `v0.2.0` GitHub preview assets, use the [preview installation instructions](../README.md#preview-installation).
 The preview is not published on PyPI or the MCP Registry.
 The plugin archive contains registrations and skills. Install the Python wheel separately.
 

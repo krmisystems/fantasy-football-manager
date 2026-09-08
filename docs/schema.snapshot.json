@@ -362,6 +362,15 @@
           "title": "Locks Verified",
           "type": "boolean"
         },
+        "locks_scope": {
+          "default": "league",
+          "enum": [
+            "league",
+            "selected_team"
+          ],
+          "title": "Locks Scope",
+          "type": "string"
+        },
         "synthetic": {
           "default": false,
           "title": "Synthetic",

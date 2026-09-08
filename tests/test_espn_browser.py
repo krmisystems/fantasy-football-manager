@@ -25,7 +25,7 @@ def payloads():
         "teams": [{"id": 11, "name": "Fictional North"}, {"id": 22, "name": "Fictional South"}],
         "draftDetail": {"drafted": False, "picks": []}, "status": {"isActive": True},
     }
-    players = {"id": 123, "seasonId": 2026, "players": []}
+    players = {"players": []}
     for number, name in enumerate(("Runner Alpha", "Runner Beta", "Runner Gamma", "Runner Delta"), 101):
         players["players"].append({"id": number, "onTeamId": 0, "player": {
             "id": number, "fullName": name, "defaultPositionId": 2, "eligibleSlots": [2, 20, 23], "active": True,
@@ -198,6 +198,8 @@ async def test_observe_uses_read_endpoints_and_preserves_cached_projection_time(
     assert len(context.calls) == 3
     assert second.source.projections_observed_at == first.source.projections_observed_at
     assert second.source.observed_at >= first.source.observed_at
+    assert browser._player_response_url == espn_browser.espn_data.player_read_url(123, 2026)
+    assert set(context.players) == {"players"}
     assert second.source.browser.autopick_enabled is False
     browser._projections_at -= timedelta(seconds=301)
     third = await browser.observe(second)
@@ -394,6 +396,42 @@ async def test_managed_connection_uses_own_profile_and_never_navigates_unrelated
     await browser.close()
     assert context.closed
     driver.stop.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_connection_waits_for_delayed_my_team_navigation(tmp_path, monkeypatch):
+    page = Page()
+    page.team_link.visible = False
+    context = Context([page])
+    driver = SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=AsyncMock(return_value=context)), stop=AsyncMock())
+    monkeypatch.setattr(espn_browser, "_start_playwright", AsyncMock(return_value=driver))
+    waits = []
+    async def delayed_navigation(locator, **kwargs):
+        waits.append(kwargs)
+        assert locator.nodes == [page.team_link]
+        page.team_link.visible = True
+    monkeypatch.setattr(Locator, "wait_for", delayed_navigation)
+    browser = espn_browser.ESPNBrowser(tmp_path)
+    result = await browser.connect("123", "11", 2026)
+    assert waits == [{"state": "visible", "timeout": 5000}]
+    assert result["ready"] is True and not context.closed
+    assert context.calls == [] and page.button.clicks == 0
+    await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_missing_navigation_keeps_login_window_open_without_claiming_ready(tmp_path, monkeypatch):
+    page = Page()
+    page.team_link.visible = False
+    context = Context([page])
+    driver = SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=AsyncMock(return_value=context)), stop=AsyncMock())
+    monkeypatch.setattr(espn_browser, "_start_playwright", AsyncMock(return_value=driver))
+    browser = espn_browser.ESPNBrowser(tmp_path)
+    result = await browser.connect("123", "11", 2026)
+    assert result["connected"] is True and result["ready"] is False
+    assert "My Team" in result["error"] and not context.closed
+    assert context.calls == [] and page.button.clicks == 0
+    await browser.close()
 
 
 @pytest.mark.asyncio

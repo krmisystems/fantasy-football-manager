@@ -4,21 +4,40 @@ Local MCP tools for draft decisions, weekly team analysis, and ESPN draft and li
 
 <!-- mcp-name: io.github.krmisystems/fantasy-football-manager -->
 
-Version **0.2.0** is a preview with two MCP servers: 17 manager tools and 13 ESPN companion tools.
+Version **0.2.1** is a pending compatibility patch to the published v0.2.0 preview.
+The package provides two MCP servers: 17 manager tools and 13 ESPN companion tools.
 The manager calculates recommendations and controls policy.
 The ESPN companion observes league state and can submit real draft picks or weekly lineup swaps.
 
-The packaged paths have offline tests and 13 passing isolated Chrome tests.
-Those browser tests use local fixtures. **Live account acceptance of packaged draft picks and lineup swaps remains untested.**
+Version 0.2.1 passed 400 tests, including 14 isolated Chrome cases using local fixtures.
+Authenticated reading and an advisory monitor were verified through the ESPN service and Chrome.
+**Live account acceptance of packaged draft picks and lineup swaps remains untested.**
 Earlier direct browser picks were verified during a live draft. That separate evidence does not validate this package.
 
 Season mode reads weekly rosters and can submit verified lineup swaps automatically.
 Live waiver, free-agent, drop, and trade adapters remain planned. Complete season management is not yet implemented.
 
+## Compatibility patch
+
+The pending v0.2.1 patch addresses compatibility gaps found during signed-in, read-only validation:
+
+- Read the weekly team header when ESPN exposes it as a `columnheader`.
+- Bind player responses without league identifiers to the verified request URL.
+- Distinguish selected-team lock evidence from league-wide lock coverage.
+- Refresh cached player data when any team's ownership changes.
+- Wait for delayed navigation before checking the selected team.
+
+The authenticated check read complete league rosters and produced a legal nine-slot lineup recommendation.
+An advisory monitor completed three polls and stopped cleanly without pending actions.
+League-wide power rankings correctly remained incomplete because only the selected team's locks were verified.
+This check did not submit a real pick or lineup change.
+The patch is not yet published. Published v0.2.0 assets remain unchanged.
+
 ## Preview installation
 
 The [v0.2.0 preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) is published on GitHub as a prerelease.
-This version is not published on PyPI or the MCP Registry. Install the published wheel:
+The v0.2.1 patch is not yet published. The wheel below installs the earlier v0.2.0 preview without the pending fixes.
+Neither version is published on PyPI or the MCP Registry. To install the published baseline:
 
 ```sh
 uv tool install --force "https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.2.0/fantasy_football_manager-0.2.0-py3-none-any.whl"

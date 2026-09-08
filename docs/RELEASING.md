@@ -1,5 +1,13 @@
 # Release the package
 
+Version 0.2.1 is a compatibility patch pending publication.
+Its complete local run passed 400 tests, including 14 isolated Chrome cases.
+The patch addresses weekly `columnheader` parsing, player-response request identity, selected-team lock coverage, ownership cache invalidation, and delayed navigation.
+Authenticated observation, lineup calculation, and a three-poll advisory monitor passed through the development ESPN service and Chrome.
+Live draft and lineup submission remain untested. No real action was submitted for this patch check.
+
+## Published v0.2.0 baseline
+
 The [v0.2.0 GitHub preview](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.2.0) is published as a prerelease.
 It contains the verified artifacts from commit `f9825892f4af64d7abc501e5ef15b46ef5501411`.
 All six [release CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34185668423) passed.

@@ -16,7 +16,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from .espn_data import (BASE, ESPNDataError, POSITIONS, PRIMARY_SLOTS, SLOTS,
                         _array, _integer, _number, _numeric_id, _object,
-                        _page_scope, _rules, _scope, _scoring, player_read_headers)
+                        _page_scope, _rules, _scope, _scoring,
+                        _verify_player_response_scope, player_read_headers)
 from .models import Budget, LeagueSnapshot, Player, Source, Team
 
 
@@ -203,13 +204,15 @@ def _budget(league_payload, target, notes):
 def normalize_espn_season(league_payload, players_payload, *, team_id, week,
                           visible_text, page_url, observed_at, observed_team_id=None,
                           projections_observed_at=None, player_locks=None,
-                          observed_week=None) -> LeagueSnapshot:
+                          observed_week=None, player_response_url=None) -> LeagueSnapshot:
     """Build a season snapshot from complete roster and player responses.
 
     ``player_locks`` maps verified player IDs to lock booleans. True means locked.
     The browser must verify these states from the correct week's move controls.
-    Unknown locks default to True. Own-team coverage determines locks_verified.
+    Unknown locks default to True. Selected-team coverage determines locks_verified.
     ``observed_week`` is optional evidence from a verified visible week control.
+    ``player_response_url`` identifies the verified request when ESPN omits
+    player-response scope fields. The browser must reject response redirects.
     Projection timestamps describe downloads, not ESPN publication times.
     """
     target = _numeric_id(team_id, "Requested team ID")
@@ -217,13 +220,15 @@ def normalize_espn_season(league_payload, players_payload, *, team_id, week,
     league, season, verified_team = _page_scope(page_url, target, observed_team_id)
     if not isinstance(visible_text, str) or not visible_text.strip():
         raise ESPNDataError("The visible team observation is empty.")
+    _object(league_payload, "ESPN league payload")
+    if _scope(league_payload.get("id"), league_payload.get("seasonId")) != (league, season):
+        raise ESPNDataError("The ESPN payload and page identify different league or season scopes.")
+    if league_payload.get("gameId", 1) != 1 or league_payload.get("segmentId", 0) != 0:
+        raise ESPNDataError("The ESPN payload is not a supported football league segment.")
+    _verify_player_response_scope(players_payload, league, season,
+                                  season_player_read_url(league, season, week), player_response_url)
     for payload in (league_payload, players_payload):
-        _object(payload, "ESPN payload")
-        if _scope(payload.get("id"), payload.get("seasonId")) != (league, season):
-            raise ESPNDataError("The ESPN payload and page identify different league or season scopes.")
-        if payload.get("gameId", 1) != 1 or payload.get("segmentId", 0) != 0:
-            raise ESPNDataError("The ESPN payload is not a supported football league segment.")
-        if "scoringPeriodId" in payload and payload["scoringPeriodId"] != week:
+        if "scoringPeriodId" in payload and _week(payload["scoringPeriodId"]) != week:
             raise ESPNDataError("The ESPN response identifies a different scoring week.")
     if league_payload.get("scoringPeriodId") != week:
         raise ESPNDataError("The roster response must identify the requested scoring week.")
@@ -260,7 +265,8 @@ def normalize_espn_season(league_payload, players_payload, *, team_id, week,
     budget = _budget(league_payload, target, notes)
     source = Source(provider="espn_browser", observed_at=observed_at, synthetic=False, complete=True,
                     projections_observed_at=projections_observed_at or observed_at,
-                    locks_verified=bool(own_ids) and verified_week and own_ids.issubset(locks), notes=notes,
+                    locks_verified=bool(own_ids) and verified_week and own_ids.issubset(locks),
+                    locks_scope="selected_team", notes=notes,
                     browser={"page_url": page_url, "league_id": league, "team_id": verified_team,
                              "current_pick": None, "autopick_enabled": None, "draft_complete": True})
     if source.projections_observed_at > source.observed_at:

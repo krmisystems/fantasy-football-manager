@@ -44,10 +44,20 @@ class Source(Model):
     observed_at: datetime
     complete: bool = True
     locks_verified: bool = False
+    locks_scope: Literal["league", "selected_team"] = "league"
     synthetic: bool = False
     projections_observed_at: datetime | None = None
     browser: BrowserObservation | None = None
     notes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_browser_lock_scope(cls, value):
+        # Earlier ESPN browser snapshots verified only the selected team's UI.
+        # Do not upgrade that stored evidence to league-wide lock coverage.
+        if isinstance(value, dict) and value.get("provider") == "espn_browser" and "locks_scope" not in value:
+            return {**value, "locks_scope": "selected_team"}
+        return value
 
     @field_validator("observed_at", "projections_observed_at")
     @classmethod

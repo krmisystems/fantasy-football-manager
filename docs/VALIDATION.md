@@ -1,5 +1,28 @@
 # Validation status
 
+## Version 0.2.1 patch status
+
+The complete local patch run passed **400 tests in 20.91 seconds** on Windows with Python 3.12.13.
+The run used `FFM_BROWSER_TESTS=1` and included **14 isolated Chrome cases**: 4 draft cases and 10 season cases.
+The patch addresses weekly header roles, request-bound player responses, selected-team lock coverage, ownership cache invalidation, and delayed navigation.
+
+An authenticated read was verified through the development ESPN service and Chrome with the saved local profile:
+
+| Check | Verified result |
+|---|---|
+| League and roster read | 14 teams and 14 players on the selected roster. |
+| Player inputs | 1,036 players, including 494 with weekly projections. |
+| Lock evidence | `locks_verified=true` with `locks_scope="selected_team"`. |
+| Weekly lineup calculation | Status `ok` with 9 lineup slots. Estimated improvement was about 0.75 projected points. |
+| League-wide power rankings | Incomplete because selected-team locks do not establish league-wide lock coverage. |
+| Advisory monitor | Verified over 5 seconds with 3 polls. Browser ready; latest lineup status `ok`; snapshot age 1.28 seconds; no pending actions. Stopped cleanly. |
+| Live draft or lineup submission | **Not Tested.** No real action was submitted. |
+
+This evidence verifies authenticated observation and calculation. It does not verify acceptance of a live action.
+Version 0.2.1 is not published. The v0.2.0 evidence below applies only to its recorded release commit.
+
+## Verified v0.2.0 baseline
+
 Version 0.2.0 adds the ESPN companion, durable browser claims, weekly lineup swaps, and a standalone worker.
 The complete local run passed **364 tests in 19.41 seconds** on Windows with Python 3.12.13.
 The run used `FFM_BROWSER_TESTS=1` and included **13 isolated Chrome tests**: 4 draft cases and 9 season cases.
@@ -39,7 +62,7 @@ Published assets remain fixed to the release commit. Later documentation commits
 ```sh
 uv run pytest -q
 uv run fantasy-football-manager --demo
-uv run python scripts/validate_release.py --version 0.2.0
+uv run python scripts/validate_release.py --version 0.2.1
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
 uv run python scripts/build_plugin_zip.py

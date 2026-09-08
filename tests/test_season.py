@@ -255,6 +255,56 @@ def test_power_rankings_require_all_teams_and_preserve_inputs():
     assert all(x["rank"] is None for x in result["rankings"])
 
 
+def test_selected_team_lock_coverage_cannot_rank_optimized_team_against_fixed_opponents():
+    state = snapshot([player("own-starter", "WR", 10), player("own-bench", "WR", 20),
+                      player("other-starter", "WR", 5, locked=True),
+                      player("other-bench", "WR", 100, locked=True)],
+                     ["own-starter", "own-bench"], {"WR1": "own-starter"},
+                     starters={"WR": 1}, bench=1, other_ids=["other-starter", "other-bench"],
+                     other_lineup={"WR1": "other-starter"})
+    state.source.locks_scope = "selected_team"
+    before = state.model_dump()
+    own = recommend_lineup(state, config())
+    assert own["status"] == "ok" and own["lineup"] == {"WR1": "own-bench"}
+    assert own["projected_points"] == 20
+    result = power_rankings(state, config())
+    assert result["status"] == "incomplete" and result["rankings"] == []
+    assert result["source"]["locks_scope"] == "selected_team"
+    assert any("every team" in error for error in result["errors"])
+    assert state.model_dump() == before
+
+    # When the league's actual lock states are supplied, the stronger opponent
+    # receives first place. A conservative placeholder must not hide its bench.
+    state.source.locks_scope = "league"
+    state.players[2].locked = state.players[3].locked = False
+    result = power_rankings(state, config())
+    assert result["status"] == "ok"
+    assert [(row["team_id"], row["rank"], row["projected_points"]) for row in result["rankings"]] == [
+        ("synthetic-b", 1, 100), ("synthetic-a", 2, 20)]
+
+
+def test_legacy_imported_lock_scope_is_preserved_but_old_browser_scope_is_conservative():
+    state = waiver_fixture()
+    raw = state.model_dump(mode="json")
+    raw["source"].pop("locks_scope")
+    restored = LeagueSnapshot.model_validate(raw)
+    assert restored.source.locks_scope == "league"
+    assert power_rankings(restored, config())["status"] == "ok"
+
+    raw["source"].update(provider="espn_browser", synthetic=False)
+    restored_browser = LeagueSnapshot.model_validate(raw)
+    assert restored_browser.source.locks_scope == "selected_team"
+    assert power_rankings(restored_browser, config())["rankings"] == []
+    assert recommend_lineup(restored_browser, config())["status"] == "ok"
+
+
+def test_lock_scope_requires_a_supported_explicit_coverage_value():
+    source = waiver_fixture().source.model_dump(mode="json")
+    source["locks_scope"] = "all_unlocked"
+    with pytest.raises(ValueError, match="locks_scope"):
+        Source.model_validate(source)
+
+
 def test_unverified_locks_and_stale_data_block_complete_recommendations():
     state = waiver_fixture()
     state.source.locks_verified = False

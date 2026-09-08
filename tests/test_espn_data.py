@@ -31,7 +31,7 @@ def fixture():
         "teams": [{"id": 11, "name": "Fictional North"}, {"id": 22, "name": "Fictional South"}],
         "draftDetail": {"drafted": False, "picks": []}, "status": {"isActive": True},
     }
-    players = {"id": 123, "seasonId": 2026, "players": []}
+    players = {"players": []}
     for pid, name, position, slot in [
         (101, "Runner Alpha", 2, 2), (102, "Receiver Beta", 3, 4),
         (103, "Runner Gamma", 2, 2), (104, "Receiver Delta", 3, 4),
@@ -59,7 +59,8 @@ def api_pick(number, player_id):
 def parse(league=None, players=None, **kwargs):
     default_league, default_players = fixture()
     options = dict(team_id=22, visible_text="ON THE CLOCK: PICK 1\nENABLE AUTOPICK",
-                   page_url=URL, observed_at=datetime.now(timezone.utc))
+                   page_url=URL, observed_at=datetime.now(timezone.utc),
+                   player_response_url=player_read_url(123, 2026))
     options.update(kwargs)
     return normalize_espn_draft(league or default_league, players or default_players, **options)
 
@@ -157,6 +158,55 @@ def test_persisted_history_cannot_mask_a_rewind_or_new_scope():
 def test_player_payload_scope_must_match_page(field, value):
     league, players = fixture()
     players[field] = value
+    with pytest.raises(ESPNDataError):
+        parse(league, players)
+
+
+@pytest.mark.parametrize("identity", [{}, {"id": 123}, {"seasonId": 2026}])
+def test_player_only_response_requires_exact_request_metadata(identity):
+    league, players = fixture()
+    players.update(identity)
+    with pytest.raises(ESPNDataError, match="exact verified request URL"):
+        parse(league, players, player_response_url=None)
+    snapshot = parse(league, players)
+    assert snapshot.league_id == "123" and snapshot.season == 2026
+    assert set(players) == {"players", *identity}
+
+
+@pytest.mark.parametrize("url", [
+    player_read_url(456, 2026), player_read_url(123, 2025), league_read_url(123, 2026),
+    player_read_url(123, 2026) + "&scoringPeriodId=2",
+    player_read_url(123, 2026).replace("https:", "http:"),
+    player_read_url(123, 2026).replace("lm-api-reads.fantasy.espn.com", "example.com"),
+])
+def test_player_request_metadata_cannot_identify_another_scope_or_endpoint(url):
+    with pytest.raises(ESPNDataError, match="response URL"):
+        parse(player_response_url=url)
+
+
+@pytest.mark.parametrize("identity", [
+    {"id": 456}, {"seasonId": 2025}, {"id": None}, {"seasonId": None},
+    {"id": True}, {"gameId": True}, {"segmentId": 1},
+])
+def test_request_metadata_does_not_override_invalid_explicit_player_identity(identity):
+    league, players = fixture()
+    players.update(identity)
+    with pytest.raises(ESPNDataError):
+        parse(league, players)
+
+
+def test_explicit_player_identity_remains_supported_without_url_metadata():
+    league, players = fixture()
+    players.update(id=123, seasonId=2026)
+    assert parse(league, players, player_response_url=None).league_id == "123"
+    with pytest.raises(ESPNDataError, match="response URL"):
+        parse(league, players, player_response_url=player_read_url(456, 2026))
+
+
+@pytest.mark.parametrize("missing", ["id", "seasonId"])
+def test_player_url_does_not_replace_missing_league_payload_identity(missing):
+    league, players = fixture()
+    league.pop(missing)
     with pytest.raises(ESPNDataError):
         parse(league, players)
 

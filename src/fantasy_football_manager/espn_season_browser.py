@@ -20,6 +20,7 @@ class ESPNSeasonBrowser(ESPNBrowser):
         super().__init__(data_dir)
         require(type(week) is int and 1 <= week <= 18, "Week must be an integer from 1 through 18.")
         self.week = week
+        self._player_ownership_key = None
 
     async def connect(self, *args, **kwargs):
         result = await super().connect(*args, **kwargs)
@@ -28,10 +29,19 @@ class ESPNSeasonBrowser(ESPNBrowser):
             await self._page.goto(f"https://fantasy.espn.com/football/team?leagueId={league}&teamId={team}"
                                   f"&seasonId={season}&scoringPeriodId={self.week}",
                                   wait_until="domcontentloaded", timeout=30000)
+            try:
+                await self._page.get_by_role("button", name="Quick Lineup", exact=True).wait_for(state="visible", timeout=15000)
+                await self._verify_scope()
+                await self._verify_week()
+            except Exception as exc:
+                self._status.update(ready=False, status="awaiting_team_page", error=str(exc))
+                result = self.status()
         return {**result, "phase": "season", "week": self.week}
 
     async def _verify_week(self):
-        cells = await _visible(self._page.get_by_role("cell", name=re.compile(r"^NFL\s+WEEK\s+\d+$", re.I)))
+        cells = []
+        for role in ("columnheader", "cell"):
+            cells.extend(await _visible(self._page.get_by_role(role, name=re.compile(r"^NFL\s+WEEK\s+\d+$", re.I))))
         weeks = {int(re.search(r"\d+", await cell.inner_text()).group()) for cell in cells}
         require(weeks == {self.week}, "The visible lineup week does not match the connected week.")
 
@@ -53,15 +63,21 @@ class ESPNSeasonBrowser(ESPNBrowser):
         await self._verify_week()
         league, team, season = self._scope
         payload = await self._read_json(espn_season_data.season_read_url(league, season, self.week))
+        ownership_key = tuple(sorted((str(team["id"]), tuple(sorted(str(entry["playerId"])
+            for entry in team["roster"]["entries"]))) for team in payload["teams"]))
         now = datetime.now(timezone.utc)
-        if self._players_payload is None or self._projections_at is None or (now - self._projections_at).total_seconds() >= 300:
+        if (self._players_payload is None or self._projections_at is None
+                or ownership_key != self._player_ownership_key or (now - self._projections_at).total_seconds() >= 300):
+            response_url = espn_season_data.season_player_read_url(league, season, self.week)
             self._players_payload = await self._read_json(
-                espn_season_data.season_player_read_url(league, season, self.week),
-                espn_season_data.season_player_read_headers(season))
+                response_url, espn_season_data.season_player_read_headers(season))
             self._projections_at = datetime.now(timezone.utc)
+            self._player_response_url = response_url
+            self._player_ownership_key = ownership_key
         options = dict(team_id=team, week=self.week, visible_text=await self._page.locator("body").inner_text(),
                        page_url=self._page.url, observed_at=datetime.now(timezone.utc),
-                       observed_team_id=selected, observed_week=self.week, projections_observed_at=self._projections_at)
+                       observed_team_id=selected, observed_week=self.week, projections_observed_at=self._projections_at,
+                       player_response_url=self._player_response_url)
         snapshot = espn_season_data.normalize_espn_season(payload, self._players_payload, **options)
         players = {p.id: p for p in snapshot.players}
         locks, matched_controls = {}, 0

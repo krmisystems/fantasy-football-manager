@@ -44,6 +44,9 @@ Changed inputs reset the aggregate. Stale state and failed observations suppress
 More trials cannot repair a wrong projection or missing pick.
 
 Weekly calculations require weekly projections and preserve locked assignments.
+Lock evidence records `league` or `selected_team` scope. Own-team controls do not establish locks for other teams.
+League-wide power rankings require league-wide lock coverage.
+An ownership change on any team invalidates the ESPN player-response cache.
 Season totals are not divided into invented weekly forecasts.
 Floor and upside objectives sum supplied player bounds. Those sums are not team outcome percentiles.
 

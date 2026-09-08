@@ -24,6 +24,7 @@ def _source(snapshot: LeagueSnapshot, config: ManagerConfig) -> dict:
         "projection_age_seconds": None if projection_age is None else round(projection_age, 3),
         "complete": snapshot.source.complete,
         "locks_verified": snapshot.source.locks_verified,
+        "locks_scope": snapshot.source.locks_scope,
         "synthetic": snapshot.source.synthetic,
         "stale": age > config.limits.max_season_age_seconds,
         "projections_stale": projection_age is not None and projection_age > config.limits.max_projection_age_seconds,
@@ -300,6 +301,9 @@ def power_rankings(snapshot: LeagueSnapshot, config: ManagerConfig) -> dict:
     """Compare legal weekly lineups. These values are not championship probabilities."""
     result = _base(snapshot, config)
     result.update({"rankings": [], "basis": "optimal_legal_weekly_lineup", "championship_odds": None})
+    if snapshot.source.locks_scope != "league":
+        result["errors"].append("League rankings require verified player locks for every team. Current lock observations cover only the selected team.")
+        result["status"] = "incomplete"
     if result["errors"]:
         return result
     entries = [_lineup(snapshot, config, team) for team in snapshot.teams]

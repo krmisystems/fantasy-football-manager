@@ -110,6 +110,9 @@ Connect with `phase="season"` and an explicit `week` from 1 through 18.
 The browser verifies the selected team and the visible lineup week.
 The adapter reads complete rosters and period-specific projections. Missing projections remain null.
 The adapter verifies own-team locks from explicit move controls. Unknown lock states block execution.
+This evidence has `locks_scope="selected_team"`. League-wide power rankings remain incomplete without league-wide lock coverage.
+Player responses without embedded league identifiers are bound to the verified request URL.
+A roster ownership change on any team invalidates the cached player response.
 Live ESPN does not supply verified floor or ceiling estimates in this adapter. Those strategies require additional data.
 
 Set `set_lineup` to `automatic` within the user's authorization.

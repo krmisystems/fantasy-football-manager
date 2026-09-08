@@ -26,12 +26,15 @@ async def case(tmp_path, monkeypatch):
     context = await browser.new_context(service_workers="block")
     page = await context.new_page()
     league, pool = fixture()
+    # The live player endpoint supplies the collection without league metadata.
+    pool = {"players": pool["players"]}
     for entry in pool["players"]:
         if entry["id"] == 103:
             entry["player"]["stats"][1]["stats"] = {"53": 10, "24": 120}
     html = '''<!doctype html><html lang="en"><title>Fictional weekly team</title>
     <a href="/football/team?leagueId=123&amp;teamId=1&amp;seasonId=2026">My Team</a>
-    <table><tr><td id="week">NFL Week 1</td></tr></table>
+    <table><tr><th>STARTERS</th><th id="week" scope="col">NFL Week 1</th><th>Projections</th></tr>
+    <tr><td>RB</td><td>Fictional matchup</td><td>12</td></tr></table>
     <div id="controls"></div><output id="swaps">0</output><script>
     const players=['Runner Alpha','Receiver Beta','Runner Gamma','Reserve Delta'];
     function normal(){document.getElementById('controls').replaceChildren(...players.map(name=>{
@@ -122,6 +125,30 @@ async def test_different_visible_week_prevents_a_lineup_claim(case):
     with pytest.raises(ValueError, match="visible lineup week"):
         await adapter.observe()
     assert await page.locator("#swaps").inner_text() == "0"
+
+
+async def test_external_roster_change_refreshes_cached_player_ownership(case, monkeypatch):
+    adapter, _, _, _, _ = case
+    previous_reader = adapter._read_json
+    player_reads = []
+
+    async def changed_roster(url, headers=None):
+        result = await previous_reader(url, headers)
+        if url == season_read_url(123, 2026, 1):
+            result["teams"][1]["roster"]["entries"] = [entry for entry in result["teams"][1]["roster"]["entries"]
+                                                       if entry["playerId"] != 106]
+        else:
+            player_reads.append(url)
+            for entry in result["players"]:
+                if entry["id"] == 106:
+                    entry["onTeamId"] = 0
+        return result
+
+    monkeypatch.setattr(adapter, "_read_json", changed_roster)
+    observed = await adapter.observe()
+    assert player_reads == [season_player_read_url(123, 2026, 1)]
+    assert "106" not in observed.teams[1].roster_ids
+    assert observed.source.locks_verified
 
 
 @pytest.mark.parametrize("decision", [False, None, {"should_click": False}])
