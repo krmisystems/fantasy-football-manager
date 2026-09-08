@@ -1,6 +1,8 @@
 # Release the package
 
-These files prepare version 0.1.0 for review.
+These files prepare version 0.2.0 for review.
+The planned GitHub tag is `v0.2.0`, with the release marked as a prerelease.
+GitHub preview publication is pending. Version 0.2.0 is not published on PyPI.
 They do not prove that a repository, package, registry entry, or trusted publisher exists.
 Check [validation status](VALIDATION.md) before each release.
 
@@ -12,6 +14,7 @@ From a clean source checkout, run:
 uv sync --locked --dev
 uv run pytest -q
 uv run fantasy-football-manager --demo --data-dir .ci-demo
+uv run fantasy-football-espn --help
 uv run python scripts/validate_release.py
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
@@ -20,10 +23,11 @@ uv run python scripts/build_plugin_zip.py
 
 Twine checks the selected Python distributions only.
 The ZIP builder writes a plugin archive and a SHA-256 manifest to `dist/`.
+The archive includes three skills and registrations for both installed MCP commands.
 It copies an explicit list of plugin files. It does not include league records or local state.
 
 Inspect the wheel, source distribution, and plugin manifest before publication.
-Do not add imports, credentials, runtime databases, or private captures to the release.
+Do not add imports, credentials, browser profiles, databases, logs, or private captures to the release.
 The local validation script checks known file types and secret patterns. It does not replace artifact review.
 
 ## Configure GitHub and PyPI
@@ -60,6 +64,10 @@ The [registry template](registry/server.json) names:
 - PyPI package: `fantasy-football-manager`
 - Transport: `stdio`
 
+The registry package describes the main `fantasy-football-manager` entry point.
+The same Python distribution includes the `fantasy-football-espn` companion command.
+The plugin registers both commands. A direct MCP installation must register each required server.
+
 Publish the Python package before submitting registry metadata.
 Authenticate as the namespace owner through the registry's documented process.
 Copy the template to the publisher's working directory as `server.json`.
@@ -69,3 +77,12 @@ The README contains the matching `mcp-name` marker needed for PyPI package owner
 Namespace ownership is not established by this file.
 The registry contains discovery metadata; it does not host this server or its user data.
 See [MCP Registry package types](https://modelcontextprotocol.io/registry/package-types) and [registry publication instructions](https://modelcontextprotocol.io/registry/quickstart).
+
+## Evidence for live operation
+
+Run the complete offline suite before release. Record its actual count and platform in the release notes.
+Keep packaged live acceptance marked untested until authenticated draft and lineup actions confirm their respective full paths.
+Isolated Chrome fixture tests verify browser mechanics without changing a real league.
+Earlier direct browser picks do not establish packaged selector compatibility.
+Distinguish implemented lineup automation from live acceptance testing.
+Live waivers, acquisitions, drops, trades, and automatic week rollover remain planned.

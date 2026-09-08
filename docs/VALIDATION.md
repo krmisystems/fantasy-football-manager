@@ -1,41 +1,52 @@
 # Validation status
 
-Local checks below ran on 2026-09-07 with the 0.1.0 source.
-These results describe the local release checks.
-Public package publication requires separate publisher setup.
+Version 0.2.0 adds the ESPN companion, durable browser claims, weekly lineup swaps, and a standalone worker.
+The complete local run passed **364 tests in 19.41 seconds** on Windows with Python 3.12.13.
+The run used `FFM_BROWSER_TESTS=1` and included **13 isolated Chrome tests**: 4 draft cases and 9 season cases.
 
-| Check | Status |
+| Area | Evidence state |
 |---|---|
-| Full Python unit and integration suite | 105 passed in 3.05 seconds with Python 3.12 on Windows |
-| GitHub test matrix | Passed on Windows and Ubuntu with Python 3.11 and 3.14 in [the initial source run](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34182051866) |
-| MCP integration tests | 8 passed with Python 3.12 on Windows |
-| Synthetic CLI demo | Passed; existing imported SQLite file remained byte-for-byte unchanged |
-| STDIO MCP initialization and tool calls | Passed through an actual subprocess; 17 tools listed and season tools called |
-| MCP schema resources | Snapshot and config schemas read and checked through an in-memory client |
-| Draft monitor over MCP | A bounded batch produced current results; explicit stop completed |
-| Wheel and source distribution build | Passed; Twine 7 accepted both distributions |
-| Isolated wheel installation | Installed with uv; installed CLI version and synthetic demo passed |
-| Installed command through STDIO | 17 tools; lineup proposal, confirmation requirement, execution, and idempotent replay passed from a temporary working directory |
-| Plugin manifest and skill structure | Local plugin-creator validator and both skill validators passed |
-| Local installer | Preview passed; isolated checks verified that missing PyYAML causes no writes and updates preserve the marketplace entry |
-| Personal plugin install | Source created and validated; CLI reported the plugin installed and enabled |
-| Release source checks | Portable metadata and private-path/secret-pattern checks passed |
-| Script and workflow syntax | 3 Python scripts parsed; 2 workflow YAML files parsed |
-| MCP Registry template schema | Validated against its declared published JSON schema |
-| Plugin ZIP | 5 allowlisted files including MIT license text; archive and per-file SHA-256 hashes verified |
-| Installed Codex plugin in a new conversation | Not tested |
-| Live provider writes | Unsupported |
-| PyPI trusted publisher | Not configured by these source files |
-| MCP Registry namespace | Authentication and ownership verification required |
+| Live draft and lineup policy | Verified with fictional observations: source identity, context, clock, Autopick, locks, freshness, review, and automatic modes. |
+| Browser claim lifecycle | Verified with SQLite tests: exact baselines, concurrent authorization, idempotence, rollback, and reconciliation. |
+| ESPN service | Verified with browser stubs: submission, uncertain results, cache invalidation, pauses, and terminal behavior. |
+| Browser adapters in Chrome | Verified in 13 isolated browser cases using local page fixtures. No real league submissions. |
+| Draft and season calculations | Verified through synthetic regression tests in the complete local run. |
+| Packaged live draft and lineup acceptance | **Not Tested.** Requires a signed-in account and appropriate live league state. |
+| Earlier direct browser draft actions | Verified in the original live session. This separate evidence does not validate the packaged adapter. |
+| Live waivers, acquisitions, drops, and trades | Planned. Adapters are not implemented. |
+| Automatic scoring-week rollover | Planned. Season operation uses an explicit connected week. |
+| Version 0.2.0 public assets | Publication pending. The planned GitHub preview tag is `v0.2.0`. This version is not published on PyPI. |
 
-Run `uv run pytest -q`, the synthetic demo, and `uv run python scripts/validate_release.py` before each later release.
-The linked GitHub run is separate evidence for the tested source commit.
+Automated tests do not submit picks or lineup changes to a real league.
+Local fixture tests do not establish compatibility with current ESPN pages or live account acceptance.
+Source checks do not establish publisher ownership or a public marketplace listing.
 
-The MCP tests also checked proposal confirmation, idempotent execution, useful policy errors,
-rejection of live writes, protection of imported state, and prevention of confirmed draft-history rollback.
-The plugin uses the companion-file wrapper accepted by the installed validator.
-An actual installed Codex connection still needs a new-conversation test.
+## Release checks
 
-A fictional 14-team draft batch completed 40 trials in 0.734 seconds on this Windows computer.
-This single measurement is not a latency guarantee.
-The monitor combines matching batches and reports discarded work separately.
+```sh
+uv run pytest -q
+uv run fantasy-football-manager --demo
+uv run python scripts/validate_release.py --version 0.2.0
+uv build
+uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
+uv run python scripts/build_plugin_zip.py
+```
+
+The browser cases are opt-in. With installed Chrome, run them in PowerShell:
+
+```powershell
+$env:FFM_BROWSER_TESTS = "1"
+uv run pytest -q tests/test_browser_integration.py tests/test_season_browser_integration.py
+Remove-Item Env:FFM_BROWSER_TESTS
+```
+
+These tests use isolated browser contexts and local fixtures.
+Validate the installed manager command and companion command separately.
+Validate the plugin manifest and all three skills before installation.
+Do not describe a read-only connection check as a completed live submission test.
+
+## Historical baseline
+
+The 0.1.0 source passed 105 local tests and installed manager command checks.
+Its [initial GitHub source run](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34182051866) covered Windows and Ubuntu.
+Those historical results apply to the tested 0.1.0 commit, not automatically to 0.2.0.

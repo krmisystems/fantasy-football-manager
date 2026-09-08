@@ -7,14 +7,13 @@ import json
 import zipfile
 from pathlib import Path
 
-from validate_release import NAME, ROOT, validate
+from validate_release import NAME, ROOT, SKILLS, validate
 
 FILES = (
     "LICENSE",
     ".codex-plugin/plugin.json",
     ".mcp.json",
-    "skills/draft-assistant/SKILL.md",
-    "skills/season-manager/SKILL.md",
+    *(f"skills/{name}/SKILL.md" for name in SKILLS),
 )
 
 

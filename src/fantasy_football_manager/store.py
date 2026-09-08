@@ -78,6 +78,19 @@ class Manager:
             old, _, revision, config_revision = self._state(db)
             if expected_revision != revision and (old is not None or expected_revision is not None):
                 raise ValueError(f"Snapshot revision conflict. Current revision: {revision}.")
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            for table in ("browser_proposals", "browser_lineup_proposals"):
+                if table not in tables or old is None:
+                    continue
+                rows = db.execute(f"SELECT baseline FROM {table} WHERE league_id=? AND team_id=? AND season=? AND status='awaiting_verification'",
+                                  (old.league_id, old.team_id, old.season)).fetchall()
+                for row in rows:
+                    baseline = LeagueSnapshot.model_validate_json(row["baseline"])
+                    context = lambda value: (value.league_id, value.team_id, value.season, value.phase,
+                                             value.week if value.phase == "season" else None,
+                                             value.source.provider, value.source.synthetic)
+                    if context(parsed) != context(baseline) or parsed.rules != baseline.rules:
+                        raise ValueError("Reconcile the pending browser action before changing league context, week, source, or rules.")
             same_scope = old is not None and (old.league_id, old.team_id, old.season) == (parsed.league_id, parsed.team_id, parsed.season)
             if same_scope:
                 if parsed.source.observed_at < old.source.observed_at or parsed.week < old.week:

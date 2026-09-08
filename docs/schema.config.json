@@ -113,6 +113,13 @@
           "title": "Max Season Age Seconds",
           "type": "integer"
         },
+        "max_projection_age_seconds": {
+          "default": 3600,
+          "maximum": 604800,
+          "minimum": 1,
+          "title": "Max Projection Age Seconds",
+          "type": "integer"
+        },
         "max_adp_reach": {
           "anyOf": [
             {

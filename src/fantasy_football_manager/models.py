@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Literal
+from urllib.parse import parse_qs, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -17,6 +18,27 @@ class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
+class BrowserObservation(Model):
+    page_url: str = Field(max_length=2048)
+    league_id: str
+    team_id: str
+    current_pick: int | None = Field(default=None, ge=1, le=1281)
+    autopick_enabled: bool | None = None
+    draft_complete: bool = False
+
+    @model_validator(mode="after")
+    def valid_location(self):
+        url = urlsplit(self.page_url)
+        if url.scheme != "https" or url.hostname != "fantasy.espn.com" or url.username or url.password:
+            raise ValueError("ESPN observations require the official HTTPS fantasy site.")
+        query = parse_qs(url.query)
+        if query.get("leagueId") != [self.league_id]:
+            raise ValueError("The browser URL must identify the observed league.")
+        if "teamId" in query and query["teamId"] != [self.team_id]:
+            raise ValueError("The browser URL identifies a different team.")
+        return self
+
+
 class Source(Model):
     provider: str = Field(min_length=1, max_length=80)
     observed_at: datetime
@@ -24,6 +46,8 @@ class Source(Model):
     locks_verified: bool = False
     synthetic: bool = False
     projections_observed_at: datetime | None = None
+    browser: BrowserObservation | None = None
+    notes: list[str] = Field(default_factory=list)
 
     @field_validator("observed_at", "projections_observed_at")
     @classmethod
@@ -81,7 +105,7 @@ class Player(Model):
     position: Literal["QB", "RB", "WR", "TE", "DST", "K"]
     eligible_positions: list[str] = Field(default_factory=list)
     team: str = ""
-    projection: float = Field(default=0, ge=0)
+    projection: float | None = Field(default=None, ge=0)
     weekly_projection: float | None = None
     weekly_floor: float | None = None
     weekly_ceiling: float | None = None
@@ -142,6 +166,12 @@ class LeagueSnapshot(Model):
 
     @model_validator(mode="after")
     def consistent_snapshot(self):
+        if self.source.browser is not None:
+            if (self.source.browser.league_id, self.source.browser.team_id) != (self.league_id, self.team_id):
+                raise ValueError("Browser observations must match the selected league and team.")
+            query = parse_qs(urlsplit(self.source.browser.page_url).query)
+            if "seasonId" in query and query["seasonId"] != [str(self.season)]:
+                raise ValueError("The browser URL identifies a different season.")
         players = {p.id: p for p in self.players}
         if len(players) != len(self.players):
             raise ValueError("Player identifiers must be unique.")
@@ -181,6 +211,8 @@ class LeagueSnapshot(Model):
             if pick.slot != expected or pick.player_id not in players:
                 raise ValueError("Draft history has an invalid owner or player.")
         if self.phase == "draft":
+            if any(player.projection is None for player in self.players):
+                raise ValueError("Draft players require full-season projections.")
             for team in self.teams:
                 if set(team.roster_ids) != {p.player_id for p in self.picks if p.slot == team.slot} or team.reserve_ids:
                     raise ValueError("Draft rosters must match the complete pick history.")
@@ -225,6 +257,7 @@ class Limits(Model):
     min_lineup_improvement: float = Field(default=1.5, ge=0)
     max_draft_age_seconds: int = Field(default=15, ge=1, le=300)
     max_season_age_seconds: int = Field(default=300, ge=1, le=86400)
+    max_projection_age_seconds: int = Field(default=3600, ge=1, le=604800)
     max_adp_reach: float | None = Field(default=None, ge=0)
     batch_trials: int = Field(default=40, ge=1, le=500)
 

@@ -42,7 +42,8 @@ def create_server(data_dir=None):
 
     server = MCPServer("Fantasy Football Manager", version=__version__, lifespan=lifespan,
                        instructions="Use imported league snapshots or fictional demo data. Read capabilities before preparing actions. "
-                       "Real league writes and browser monitoring are unavailable. Use exact proposal confirmation in review mode.")
+                       "Use the companion ESPN MCP service for live draft observations and browser submissions. "
+                       "This server's execute_demo_action changes synthetic state only. Use exact proposal confirmation in review mode.")
     read = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
     write = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
 
@@ -51,9 +52,15 @@ def create_server(data_dir=None):
     def get_capabilities() -> dict[str, Any]:
         """Read supported operations and the effective execution scope."""
         snapshot, config, revision, config_revision = manager.state()
-        return {"version": __version__, "transport": "stdio", "input": ["imported_json", "synthetic_demo"],
+        return {"version": __version__, "transport": "stdio", "input": ["imported_json", "synthetic_demo", "espn_companion"],
                 "analysis": ["draft_simulation", "continuous_draft_batches", "weekly_lineup", "waivers", "weekly_power_rankings"],
                 "execution_scope": "synthetic_demo_only", "live_provider_writes": False, "live_browser_monitoring": False,
+                "capability_scope": "this_server", "espn_companion": {
+                    "command": "fantasy-football-espn", "browser_connection_required": True,
+                    "live_draft_observation": True, "live_draft_submission": True,
+                    "continuous_automation": True, "standalone_worker": True,
+                    "live_season_actions": ["set_lineup"], "live_acquisitions_and_trades": False,
+                    "live_acceptance_test": "pending"},
                 "supported_demo_actions": list(ACTIONS[:5]), "unsupported_actions": list(ACTIONS[5:]),
                 "automation_modes": ["disabled", "advisory", "review", "automatic"],
                 "configured_modes": {action: config.automation.mode_for(action) for action in ACTIONS},

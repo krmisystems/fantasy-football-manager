@@ -11,11 +11,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "fantasy-football-manager"
+COMPANION = "fantasy-football-espn"
+SKILLS = ("draft-assistant", "espn-automation", "season-manager")
 SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", "build",
              ".demo-state", ".ci-demo", ".test-state", ".local-state", ".ruff_cache"}
 PRIVATE_NAMES = {".watcher-token", "draft-state.json", "observed-ledger.json",
                  "verified-history.txt", "manual-observed-picks.json", "cookies.json",
                  "credentials.json", "corrected-recommendations.json"}
+PRIVATE_NAMES.update({"Cookies", "Login Data", "Local State", "Web Data", "History",
+                      "Preferences", "Secure Preferences", "espn-browser.lock"})
+PRIVATE_DIRS = {"private-captures", "espn-browser-profile", "browser-profile"}
 PRIVATE_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pem", ".key"}
 TEXT_SUFFIXES = {".py", ".json", ".md", ".toml", ".yml", ".yaml", ".txt", ".mmd", ".lock"}
 SECRET_PATTERNS = (
@@ -50,12 +55,20 @@ def validate(root: Path, expected_version: str | None = None) -> tuple[list[str]
         "registryType": "pypi", "identifier": NAME, "version": version, "transport": {"type": "stdio"}
     }:
         errors.append("Registry package must match the local PyPI STDIO release")
-    if command != {"mcpServers": {NAME: {"command": NAME, "args": []}}}:
-        errors.append("Plugin MCP command must use the portable installed CLI")
-    if project.get("scripts", {}).get(NAME) != "fantasy_football_manager.mcp_server:main":
-        errors.append("Installed CLI entry point is missing or inconsistent")
-    for skill_name in ("draft-assistant", "season-manager"):
+    expected_commands = {"mcpServers": {name: {"command": name, "args": []} for name in (NAME, COMPANION)}}
+    if command != expected_commands:
+        errors.append("Plugin MCP configuration must include both portable installed commands")
+    expected_scripts = {NAME: "fantasy_football_manager.mcp_server:main",
+                        COMPANION: "fantasy_football_manager.espn_mcp:main"}
+    if any(project.get("scripts", {}).get(name) != target for name, target in expected_scripts.items()):
+        errors.append("Manager and ESPN installed CLI entry points must match the package")
+    if plugin.get("mcpServers") != "./.mcp.json":
+        errors.append("Plugin manifest must reference its two-server companion configuration")
+    for skill_name in SKILLS:
         path = plugin_dir / "skills" / skill_name / "SKILL.md"
+        if not path.is_file():
+            errors.append(f"Plugin is missing required skill: {skill_name}")
+            continue
         contents = path.read_text(encoding="utf-8")
         if not contents.startswith("---\n") or f"name: {skill_name}\n" not in contents:
             errors.append(f"Skill front matter does not identify {skill_name}")
@@ -71,7 +84,7 @@ def validate(root: Path, expected_version: str | None = None) -> tuple[list[str]
             continue
         checked += 1
         if (path.name in PRIVATE_NAMES or path.suffix.lower() in PRIVATE_SUFFIXES
-                or path.name.startswith(".env") or "private-captures" in relative.parts
+                or path.name.startswith(".env") or any(part in PRIVATE_DIRS for part in relative.parts)
                 or path.name.endswith((".db-wal", ".db-shm", ".sqlite-wal", ".sqlite-shm", ".sqlite3-wal", ".sqlite3-shm"))):
             errors.append(f"Private runtime file is in release source: {relative.as_posix()}")
             continue

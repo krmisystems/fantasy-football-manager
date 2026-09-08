@@ -1,7 +1,7 @@
 {
   "name": "fantasy-football-manager",
-  "version": "0.1.0",
-  "description": "Local fantasy draft and weekly team workflows with synthetic-only execution.",
+  "version": "0.2.0",
+  "description": "Fantasy draft and weekly analysis with ESPN automation for draft picks and lineup swaps.",
   "author": {
     "name": "krmisystems",
     "url": "https://github.com/krmisystems"
@@ -11,12 +11,19 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Fantasy Football Manager",
-    "shortDescription": "Plan fantasy draft picks and weekly lineups.",
-    "longDescription": "Use local MCP tools for validated league imports, draft estimates, weekly lineups, and action policy. Version 0.1 executes synthetic changes only.",
+    "shortDescription": "Analyze teams and automate ESPN picks and lineups.",
+    "longDescription": "Use manager tools for draft estimates, weekly analysis, and policy. The ESPN companion submits draft picks and one verified lineup swap at a time. Live waivers, drops, trades, and automatic week rollover remain planned.",
     "developerName": "krmisystems",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
-    "defaultPrompt": ["Run the synthetic draft demo.", "Review my weekly lineup from an imported snapshot.", "Explain my automation limits and effective capabilities."]
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Connect my ESPN draft and check automation limits.",
+      "Run continuous draft simulations and automatic picks.",
+      "Connect my ESPN week and automate qualifying lineup swaps."
+    ]
   },
   "mcpServers": "./.mcp.json"
 }

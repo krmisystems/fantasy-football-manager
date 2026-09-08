@@ -32,5 +32,8 @@ observed-ledger.json
 manual-observed-picks.json
 corrected-recommendations.json
 private-captures/
+espn-browser-profile/
+**/espn-browser-profile/
+espn-browser.lock
 .DS_Store
 Thumbs.db

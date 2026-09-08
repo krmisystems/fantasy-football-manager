@@ -1,5 +1,61 @@
 {
   "$defs": {
+    "BrowserObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "page_url": {
+          "maxLength": 2048,
+          "title": "Page Url",
+          "type": "string"
+        },
+        "league_id": {
+          "title": "League Id",
+          "type": "string"
+        },
+        "team_id": {
+          "title": "Team Id",
+          "type": "string"
+        },
+        "current_pick": {
+          "anyOf": [
+            {
+              "maximum": 1281,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current Pick"
+        },
+        "autopick_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Autopick Enabled"
+        },
+        "draft_complete": {
+          "default": false,
+          "title": "Draft Complete",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "page_url",
+        "league_id",
+        "team_id"
+      ],
+      "title": "BrowserObservation",
+      "type": "object"
+    },
     "Budget": {
       "additionalProperties": false,
       "properties": {
@@ -127,10 +183,17 @@
           "type": "string"
         },
         "projection": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Projection",
-          "type": "number"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Projection"
         },
         "weekly_projection": {
           "anyOf": [
@@ -316,6 +379,24 @@
           ],
           "default": null,
           "title": "Projections Observed At"
+        },
+        "browser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BrowserObservation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
         }
       },
       "required": [

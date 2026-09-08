@@ -26,7 +26,7 @@ def _source(snapshot: LeagueSnapshot, config: ManagerConfig) -> dict:
         "locks_verified": snapshot.source.locks_verified,
         "synthetic": snapshot.source.synthetic,
         "stale": age > config.limits.max_season_age_seconds,
-        "projections_stale": projection_age is not None and projection_age > config.limits.max_season_age_seconds,
+        "projections_stale": projection_age is not None and projection_age > config.limits.max_projection_age_seconds,
     }
 
 

@@ -44,10 +44,23 @@ def parse_payload(action: str, payload: dict) -> dict:
     return models[action].model_validate(payload).model_dump()
 
 
-def check_action(snapshot: LeagueSnapshot, config: ManagerConfig, action: str, payload: dict) -> dict:
+def check_action(snapshot: LeagueSnapshot, config: ManagerConfig, action: str, payload: dict, *, execution_scope="synthetic_demo_only") -> dict:
     payload = parse_payload(action, payload)
-    require(snapshot.source.synthetic and snapshot.source.provider == "synthetic",
-            "Live provider writes are unavailable. Execution requires a synthetic demo snapshot.")
+    if execution_scope == "synthetic_demo_only":
+        require(snapshot.source.synthetic and snapshot.source.provider == "synthetic",
+                "Live provider writes require the ESPN MCP service. Demo execution requires a synthetic snapshot.")
+    elif execution_scope == "host_browser":
+        require(action in {"draft_pick", "set_lineup"}, "This browser execution route supports draft picks and lineup moves only.")
+        require(snapshot.source.provider == "espn_browser" and not snapshot.source.synthetic,
+                "Browser execution requires live ESPN browser observations.")
+        browser = snapshot.source.browser
+        require(browser is not None, "The browser observation is missing.")
+        if action == "draft_pick":
+            require(browser.current_pick == len(snapshot.picks) + 1 and not browser.draft_complete,
+                    "The visible draft clock does not match the complete pick history.")
+            require(browser.autopick_enabled is False, "ESPN Autopick must be verified disabled before direct submission.")
+    else:
+        raise PolicyError("Unknown execution scope.")
     require(not config.automation.paused, "Automation is paused.")
     require(snapshot.source.complete, "The source snapshot is incomplete.")
     age_limit = config.limits.max_draft_age_seconds if snapshot.phase == "draft" else config.limits.max_season_age_seconds
@@ -55,7 +68,7 @@ def check_action(snapshot: LeagueSnapshot, config: ManagerConfig, action: str, p
     if action in {"set_lineup", "waiver_claim", "free_agent_add", "draft_pick"}:
         stamp = snapshot.source.projections_observed_at
         require(stamp is not None, "The projection observation time must be known.")
-        require((datetime.now(timezone.utc) - stamp).total_seconds() <= age_limit,
+        require((datetime.now(timezone.utc) - stamp).total_seconds() <= config.limits.max_projection_age_seconds,
                 "The projections are stale. Import fresh projections.")
     mode = config.automation.mode_for(action)
     modes = [mode]
@@ -152,7 +165,7 @@ def check_action(snapshot: LeagueSnapshot, config: ManagerConfig, action: str, p
             budget = snapshot.budget
             require(budget is not None and budget.pending_moves is not None, "Pending roster moves must be known.")
             require(budget.roster_moves_week + budget.pending_moves + 1 <= limits.max_weekly_moves, "The weekly roster move limit is reached.")
-    return {"mode": mode, "payload": payload, "requires_confirmation": mode == "review", "scope": "synthetic_demo_only"}
+    return {"mode": mode, "payload": payload, "requires_confirmation": mode == "review", "scope": execution_scope}
 
 
 def apply_demo_action(snapshot: LeagueSnapshot, action: str, payload: dict) -> LeagueSnapshot:

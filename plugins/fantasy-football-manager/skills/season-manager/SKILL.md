@@ -1,44 +1,64 @@
 ---
 name: season-manager
-description: Use local Fantasy Football Manager MCP tools to compare legal weekly lineups, rank waiver candidates, inspect automation policy, and exercise synthetic roster actions.
+description: Read ESPN weekly rosters, optimize lineups, submit verified lineup swaps, rank waiver candidates, and inspect configured automation limits.
 ---
 
 # Season manager
 
-Call `get_capabilities` before you promise an action or live connection.
-Version 0.1 executes changes against synthetic snapshots only.
-Live provider writes and trades are unsupported.
+Read `get_capabilities` and `get_manager_config` before selecting a season workflow.
+The manager provides weekly analysis and synthetic season execution.
+The ESPN companion supports live weekly observations and verified lineup swaps.
+Live waiver, acquisition, drop, and trade adapters are not implemented.
+For live ESPN drafts, use the included `espn-automation` skill and companion tools.
 
 ## Review the week
 
-1. Read `get_manager_config`.
-2. If a snapshot is loaded, read `get_team` and identify the league, team, season, and week.
-3. Use `load_demo(mode="season")` for an explicitly requested synthetic demonstration.
-4. Import supplied JSON with `import_league_snapshot` when needed.
+1. Read `get_team` when a snapshot is loaded.
+2. Identify the league, team, season, and week.
+3. Use `load_demo(mode="season")` for a requested synthetic demonstration.
+4. Use `import_league_snapshot` for supplied weekly observations.
 5. Call `recommend_lineup` for a legal weekly comparison.
 6. Call `rank_waiver_candidates` to compare additions and required drops.
-7. Use `get_power_rankings` only as a projection-based comparison.
+7. Use `get_power_rankings` as a projection-based comparison.
 
-Do not divide season projections into invented weekly forecasts.
-Read `get_source_status` after a snapshot is loaded.
-`load_demo` refuses to replace imported real state. Use a separate data directory for a new demonstration.
-Report unknown projections, eligibility, locks, ownership, and pending claims.
-Floor and upside comparisons require suitable inputs.
-Projection rankings do not establish matchup, playoff, or championship probabilities.
+Read `get_source_status` after an import.
+Report missing projections, eligibility, locks, ownership, and pending claims.
+Do not divide season totals into invented weekly projections.
+Floor and upside comparisons require supplied bounds.
+Projection rankings do not establish matchup or championship probabilities.
+Use a separate data directory for demonstrations when real league state is loaded.
 
 ## Policy and proposals
 
-Show the current action modes and limits before changing policy.
-Use `update_manager_config` only for an explicitly requested change.
-Pass the current configuration revision.
-A strategy change does not grant execution authority.
+Preserve the user's authorized action modes and hard limits.
+Use `update_manager_config` with the current revision for an authorized configuration change.
+Strategy changes do not grant action permission.
 
-Use `prepare_action` for a supported synthetic lineup, waiver, acquisition, or drop proposal.
+Use `prepare_action` for supported synthetic lineup, acquisition, waiver, or drop proposals.
 Review the complete add/drop transaction and its budget effects.
 An empty drop list permits no drops in `listed_only` mode.
 Protected players and pending commitments remain hard checks.
 
-Use `execute_demo_action` only when current authorization and required confirmation permit the exact proposal.
+Use `execute_demo_action` only within current authorization and required confirmation.
 Read the resulting state and `get_action_history` after execution.
-Do not turn an unsupported action into a browser task or guessed API call.
-Return a clear recommendation when execution is unavailable.
+For a requested live acquisition, drop, or trade, report the missing adapter and provide the calculated recommendation.
+Do not describe a synthetic result as a change to the real league.
+
+## Live lineup operation
+
+1. Call `espn_connect` with the selected context, `phase="season"`, and the requested `week`.
+2. Complete browser sign-in when required.
+3. Call `espn_sync` and verify source completeness, current week, and own-team locks.
+4. Preserve the user's authorized `set_lineup` mode, strategy, and improvement limit.
+5. Call `espn_start_automation` for continuous observations and analysis.
+
+Automatic lineup mode can submit one qualifying swap at a time.
+Review mode provides recommendations and requires confirmation of an exact proposal.
+Use `espn_prepare_lineup` with the full resulting lineup for one legal swap.
+Use `espn_submit_lineup` with required review confirmation.
+Use `espn_reconcile_lineup` for an uncertain result. Never repeat an uncertain confirmation click.
+Read `espn_get_status` and `get_action_history` after a submission.
+Do not claim the full recommended lineup was applied after one swap.
+Some targets require intermediate swaps below the user limit. Report that limitation without lowering the limit.
+Reconnect for the next scoring week. Automatic week rollover is not implemented.
+Use `espn_stop_automation` for a shared pause.

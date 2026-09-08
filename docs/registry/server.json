@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.krmisystems/fantasy-football-manager",
   "title": "Fantasy Football Manager",
-  "description": "Local draft and weekly fantasy football tools with synthetic-only execution.",
-  "version": "0.1.0",
+  "description": "Local draft and weekly tools with an ESPN companion for draft picks and verified lineup swaps.",
+  "version": "0.2.0",
   "repository": {
     "url": "https://github.com/krmisystems/fantasy-football-manager",
     "source": "github"
@@ -12,8 +12,10 @@
     {
       "registryType": "pypi",
       "identifier": "fantasy-football-manager",
-      "version": "0.1.0",
-      "transport": {"type": "stdio"}
+      "version": "0.2.0",
+      "transport": {
+        "type": "stdio"
+      }
     }
   ]
 }

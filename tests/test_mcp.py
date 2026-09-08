@@ -101,7 +101,7 @@ async def test_imported_snapshot_cannot_execute_or_be_replaced_by_demo(tmp_path)
             "action": "set_lineup", "payload": {"lineup": lineup["lineup"]},
         })
         assert forbidden.is_error
-        assert "Live provider writes are unavailable" in " ".join(item.text for item in forbidden.content if item.type == "text")
+        assert "ESPN MCP service" in " ".join(item.text for item in forbidden.content if item.type == "text")
         before = await call(client, "get_team")
         overwrite = await client.call_tool("load_demo", {"mode": "draft"})
         assert overwrite.is_error

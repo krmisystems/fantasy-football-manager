@@ -10,9 +10,10 @@ Their calculations must not modify supplied objects.
 
 `LeagueSnapshot` fields:
 - `schema_version=1`, `league_id`, `team_id`, `season`, `week`.
-- `source`: `provider`, UTC `observed_at`, `complete`, `locks_verified`, `synthetic`.
+- `source`: `provider`, UTC `observed_at`, `complete`, `locks_verified`, `synthetic`, optional `projections_observed_at`, and optional `browser` observation.
+Browser observations identify the page URL, league, team, current pick, Autopick state, and draft completion.
 - `rules`: `teams`, `slot`, `rounds`, `snake`, `starters` count mapping, `caps` mapping, `flex_eligible` list.
-- `players`: player objects with `id`, `name`, `position`, `eligible_positions`, NFL `team`, season `projection`, optional `weekly_projection`, `weekly_floor`, `weekly_ceiling`, `adp`, `availability`, `locked`, optional `bye`.
+- `players`: player objects with `id`, `name`, `position`, `eligible_positions`, NFL `team`, nullable season `projection`, optional nullable `weekly_projection`, `weekly_floor`, `weekly_ceiling`, `adp`, `availability`, `locked`, optional `bye`.
 - `teams`: `id`, `name`, snake `slot`, `roster_ids`, current `lineup` mapping.
 - `picks`: `pick_no`, `player_id`, `slot`.
 - optional `budget`: `balance`, `spent_week`, `spent_season`, nullable `pending_amount`, nullable `pending_moves`, `roster_moves_week`.
@@ -35,8 +36,10 @@ Snapshot validators reject duplicate ownership, duplicate picks, gaps, wrong sna
 
 `season.py`: `recommend_lineup(snapshot, config) -> dict`, `rank_waivers(snapshot, config, limit=10) -> dict`, `power_rankings(snapshot, config) -> dict`. Use weekly projections and enforce locked existing assignments. Missing inputs produce an explicit error or incomplete result, never fabricated values. Result includes `lineup` mapping, `projected_points`, current points and `improvement` where calculable.
 
-Root provides durable SQLite state, revision checks, bounded worker jobs, action proposals, synthetic-only execution, and MCP tools.
-Live provider writes are unsupported in version 0.1.0. Automation can be exercised against synthetic data.
+The manager provides SQLite state, revision checks, bounded jobs, policy, and synthetic execution.
+Version 0.2 adds the ESPN companion for real draft observation, one-click claims, and platform reconciliation.
+A standalone worker can continue after Codex closes. Season mode supports weekly lineup swaps.
+Live acquisitions, drops, and trades remain unimplemented.
 Advisory/review/automatic settings must report the effective supported capability.
 
 ## Testing

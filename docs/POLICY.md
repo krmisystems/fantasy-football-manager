@@ -1,48 +1,68 @@
 # Policy behavior
 
-Strategy, action permission, and hard limits are separate controls.
-Changing a strategy does not authorize an action.
-Version 0.1 can exercise execution policy against synthetic snapshots only.
+Strategy, execution permission, and hard limits are separate controls.
+Version 0.2 supports real ESPN draft picks through the companion MCP server.
+The manager's execution tools remain restricted to synthetic demonstrations.
+The ESPN service can submit one verified lineup swap at a time.
+Live waivers, acquisitions, drops, and trades are not implemented.
 
 | Control | Meaning |
 |---|---|
 | Advisory | Return recommendations without submitting an action. |
-| Review | Prepare an exact proposal that requires confirmation before supported execution. |
+| Review | Require confirmation of an exact proposal before supported execution. |
 | Bounded automation | Permit supported actions within saved limits and current authorization. |
-| Custom | Select a different mode for each action. |
+| Custom | Select a mode for each action. |
 | Disabled action | Block execution for that action. |
+| Shared pause | Block new actions across processes using the same data directory. |
 
-Read `get_capabilities` and `get_manager_config` before preparing an action.
-Report the effective mode when a requested mode cannot execute.
-Live writes and trades remain unsupported in this version.
+Read `get_capabilities`, `get_manager_config`, and `espn_get_status` before live operation.
+Use `espn_stop_automation` to set the shared pause flag.
+Disconnecting one MCP process does not necessarily stop a separate worker.
 
-## Limits
+## Live draft checks
 
-- Preserve platform roster limits, eligibility, deadlines, and player locks.
-- Preserve protected players during ownership changes.
-- Treat an empty allowed-drop list as no permitted drops in `listed_only` mode.
-- Apply add and drop permissions to the complete acquisition transaction.
-- Include pending commitments in FAAB and move checks.
-- Apply per-claim, weekly, season, and remaining-reserve limits together.
-- Require the configured lineup improvement before lineup changes and acquisitions in review or automatic mode.
-- Require known, fresh projection timestamps for draft, lineup, and acquisition execution.
-- Reject execution when required observations or budget inputs are unknown.
+The source must be a complete, non-synthetic `espn_browser` observation.
+Its league and team must match the connected draft page.
+The visible current pick must equal the complete history length plus one.
+ESPN Autopick must be verified disabled. It must be the selected team's turn.
 
-Ordinary proposal confirmation does not remove a hard limit.
-Change a user limit explicitly before preparing a new proposal that requires it.
-League rules and system invariants remain mandatory.
+The player must be available and undrafted.
+The pick must respect position caps, starter completion, and `max_adp_reach` when configured.
+The draft observation age defaults to at most 15 seconds.
+Projection age defaults to at most 3600 seconds through `max_projection_age_seconds`.
+Unknown projection observation time blocks execution.
 
-## Strategy presets
+Review confirmation applies to one exact proposal.
+Changed decision inputs or configuration require a new unclaimed proposal.
+A timestamp-only refresh preserves the revision. Submission still requires a fresh observation.
+Authorization creates a durable claim before the browser acts.
+An unresolved claim blocks another click for the same league, team, and season.
+Only a complete observation after authorization can confirm the actual platform pick.
 
-Draft presets are `balanced_value`, `rb_priority`, `wr_priority`, `hero_rb`, and `zero_rb`.
-Season presets are `projected_points`, `floor`, and `upside`.
-Waiver presets are `immediate_starter`, `bench_upside`, and `conserve_faab`.
+## Live lineup checks
 
-A zero-RB preference must still leave enough selections to fill required RB slots.
-`max_adp_reach` is a hard execution limit when it has a numeric value.
-It limits `player.adp - overall_pick`; `null` disables that optional limit.
-Floor and upside strategies require suitable uncertainty inputs.
-All strategy results are estimates, not guarantees.
+The complete ESPN observation must match the selected league, team, season, and scoring week.
+Weekly projections and own-team lock states must be known. Locked assignments must remain unchanged.
+Each proposal contains exactly one legal swap and its full resulting lineup.
+Each swap must meet the configured improvement limit, including intermediate swaps toward a larger target.
+The browser checks the incoming player and destination occupant before its final confirmation click.
+An unresolved result blocks further moves until reconciliation. Equivalent numbered slots are compared as occupant groups.
+The connected scoring week does not roll over automatically.
 
-Use `get_manager_config` to inspect the actual configuration schema and current values.
-The generated JSON schemas in this repository describe the accepted source models when available.
+## Synthetic season limits
+
+Protected players, eligibility, locks, allowed drops, and budgets remain checks for supported synthetic season actions.
+An empty allowed-drop list permits no drops in `listed_only` mode.
+An acquisition must satisfy both add and drop permissions.
+Pending commitments count against FAAB and move limits.
+The minimum lineup improvement applies to lineup changes and acquisitions.
+
+Ordinary confirmation does not remove a hard limit.
+Change a user limit explicitly before preparing a proposal that requires it.
+A strategy change does not grant execution authority.
+
+Draft strategies are `balanced_value`, `rb_priority`, `wr_priority`, `hero_rb`, and `zero_rb`.
+Season strategies are `projected_points`, `floor`, and `upside`.
+Waiver strategies are `immediate_starter`, `bench_upside`, and `conserve_faab`.
+Floor and upside require supplied bounds.
+Strategy scores and availability estimates are not guarantees or championship probabilities.

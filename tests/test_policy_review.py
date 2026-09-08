@@ -88,9 +88,9 @@ def test_draft_feasibility_accounts_for_remaining_position_capacity():
     now = datetime.now(timezone.utc)
     rules = Rules(teams=2, slot=1, rounds=2, starters={"RB": 1, "FLEX": 1}, bench=0,
                   flex_eligible=["RB"], caps={"RB": 1, "QB": 4})
-    players = [Player(id="rb-a", name="Synthetic RB A", position="RB", availability="ACTIVE"),
-               Player(id="rb-b", name="Synthetic RB B", position="RB", availability="ACTIVE"),
-               Player(id="qb", name="Synthetic QB", position="QB", availability="ACTIVE")]
+    players = [Player(id="rb-a", name="Synthetic RB A", position="RB", availability="ACTIVE", projection=100),
+               Player(id="rb-b", name="Synthetic RB B", position="RB", availability="ACTIVE", projection=90),
+               Player(id="qb", name="Synthetic QB", position="QB", availability="ACTIVE", projection=80)]
     state = LeagueSnapshot(league_id="impossible-draft", team_id="team-a", season=2026, phase="draft",
                            source=Source(provider="synthetic", synthetic=True, observed_at=now, projections_observed_at=now),
                            rules=rules, players=players,

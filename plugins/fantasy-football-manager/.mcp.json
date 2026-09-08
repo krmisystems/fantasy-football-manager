@@ -3,6 +3,10 @@
     "fantasy-football-manager": {
       "command": "fantasy-football-manager",
       "args": []
+    },
+    "fantasy-football-espn": {
+      "command": "fantasy-football-espn",
+      "args": []
     }
   }
 }
