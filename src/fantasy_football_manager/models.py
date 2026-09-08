@@ -221,8 +221,9 @@ class LeagueSnapshot(Model):
             if pick.slot != expected or pick.player_id not in players:
                 raise ValueError("Draft history has an invalid owner or player.")
         if self.phase == "draft":
-            if any(player.projection is None for player in self.players):
-                raise ValueError("Draft players require full-season projections.")
+            opponent_ids = {pick.player_id for pick in self.picks if pick.slot != self.rules.slot}
+            if any(player.projection is None and player.id not in opponent_ids for player in self.players):
+                raise ValueError("Available and selected-team draft players require full-season projections.")
             for team in self.teams:
                 if set(team.roster_ids) != {p.player_id for p in self.picks if p.slot == team.slot} or team.reserve_ids:
                     raise ValueError("Draft rosters must match the complete pick history.")

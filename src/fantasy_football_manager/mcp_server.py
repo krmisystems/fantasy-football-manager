@@ -60,7 +60,10 @@ def create_server(data_dir=None):
                     "live_draft_observation": True, "live_draft_submission": True,
                     "continuous_automation": True, "standalone_worker": True,
                     "live_season_actions": ["set_lineup"], "live_acquisitions_and_trades": False,
-                    "live_acceptance_test": "pending"},
+                    "live_acceptance_test": "versioned_evidence",
+                    "acceptance_report_url": (
+                        "https://github.com/krmisystems/fantasy-football-manager/"
+                        f"blob/v{__version__}/docs/ESPN_COMPATIBILITY.md")},
                 "supported_demo_actions": list(ACTIONS[:5]), "unsupported_actions": list(ACTIONS[5:]),
                 "automation_modes": ["disabled", "advisory", "review", "automatic"],
                 "configured_modes": {action: config.automation.mode_for(action) for action in ACTIONS},

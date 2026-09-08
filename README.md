@@ -78,7 +78,13 @@ Its estimates use a **two-pick horizon**, projected player values, and simulated
 Availability estimates are conditional. They do not guarantee that a player survives to the next pick.
 More trials do not correct stale inputs or projection errors. The model does not report championship odds.
 
-The [fourth draft trial](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/FOURTH_DRAFT_ACCEPTANCE.md) verified all **160 league selections and 16 manager-confirmed picks**.
+The [fifth draft trial](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/FIFTH_DRAFT_ACCEPTANCE.md) completed with **13 manager-confirmed picks, two direct host-browser picks, and one unattributed selection**.
+An opponent selection without a season projection blocked history normalization. The operator stopped the worker and completed the final two turns.
+The host capture contains all 160 selections and matches the 132 picks previously stored by the server.
+Installed v0.3.1 execution methods remained unchanged. This run required operator recovery and does not verify unattended completion.
+Version 0.3.2 separates verified opponent identity from projected value. Its regression evidence is separate from this live run.
+
+The earlier [fourth draft trial](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/FOURTH_DRAFT_ACCEPTANCE.md) verified all **160 league selections and 16 manager-confirmed picks**.
 It recorded **zero ESPN Autopicks and zero host-browser `DRAFT` clicks**.
 Installed v0.3.1 execution methods were unchanged. A private launcher handled collection and lifecycle.
 
@@ -112,11 +118,13 @@ After the fourth draft, the server verified fresh Week 1 observations and select
 The verified handoff recorded zero new lineup authorizations and zero unresolved authorized claims.
 These observations do not verify live server lineup submission or an unattended season.
 Read [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md) for restart, archive, and recovery evidence.
-Two of three additional draft trials are complete. One draft and a five-team season trial remain [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
+All three additional draft trials are complete, with their failures and execution sources recorded separately.
+The fifth roster's season handoff and the five-team season evaluation remain [planned](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
 
 ## Install from PyPI
 
-Version 0.3.1 fixes draft team-name whitespace and D/ST selectors.
+Version 0.3.2 preserves verified opponent draft history when a season projection is missing.
+Version 0.3.1 fixed draft team-name whitespace and D/ST selectors.
 Version 0.3.0 introduced server season scheduling, durable evidence, and a PostgreSQL archive.
 Check the [PyPI project](https://pypi.org/project/fantasy-football-manager/) and [distribution status](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) for available releases.
 The manager has an active [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/latest).
@@ -158,9 +166,9 @@ The package includes Playwright and uses installed Chrome.
 An optional `cdp_url` can connect to an explicit loopback browser debugging endpoint.
 Keep profiles, credentials, databases, logs, and real league exports outside Git. Read the [privacy notes](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PRIVACY.md).
 
-The [v0.3.1 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.1) identifies the versioned
-[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.1/fantasy_football_manager-0.3.1-py3-none-any.whl),
-[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.1/fantasy-football-manager-0.3.1-plugin.zip), and checksums.
+Use the [v0.3.2 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.2) for the versioned
+[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.2/fantasy_football_manager-0.3.2-py3-none-any.whl),
+[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.2/fantasy-football-manager-0.3.2-plugin.zip), and checksums.
 The [distribution acceptance record](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) tracks verified GitHub, PyPI, and MCP Registry publication separately.
 Follow the [release instructions](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/RELEASING.md) for publisher setup. Earlier published assets remain unchanged.
 
@@ -174,10 +182,12 @@ Follow the [release instructions](https://github.com/krmisystems/fantasy-footbal
 | Server team manager | Serial team visits, graceful stop, health, durable evidence, PostgreSQL archive, backups | Explicit weeks. Shared browser control is serial. |
 | Planned season actions | Live waivers, free-agent additions, drops, trades, and automatic week rollover | These execution adapters are not implemented. |
 
-The latest local validation passed **611 tests on Windows**, including **17 isolated Chrome cases**.
-The two skips were PostgreSQL configuration and Windows symlink permissions.
-Separate Linux checks passed **23 archive tests** with PostgreSQL and **28 discovery collector tests**.
+The v0.3.2 source passed **628 tests across the base and separate Chrome runs**, including **17 isolated Chrome cases**.
+Two remaining skips required PostgreSQL configuration and Windows symlink permissions.
+Historical v0.3.1 Linux checks passed **23 archive tests** with PostgreSQL and **28 discovery collector tests**.
+Those results do not verify the v0.3.2 source.
 These test counts are distinct from live account acceptance.
+Live draft execution of an installed v0.3.2 wheel remains **Not Tested**.
 See [validation status](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/VALIDATION.md), [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md), and the [compatibility matrix](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/ESPN_COMPATIBILITY.md).
 
 For a synthetic demonstration, run `uv run fantasy-football-manager --demo`.

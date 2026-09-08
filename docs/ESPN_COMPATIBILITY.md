@@ -1,8 +1,8 @@
 # ESPN compatibility matrix
 
-**Record version: 2. Target version: v0.3.1. Updated: 2026-09-08.**
+**Record version: 3. Target version: v0.3.2. Updated: 2026-09-08.**
 
-This matrix describes the v0.3.1 source and recorded validation evidence.
+This matrix separates the v0.3.2 source checks from historical installed-version evidence.
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for verified publication status on each channel.
 It does not guarantee compatibility with every ESPN layout or future website change.
 Use [the ESPN workflow](ESPN_AUTOMATION.md) for operating instructions.
@@ -34,6 +34,7 @@ The test source contains inline fixtures where no separate HTML file is linked.
 | v0.3.0 | Durable evidence, PostgreSQL import, consistent SQLite snapshots, private backup sets | [Archive tests](../tests/test_archive.py), [backup tests](../tests/test_server_backup.py), [server acceptance](SERVER_ACCEPTANCE.md) | Verified with local tests and recorded server import and recovery checks. The archive is not a public dataset. |
 | v0.3.1 | Surrounding whitespace in an API team name | [Waiting-room tests](../tests/test_espn_browser.py), [public draft Chrome test](../tests/test_espn_public_draft_integration.py) | Verified, fictional. Name normalization retains exact team, member, and roster checks. The third draft required a private workaround. The fourth draft completed with unchanged installed v0.3.1 methods. |
 | v0.3.1 | Slash delimiters in D/ST autocomplete and position selectors | [D/ST Chrome tests](../tests/test_browser_integration.py) | Both `D/ST` and `DST` display variants reproduced the failure before the fix and passed afterward. Wrong-team and wrong-position suggestions remain blocked. A live Ravens D/ST selection succeeded in the fourth draft. The exact autocomplete branch was not established. |
+| v0.3.2 | Confirmed opponent selection with an absent or empty season projection | [Draft normalization and replay](../tests/test_espn_data.py), [draft engine checks](../tests/test_draft.py) | Verified, fictional. The parser retains the verified identity with `projection=None`. The engine counts roster occupancy without scoring or recommending that player. Missing selected-team projections, ambiguous identities, and wrong owners still block. Live draft execution of an installed v0.3.2 wheel is Not Tested. |
 
 The version column identifies the implementation series. It does not relabel historical live runs as released-wheel acceptance.
 The second draft trial used installed v0.2.1 dependencies and changing working-tree patches.
@@ -48,10 +49,12 @@ The second draft trial used installed v0.2.1 dependencies and changing working-t
 | History recovery after restart | Availability and secondary-position labels exposed parser gaps. Manual recovery and patches restored complete history. | Recovery recorded. No claim of uninterrupted operation. |
 | Second draft completion | All 160 league selections were verified. The selected roster contained 16 players: 13 manager-confirmed picks and 3 ESPN Autopicks. | Completed with failures and interventions. No duplicate submissions were observed. |
 | Server season checks | After the fourth draft, all four exact Week 1 contexts had fresh browser observations and verified selected-team locks. | The [verified handoff](SERVER_ACCEPTANCE.md) recorded zero new lineup authorizations and zero unresolved authorized claims. Live server lineup submission remains Not Tested. |
-| Future evaluation | One remaining additional draft trial and a five-team season trial. | Planned. The third and fourth drafts completed two of the three additional trials. Their separate execution limits remain recorded. |
+| Future evaluation | All three additional draft trials are complete. The fifth roster's season handoff and a five-team season trial remain pending. | Planned. Each completed draft retains its own runtime, failure, and execution-source limits. |
 | Third draft trial | Host-capture reconciliation verified all 160 picks against the stored 133-pick prefix. Thirteen manager picks and three platform fallbacks filled the roster. | Team-name whitespace, a D/ST selector failure, and a late browser handoff required recovery. The final import has a separate source provider. Read the [third-draft record](THIRD_DRAFT_ACCEPTANCE.md). |
 | Fourth draft trial | All 160 league picks and 16 manager-confirmed selections were verified. Zero ESPN Autopicks and zero host-browser draft clicks occurred. | Installed v0.3.1 execution methods were unchanged. A private launcher handled collection and lifecycle. No package patches, restart, or manual recovery were required during the run. Read the [fourth-draft record](FOURTH_DRAFT_ACCEPTANCE.md). |
 | Fourth draft preauthorization error | One `browser_control` error occurred at the first turn. Its exact text was unavailable. | A later check recovered before submission. The error remains recorded despite all 16 confirmed selections. |
+| Fifth draft history failure | An opponent selected a verified player whose matching season projection statistics were empty. Version 0.3.1 had excluded that identity and stopped accepting history after 132 picks. | The operator stopped the worker with zero unresolved claims. Version 0.3.2 separates history identity from projected value. This was not an availability-label parsing failure. |
+| Fifth draft completion | The final host capture contains 160 selections and matches the stored 132-pick prefix. The roster has 13 manager-confirmed picks, two direct host picks, and one unattributed selection. | Installed v0.3.1 package methods remained unchanged. The browser handoff completed picks 146 and 155 with Autopick off. Read the [fifth-draft record](FIFTH_DRAFT_ACCEPTANCE.md). |
 
 Read the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for failures, interventions, and receipt timing.
 Read [server acceptance](SERVER_ACCEPTANCE.md) for deployment, archive, backup, and restart evidence.
@@ -72,9 +75,11 @@ uv run pytest -q
 ```
 
 That command skips Chrome and PostgreSQL integration cases unless their settings are supplied.
-The latest Windows candidate run passed **611 tests**, including **17 isolated Chrome cases**, with two skips for PostgreSQL configuration and Windows symlink privileges.
+The recorded v0.3.1 Windows run passed **611 tests**, including **17 isolated Chrome cases**, with two skips for PostgreSQL configuration and Windows symlink privileges.
 The separate Linux PostgreSQL run passed **23 archive tests**.
 These counts describe the recorded runs. Re-run the gates for a changed candidate.
+The v0.3.2 source passed 611 tests with 19 skips in the base run, then all 17 separate Chrome cases.
+Together, these runs passed **628 tests**, with two remaining skips. Its seven-job CI gate remains pending.
 
 Run all three Chrome fixture files with installed Google Chrome.
 On Linux or macOS:

@@ -5,6 +5,39 @@ Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, team observati
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
 The historical results below retain their original runtime scope.
 
+## Version 0.3.2 source checks and fifth draft
+
+Version 0.3.2 separates verified opponent identity from season projection availability.
+An opponent draft selection can retain `projection=None` when its identity and owner are verified.
+The engine counts that player's position and roster occupancy. It excludes the player from scoring and recommendation pools.
+Available and selected-team players still require season projections. Ambiguous identity and incorrect ownership still block the snapshot.
+
+The [parser tests](../tests/test_espn_data.py) cover API, Activity, plain history, and accessibility history inputs.
+They also cover absent records, empty statistics, preserved projection timestamps, and a complete 160-pick replay.
+The [engine tests](../tests/test_draft.py) verify roster caps, excluded scoring inputs, and blocked rankings without weekly evidence.
+The base local run passed **611 tests with 19 skips in 17.46 seconds**.
+The separate Chrome integration run passed **17 tests in 19.59 seconds**.
+Combined, these runs passed **628 tests**, with two remaining skips for PostgreSQL configuration and Windows symlink privileges.
+The seven-job CI gate remains pending.
+No live draft used version 0.3.2. Its tests do not establish installed-wheel live submission acceptance.
+
+The [fifth draft](FIFTH_DRAFT_ACCEPTANCE.md) used unchanged installed v0.3.1 execution methods and a private orchestration launcher.
+An empty opponent projection blocked history after 132 stored picks.
+The operator stopped the worker with zero unresolved claims before entering the separate browser.
+The roster completed with **13 manager-confirmed picks, two direct host-browser picks, and one unattributed selection**.
+Autopick was off before and after both direct clicks. No evidence establishes the executor of pick 135.
+
+The final host capture contains **160 ordered selections and all 16 own picks**.
+Private checks matched every row's identity, position, NFL team, and snake-order owner.
+All 132 stored picks matched the capture. The existing 501 player records remained unchanged during comparison.
+Stored-history import and the fifth roster's fresh Week 1 handoff remain pending.
+This trial required recovery and does not establish unattended draft completion.
+
+The frozen manager record contains **1,124 completed, accepted calls and 44,960 completed trials**.
+All calls have disposition `current`, with zero discarded calls and zero excluded records.
+The 13 manager receipt intervals range from **1.323 to 3.500 seconds**, with a **2.449-second median**.
+These intervals measure authorization to platform observation. They exclude the separate host clicks and do not establish a general latency bound.
+
 ## Version 0.3.1 source checks
 
 Version 0.3.1 fixes team-name whitespace and slash delimiters in D/ST browser selectors.
@@ -36,7 +69,8 @@ Trial counts do not establish independent samples, better picks, or season resul
 After handoff, all four exact Week 1 contexts had fresh browser observations and verified selected-team locks.
 The [server acceptance record](SERVER_ACCEPTANCE.md) verifies zero new lineup authorizations and zero unresolved authorized claims after handoff.
 Live server lineup submission and an unattended season remain unverified.
-Two of three additional draft trials are complete. One draft and the five-team season evaluation remain planned.
+At that checkpoint, two of three additional draft trials were complete.
+The subsequent fifth trial is recorded above. The five-team season evaluation remains planned.
 
 ## Published v0.3.1 evidence
 
@@ -232,7 +266,7 @@ Published assets remain fixed to the release commit. Later documentation commits
 ```sh
 uv run pytest -q
 uv run fantasy-football-manager --demo
-uv run python scripts/validate_release.py --version 0.3.1
+uv run python scripts/validate_release.py --version 0.3.2
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
 uv run python scripts/build_plugin_zip.py

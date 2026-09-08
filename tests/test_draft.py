@@ -221,3 +221,77 @@ def test_merge_rejects_new_projection_fingerprint():
     changed = dict(first, analysis_fingerprint="different-projection-inputs")
     with pytest.raises(ValueError, match="inputs change"):
         legacy_engine.merge_batches(first, changed)
+
+
+@pytest.mark.parametrize("selected", [[], ["unknown"]])
+def test_missing_projection_cannot_enter_available_pool_or_selected_roster(selected):
+    with pytest.raises(ValueError, match="full-season projections"):
+        snapshot([player("unknown", "RB", None), player("projected", "WR", 100)], selected)
+
+
+def test_opponent_missing_projection_counts_position_without_entering_scored_pools(monkeypatch):
+    rules = Rules(teams=2, slot=1, rounds=3, starters={"RB": 1, "WR": 1}, bench=1,
+                  caps={"RB": 3, "WR": 1})
+    state = snapshot([player("own", "RB", 200), player("unknown", "WR", None),
+                      player("wr", "WR", 190), player("rb-a", "RB", 180),
+                      player("rb-b", "RB", 170), player("rb-c", "RB", 160)],
+                     ["own", "unknown"], rules)
+    observed = []
+    original_pick = legacy_engine._Market.opponent_pick
+    original_replacement = legacy_engine._replacement
+    original_utility = legacy_engine._Market.utility
+
+    def checked_pick(market, available, counts, roster_size, pick_no, rng):
+        assert "unknown" not in market.players and "unknown" not in available
+        if pick_no == 3:
+            observed.append((dict(counts), roster_size))
+            assert counts["WR"] == 1 and roster_size == 1
+        result = original_pick(market, available, counts, roster_size, pick_no, rng)
+        if pick_no == 3:
+            assert result is None or result.position == "RB"
+        return result
+
+    def checked_replacement(players, *args):
+        assert all(p.projection is not None and p.id != "unknown" for p in players)
+        return original_replacement(players, *args)
+
+    def checked_utility(market, roster, replacement, outcomes=None):
+        assert all(p.id != "unknown" for p in roster)
+        assert outcomes is None or "unknown" not in outcomes
+        return original_utility(market, roster, replacement, outcomes)
+
+    monkeypatch.setattr(legacy_engine._Market, "opponent_pick", checked_pick)
+    monkeypatch.setattr(legacy_engine, "_replacement", checked_replacement)
+    monkeypatch.setattr(legacy_engine._Market, "utility", checked_utility)
+    result = recommend_draft(state, strategy(), trials=8, seed=4)
+    assert observed and result["trials"] == 8 and result["status"] == "ready"
+    assert result["available_count"] == 4
+    assert "unknown" not in {p["id"] for p in result["recommendations"]}
+    assert any("no estimated points" in warning for warning in result["warnings"])
+    assert next(p for p in state.players if p.id == "unknown").projection is None
+
+
+def test_direct_engine_refuses_own_missing_projection_and_does_not_recommend_available_null():
+    pool = [player("own", "RB", None), player("available-null", "WR", None), player("scored", "RB", 100)]
+    result = legacy_engine.run_batch(pool, [{"pick_no": 1, "player_id": "own", "slot": 1}],
+                                     {"teams": 2, "slot": 1, "rounds": 2, "starters": {}, "bench": 2}, trials=3)
+    assert result["trials"] == 0 and result["recommendations"] == []
+    result = legacy_engine.run_batch(pool, [],
+                                     {"teams": 2, "slot": 1, "rounds": 2, "starters": {}, "bench": 2}, trials=3)
+    assert {p["id"] for p in result["recommendations"]} == {"scored"}
+
+
+def test_draft_rechecks_nullable_scope_after_unvalidated_in_memory_mutation():
+    state = snapshot()
+    state.players[0].projection = None
+    with pytest.raises(ValueError, match="full-season projections"):
+        recommend_draft(state, strategy(), trials=1)
+
+
+def test_draft_identity_without_weekly_data_cannot_produce_power_rankings():
+    from fantasy_football_manager.season import power_rankings
+    rules = Rules(teams=2, slot=2, rounds=2, starters={"RB": 1}, bench=1)
+    state = snapshot([player("unknown", "RB", None), player("scored", "RB", 100)], ["unknown"], rules)
+    result = power_rankings(state, strategy())
+    assert result["status"] == "incomplete" and result["rankings"] == []
+    assert result["errors"]

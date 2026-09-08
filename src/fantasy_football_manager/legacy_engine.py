@@ -305,7 +305,21 @@ def run_batch(players: list[dict], picks: list[dict], config: dict,
         raise ValueError("Starter counts and position limits cannot be negative.")
     if sum(starters.values()) > rounds:
         raise ValueError("The draft needs enough rounds to fill all starters.")
-    parsed = _parse_players(players, warnings)
+    # Unknown points are not zero points. Verified opponent identities only
+    # provide roster occupancy; every scored pool remains strictly numeric.
+    row_counts = Counter(str(row.get("id", "")) for row in players)
+    opponent_ids = set()
+    for pick in picks:
+        number = int(pick.get("pick_no", 0))
+        if 1 <= number <= teams * rounds:
+            owner = int(pick.get("slot") or draft_slot(number, teams, snake))
+            if owner != slot and owner == draft_slot(number, teams, snake):
+                opponent_ids.add(str(pick.get("player_id", "")))
+    identity_positions = {str(row["id"]): _position(row.get("position")) for row in players
+                          if row.get("id") is not None and "projection" in row and row["projection"] is None
+                          and str(row["id"]) in opponent_ids and row_counts[str(row["id"])] == 1
+                          and _position(row.get("position")) in POSITIONS}
+    parsed = _parse_players([row for row in players if str(row.get("id", "")) not in identity_positions], warnings)
     by_id = {p.id: p for p in parsed}
     counts = {owner: Counter() for owner in range(1, teams + 1)}
     sizes = {owner: 0 for owner in range(1, teams + 1)}
@@ -327,6 +341,9 @@ def run_batch(players: list[dict], picks: list[dict], config: dict,
         sizes[owner] += 1
         player = by_id.get(pid)
         if player is None:
+            if pid in identity_positions and owner != slot and owner == draft_slot(number, teams, snake):
+                counts[owner][identity_positions[pid]] += 1
+                continue
             warnings.append(f"Player data is missing for drafted player {pid}. Roster estimates can be incomplete.")
             continue
         counts[owner][player.position] += 1
@@ -340,6 +357,8 @@ def run_batch(players: list[dict], picks: list[dict], config: dict,
     next_pick = remaining_picks[0] if remaining_picks else None
     following_pick = remaining_picks[1] if len(remaining_picks) > 1 else None
     available = set(by_id).difference(selected)
+    if identity_positions:
+        warnings.append("Opponent draft identities without projections count toward roster limits only. They have no estimated points and are excluded from scoring and candidate pools.")
     result = {"recommendations": [], "trials": 0, "current_pick": current_pick,
               "my_next_pick": next_pick, "following_pick": following_pick,
               "available_count": len(available), "warnings": warnings,

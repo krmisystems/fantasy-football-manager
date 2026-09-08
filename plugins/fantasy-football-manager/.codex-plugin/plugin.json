@@ -1,6 +1,6 @@
 {
   "name": "fantasy-football-manager",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "ESPN draft and lineup tools for Codex, with browser sign-in, approval modes, and per-team limits.",
   "author": {
     "name": "krmisystems",

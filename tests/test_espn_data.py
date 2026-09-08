@@ -225,7 +225,7 @@ def test_every_visible_pick_format_verifies_position_and_snake_team_owner(format
     assert [(pick.player_id, pick.slot) for pick in snap.picks] == [("101", 1)]
     with pytest.raises(ESPNDataError, match="visible pick team"):
         parse(visible_text=text.replace("Fictional North", "Fictional South"))
-    with pytest.raises(ESPNDataError, match="projected player"):
+    with pytest.raises(ESPNDataError, match="verified player"):
         parse(visible_text=text.replace("RB", "WR"))
 
 
@@ -397,10 +397,11 @@ def test_only_exact_current_full_season_projection_is_accepted(mutation):
     league["draftDetail"]["picks"] = [api_pick(1, 101)]
     mutation(players["players"][0]["player"]["stats"][0])
     with pytest.raises(ESPNDataError, match="full-season"):
-        parse(league, players, visible_text="ON THE CLOCK: PICK 2")
+        parse(league, players, visible_text="ON THE CLOCK: PICK 2",
+              team_id=11, page_url=URL.replace("teamId=22", "teamId=11"))
 
 
-def test_unprojected_irrelevant_player_is_excluded_but_drafted_one_blocks():
+def test_unprojected_irrelevant_player_is_excluded_but_own_drafted_one_blocks():
     league, players = fixture()
     extra = deepcopy(players["players"][0])
     extra["player"].update(id=999, fullName="Unprojected Example", stats=[], ownership={"averageDraftPosition": 170})
@@ -410,13 +411,14 @@ def test_unprojected_irrelevant_player_is_excluded_but_drafted_one_blocks():
     assert any("Excluded 1 player" in note for note in snap.source.notes)
     league["draftDetail"]["picks"] = [api_pick(1, 999)]
     with pytest.raises(ESPNDataError, match="required player"):
-        parse(league, players, visible_text="ON THE CLOCK: PICK 2")
+        parse(league, players, visible_text="ON THE CLOCK: PICK 2",
+              team_id=11, page_url=URL.replace("teamId=22", "teamId=11"))
 
 
 def test_ambiguous_visible_names_fail_instead_of_guessing():
     league, players = fixture()
     players["players"][2]["player"]["fullName"] = "Runner Alpha"
-    with pytest.raises(ESPNDataError, match="one projected player"):
+    with pytest.raises(ESPNDataError, match="one verified player"):
         parse(league, players, visible_text="ON THE CLOCK: PICK 2\nRunner Alpha / ABC RB R1, P1 - Fictional North")
 
 
@@ -631,3 +633,79 @@ def test_accessible_history_accepts_dtd_and_wr_cb_but_rejects_wrong_owner_or_pri
         _visible_picks(text.replace("Fictional North", "Fictional South"), [player], 2, teams)
     with pytest.raises(ESPNDataError):
         _visible_picks(text.replace("WR CB", "RB CB"), [player], 2, teams)
+
+
+@pytest.mark.parametrize("missing", ["absent_record", "empty_stats"])
+@pytest.mark.parametrize("evidence", ["activity", "api", "body_history", "aria_history"])
+def test_unprojected_opponent_pick_retains_identity_without_inventing_points(missing, evidence):
+    league, pool = fixture()
+    raw = pool["players"][0]["player"]
+    if missing == "absent_record":
+        raw["stats"] = []
+    else:
+        raw["stats"][0]["stats"] = {}
+    text = "ON THE CLOCK: PICK 2\nENABLE AUTOPICK\n"
+    if evidence == "api":
+        league["draftDetail"]["picks"] = [api_pick(1, 101)]
+    elif evidence == "activity":
+        text += "Runner Alpha / ABC RB R1, P1 - Fictional North"
+    elif evidence == "aria_history":
+        text += 'PICK HISTORY\n- row "1 Runner Alpha ABC RB Fictional North - - 1"'
+    else:
+        text += "PICK HISTORY\nPICK\nPLAYER\nTEAM\n2025 PTS\nPROJ PTS\nRK\n1\nRunner Alpha\nABC\nRB\nFictional North\n-\n-\n1"
+    fetched = datetime.now(timezone.utc) - timedelta(minutes=2)
+    state = parse(league, pool, visible_text=text, projections_observed_at=fetched)
+    unknown = next(p for p in state.players if p.id == "101")
+    assert unknown.projection is None and unknown.position == "RB"
+    assert state.teams[0].roster_ids == ["101"] and state.own_team().roster_ids == []
+    assert state.source.complete and state.source.projections_observed_at == fetched
+    assert any("Retained 1 opponent draft identities" in note for note in state.source.notes)
+    # The next observation may have neither a complete API log nor that Activity row.
+    league["draftDetail"]["picks"] = []
+    fresh = parse(league, pool, previous=state, visible_text="ON THE CLOCK: PICK 2", projections_observed_at=fetched)
+    assert fresh.picks == state.picks
+    assert next(p for p in fresh.players if p.id == "101").projection is None
+    if evidence == "api":
+        league["draftDetail"]["picks"] = [api_pick(1, 101)]
+    with pytest.raises(ESPNDataError, match="required player"):
+        parse(league, pool, visible_text=text, team_id=11,
+              page_url=URL.replace("teamId=22", "teamId=11"))
+
+
+def test_unprojected_identity_cannot_hide_ambiguous_name_or_wrong_owner():
+    league, pool = fixture()
+    pool["players"][0]["player"]["stats"][0]["stats"] = {}
+    text = "ON THE CLOCK: PICK 2\nRunner Alpha / ABC RB R1, P1 - Fictional North"
+    with pytest.raises(ESPNDataError, match="owner"):
+        parse(league, pool, visible_text=text.replace("Fictional North", "Fictional South"))
+    pool["players"][2]["player"]["fullName"] = "Runner Alpha"
+    with pytest.raises(ESPNDataError, match="one verified player"):
+        parse(league, pool, visible_text=text)
+
+
+def test_rostered_unprojected_identity_requires_verified_opponent_history():
+    league, pool = fixture()
+    pool["players"][0]["player"]["stats"] = []
+    pool["players"][0]["onTeamId"] = 11
+    with pytest.raises(ESPNDataError, match="required player"):
+        parse(league, pool)
+    league["draftDetail"]["picks"] = [api_pick(1, 101)]
+    state = parse(league, pool, visible_text="ON THE CLOCK: PICK 2")
+    assert state.players[0].projection is None
+
+
+def test_full_draft_replay_can_complete_with_unprojected_opponent_identity():
+    league, pool, events = _full_draft_fixture()
+    pool["players"][132]["player"]["stats"][0]["stats"] = {}
+    extra = deepcopy(pool["players"][0])
+    extra["id"] = 99999
+    extra["player"].update(id=99999, fullName="Fictional Reserve Example")
+    pool["players"].append(extra)
+    state = _replay_parse(league, pool, "ON THE CLOCK: PICK 133\n" + _replay_history(events, 132))
+    assert events[132]["id"] not in {p.id for p in state.players}
+    state = _replay_parse(league, pool, "ON THE CLOCK: PICK 134\n" + _replay_activity(events, 133), state)
+    state = _replay_parse(league, pool, "DRAFT COMPLETE\n" + _replay_history(events, 160), state)
+    assert len(state.picks) == 160 and state.source.browser.current_pick == 161
+    assert state.source.browser.draft_complete
+    assert all(len(team.roster_ids) == 16 for team in state.teams)
+    assert next(p for p in state.players if p.id == events[132]["id"]).projection is None

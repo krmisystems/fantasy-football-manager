@@ -46,6 +46,9 @@ def recommend_draft(snapshot: LeagueSnapshot, config: ManagerConfig,
             raise ValueError("Draft rosters must match the complete pick history. Reserve slots are separate.")
     if any(player.position not in player.eligible_positions for player in snapshot.players):
         raise ValueError("Draft analysis requires each player's primary position to be eligible.")
+    opponent_ids = {pick.player_id for pick in snapshot.picks if pick.slot != own_team.slot}
+    if any(player.projection is None and player.id not in opponent_ids for player in snapshot.players):
+        raise ValueError("Available and selected-team draft players require full-season projections.")
 
     players = [{"id": player.id, "name": player.name, "position": player.position,
                 "team": player.team, "projection": player.projection, "adp": player.adp,
@@ -102,7 +105,7 @@ def recommend_draft(snapshot: LeagueSnapshot, config: ManagerConfig,
     if not snapshot.source.complete or stale:
         result["status"] = "incomplete_snapshot" if not snapshot.source.complete else "stale_snapshot"
         return result
-    if not any(player["projection"] > 0 for player in players):
+    if not any(player["projection"] is not None and player["projection"] > 0 for player in players):
         result["status"] = "missing_projections"
         warnings.append("Positive season projections are required for draft analysis.")
         return result

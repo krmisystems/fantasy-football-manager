@@ -9,6 +9,7 @@ import pytest
 from mcp import Client
 from mcp.client.stdio import StdioServerParameters
 
+from fantasy_football_manager import __version__
 from fantasy_football_manager.demo import make_demo
 from fantasy_football_manager.mcp_server import create_server
 from fantasy_football_manager.store import Manager
@@ -40,6 +41,11 @@ async def test_in_memory_tools_and_schemas(tmp_path):
         assert capabilities["execution_scope"] == "synthetic_demo_only"
         assert capabilities["live_provider_writes"] is False
         assert capabilities["snapshot_loaded"] is False
+        assert capabilities["espn_companion"]["live_acceptance_test"] == "versioned_evidence"
+        assert capabilities["espn_companion"]["acceptance_report_url"] == (
+            "https://github.com/krmisystems/fantasy-football-manager/"
+            f"blob/v{__version__}/docs/ESPN_COMPATIBILITY.md"
+        )
         for name, model in (("snapshot", "LeagueSnapshot"), ("config", "ManagerConfig")):
             resource = await client.read_resource(f"fantasy://schema/{name}")
             schema = json.loads(resource.contents[0].text)

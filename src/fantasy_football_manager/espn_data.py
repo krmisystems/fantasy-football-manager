@@ -231,8 +231,9 @@ def _scoring(payload):
 
 
 def _players(payload, season, scoring, needed):
+    """Read identities before deciding which missing projections history needs."""
     rows = _array(payload.get("players"), "Player pool")
-    result, missing, seen = [], set(), set()
+    result, seen = [], set()
     for entry in rows:
         entry = _object(entry, "Player entry")
         raw = _object(entry.get("player", entry), "Player")
@@ -253,21 +254,12 @@ def _players(payload, season, scoring, needed):
                    and r.get("statSplitTypeId") == 0 and r.get("scoringPeriodId") == 0]
         # ESPN can assign an ADP near 170 to unprojected free agents. ADP does
         # not prove that a season projection exists or make one safe to invent.
-        required = pid in needed or entry.get("onTeamId", 0) not in (None, 0, "0")
-        if not records:
-            if required:
-                missing.add(pid)
-            continue
-        if len(records) != 1:
+        if len(records) > 1:
             raise ESPNDataError("A player has conflicting full-season projection records.")
-        stats = _object(records[0].get("stats"), "Full-season projection statistics")
-        if not stats:
-            if required:
-                missing.add(pid)
-            continue
-        total = sum(_number(stats.get(stat, 0), "Projected statistic") * overrides.get(str(position_id), points)
-                    for stat, points, overrides in scoring)
-        if total < 0:
+        stats = _object(records[0].get("stats"), "Full-season projection statistics") if records else {}
+        total = (sum(_number(stats.get(stat, 0), "Projected statistic") * overrides.get(str(position_id), points)
+                     for stat, points, overrides in scoring) if stats else None)
+        if total is not None and total < 0:
             raise ESPNDataError("Negative season totals are not supported by the draft model.")
         eligible = _array(raw.get("eligibleSlots"), "Player eligibility")
         positions = list(dict.fromkeys(PRIMARY_SLOTS[s] for s in eligible if s in PRIMARY_SLOTS))
@@ -278,10 +270,11 @@ def _players(payload, season, scoring, needed):
             status = "ACTIVE" if raw.get("active") is True else "INACTIVE" if raw.get("active") is False else "UNKNOWN"
         result.append(Player(id=pid, name=raw.get("fullName"), position=POSITIONS[position_id],
                              eligible_positions=positions, team=str(raw.get("proTeamAbbreviation") or raw.get("proTeamId") or ""),
-                             projection=round(total, 6), adp=adp, availability=status))
-    if missing or needed - {p.id for p in result}:
-        raise ESPNDataError("A required player has no matching full-season projection record.")
-    if not result:
+                             projection=round(total, 6) if total is not None else None,
+                             adp=adp, availability=status))
+    if needed - {p.id for p in result}:
+        raise ESPNDataError("A drafted player has no verified supported identity in the player response.")
+    if not any(player.projection is not None for player in result):
         raise ESPNDataError("The player pool has no usable season projections.")
     return result
 
@@ -301,7 +294,7 @@ def _visible_picks(text, players, count, team_names=None):
             position = {"D/ST": "DST", "DEF": "DST"}.get(position, position)
             matches = [p for p in matches if position in p.eligible_positions]
         if len(matches) != 1:
-            raise ESPNDataError(f"A visible pick does not identify one projected player: {name.strip()!r} ({position or 'unknown position'}).")
+            raise ESPNDataError(f"A visible pick does not identify one verified player: {name.strip()!r} ({position or 'unknown position'}).")
         return matches[0].id
     def verify_owner(number, owner):
         if team_names is None:
@@ -428,6 +421,19 @@ def normalize_espn_draft(league_payload, players_payload, *, team_id, visible_te
     for number, pid in _visible_picks(visible_text, players, rules.teams,
                                       {slot: names[tid] for slot, tid in enumerate(order, 1)}):
         add(number, pid, _owner(number, rules.teams))
+    # History identity and recommendation eligibility are separate. An opponent
+    # can draft a player whose projection is absent. Count that verified roster
+    # position without inventing points or making the player a candidate.
+    opponent_ids = {p.player_id for p in confirmed.values() if p.slot != rules.slot}
+    own_ids = {p.player_id for p in confirmed.values() if p.slot == rules.slot}
+    rostered_ids = {_numeric_id(entry.get("player", entry).get("id"), "Player ID", player=True)
+                    for entry in players_payload["players"]
+                    if entry.get("onTeamId", 0) not in (None, 0, "0")}
+    if any(p.projection is None and (p.id in own_ids or p.id in rostered_ids - opponent_ids)
+           for p in players):
+        raise ESPNDataError("A required player has no matching full-season projection record.")
+    players = [p for p in players if p.projection is not None or p.id in opponent_ids]
+    history_only_count = sum(p.projection is None for p in players)
     total = rules.teams * rules.rounds
     clocks = {int(n) for n in re.findall(r"ON THE CLOCK:\s*PICK\s+(\d+)", visible_text, re.I)}
     complete_text = bool(re.search(r"\bDRAFT\s+(?:IS\s+)?COMPLETE\b|\bDRAFT\s+HAS\s+ENDED\b", visible_text, re.I))
@@ -460,7 +466,8 @@ def normalize_espn_draft(league_payload, players_payload, *, team_id, visible_te
                     projections_observed_at=projections_observed_at or observed_at,
                     notes=["Projection timestamps record the response download time, not the ESPN publication time.",
                            f"Excluded {len(players_payload['players']) - len(players)} player rows without usable supported season projections.",
-                           "An excluded player cannot receive a recommendation. A confirmed or rostered exclusion blocks this snapshot.",
+                           "An excluded player cannot receive a recommendation. Missing projections on the selected roster block this snapshot.",
+                           f"Retained {history_only_count} opponent draft identities without season projections. They count toward roster limits but are excluded from projected values and recommendations.",
                            "Complete means the observed draft history is complete through the current pick. Weekly projections and locks are unverified.",
                            *(["The pre-draft countdown is visible. No active pick is verified, so draft submissions are blocked."] if waiting else [])],
                     browser={"page_url": page_url, "league_id": league, "team_id": verified_team,
