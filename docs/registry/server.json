@@ -4,7 +4,7 @@
   "title": "Fantasy Football Manager",
   "description": "ESPN draft and lineup analysis for Codex and MCP clients. Live actions use the ESPN companion.",
   "websiteUrl": "https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PLUGIN_INSTALL.md",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "repository": {
     "url": "https://github.com/krmisystems/fantasy-football-manager",
     "source": "github"
@@ -13,7 +13,7 @@
     {
       "registryType": "pypi",
       "identifier": "fantasy-football-manager",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "transport": {
         "type": "stdio"
       }

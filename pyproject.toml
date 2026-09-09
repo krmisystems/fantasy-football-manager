@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fantasy-football-manager"
-version = "0.3.2"
+version = "0.3.3"
 description = "ESPN draft and lineup tools for Codex and other MCP clients, with approval modes and per-team limits."
 readme = "README.md"
 requires-python = ">=3.11"

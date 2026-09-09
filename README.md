@@ -140,6 +140,8 @@ Five-team season outcomes and live server lineup submission remain [unverified](
 
 ## Install from PyPI
 
+Version 0.3.3 expands the descriptions, input schemas, and behavior annotations for all 30 MCP tools.
+Read the [tool definition review](docs/TOOL_DEFINITION_QUALITY.md) for compatibility checks and external scoring status.
 Version 0.3.2 preserves verified opponent draft history when a season projection is missing.
 Version 0.3.1 fixed draft team-name whitespace and D/ST selectors.
 Version 0.3.0 introduced server season scheduling, durable evidence, and a PostgreSQL archive.

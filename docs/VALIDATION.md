@@ -5,6 +5,21 @@ Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, team observati
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
 The historical results below retain their original runtime scope.
 
+## Version 0.3.3 tool definitions
+
+Version 0.3.3 describes all input parameters across 17 manager tools and 13 ESPN companion tools.
+It adds structured snapshot, configuration, and action payload schemas.
+Existing tool names, defaults, accepted calls, and execution policy remain unchanged.
+Behavior annotations now describe persistent local writes and worker effects more accurately.
+These annotations can change how MCP clients display approval requests.
+
+The final base local run passed **647 tests with 19 skips in 18.77 seconds**.
+The separate isolated Chrome run passed **17 tests in 20.07 seconds**.
+Combined, these runs passed **664 tests**. The two remaining skips require PostgreSQL configuration and Windows symlink privileges.
+The new cases cover emitted MCP schemas, representative calls, revision conflicts, proposal replay, evidence writes, and mocked ESPN delegation.
+These tests did not submit a live ESPN action or upgrade the running season service.
+Public release, CI, and external TDQS status are tracked in the [tool definition review](TOOL_DEFINITION_QUALITY.md).
+
 ## Version 0.3.2 source checks and fifth draft
 
 Version 0.3.2 separates verified opponent identity from season projection availability.
