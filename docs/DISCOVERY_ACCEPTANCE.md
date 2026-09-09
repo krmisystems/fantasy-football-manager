@@ -43,12 +43,13 @@ Descriptions matched after removal of common docstring indentation and blank lin
 The public changelog recorded Glama release 0.1.1 at 05:26:19 UTC.
 This Glama image version differs from the Python package version.
 
-At 05:50:52 UTC, all 17 updated tools had fresh **A** scores, ranging from 4.1 to 4.9.
+At 05:55:51 UTC, all 17 updated tools had fresh **A** scores, ranging from 4.1 to 4.9.
 All three priority definitions improved: `execute_demo_action` 2.7 to 4.8, `start_draft_monitor` 2.7 to 4.4, and `recommend_draft` 2.9 to 4.6.
-The displayed aggregate increased from **3.6/5 to 4.6/5**, with a new 05:46:06 UTC timestamp.
-Its record still counted 14 tools and reported a 4.3 minimum. The complete set of 17 individual scores had a 4.1 minimum.
-The 4.6 aggregate is therefore **provisional** until Glama includes all 17 updated tools.
-Coherence increased to 4.8. Disambiguation and completeness reached 5/5, naming remained 5/5, and tool count remained 4/5.
+The complete aggregate increased from **3.6/5 to 4.4/5**, with a new 05:51:47 UTC timestamp.
+Its record counted all 17 tools, with a mean of 4.6 and a minimum of 4.1. Both public pages agreed, and all 17 definitions still matched the reviewed export.
+The earlier 4.6 aggregate covered only 14 tools and is superseded by this complete result.
+Tool definition quality increased from 3.3 to 4.4. Coherence remained 4.3.
+Completeness reached 5/5, disambiguation remained 4/5, and naming remained 5/5. Tool count appropriateness decreased from 4/5 to 3/5.
 Glama hosted tool-call usage remains **Not Tested**.
 Read the [tool definition review](TOOL_DEFINITION_QUALITY.md) for lint results and scoring limits.
 
