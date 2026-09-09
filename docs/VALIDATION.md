@@ -22,6 +22,10 @@ All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manag
 A fresh public PyPI installation matched all 23 package files to the reviewed wheel.
 Its actual STDIO definitions matched the final export for all 30 tools, and both empty-state read-only checks passed.
 The installed CLI demo returned `status="ok"`, `live_actions=false`, and the same fictional 5.50-point improvement.
+Glama's hosted Inspector passed capability, default season import, and lineup calls at 21:04:38 UTC on 2026-09-09.
+The sandbox reported version 0.3.3. Its fictional lineup result returned `status="ok"`, no errors or warnings, and a 5.50-point projected improvement.
+An earlier restored sandbox returned HTTP 404. A fresh sandbox recovered the workflow without package changes.
+Glama's public page showed Active usage at 21:05:27 UTC. This check did not verify independent adoption or live ESPN execution.
 Public distribution and external TDQS status are tracked in the [tool definition review](TOOL_DEFINITION_QUALITY.md).
 
 ## Version 0.3.2 source checks and fifth draft

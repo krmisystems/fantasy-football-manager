@@ -105,8 +105,30 @@ The public overview and score page agreed. All 17 public definitions still match
 An earlier partial evaluation displayed 4.6 overall with only 14 tools counted.
 The complete 17-tool evaluation replaces that provisional result.
 Tool count remained 17 to preserve existing tool names and workflows. Its lower external rating remains visible in this report.
-The hosted sandbox's tool-call workflow remains **Not Tested**.
-Glama's [score page](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/score) recommends Try in Browser for its recent-usage check.
+At 21:02:52 UTC, a later evaluation still showed 4.4 overall across all 17 tools, scored at 17:35:46 UTC.
+Its coherence subscores were disambiguation 4, naming 5, tool count 4, and completeness 4.
+The dated results above preserve each evaluation rather than combining their highest subscores.
+
+### Hosted browser demonstration
+
+**Verified:** Glama's Try in Browser workflow completed on 2026-09-09 at 21:04:38 UTC.
+The fresh hosted sandbox returned these results through its Inspector:
+
+| Call | Verified result |
+|---|---|
+| `get_capabilities` | Version 0.3.3, empty state, advisory modes, and synthetic-only execution scope. |
+| `load_demo` | The default season scenario imported successfully at snapshot revision 1. |
+| `recommend_lineup` | `status="ok"`, synthetic source, no errors or warnings, and no unfilled slots. Projected points increased from 124.53 to 130.03: +5.50. |
+
+All three calls returned `isError=false`. The recommendation left snapshot revision 1 and configuration revision 0 unchanged.
+These are fictional projections. No real league data, ESPN credentials, or live action was involved.
+An earlier call through a restored Inspector tab returned HTTP 404. A fresh sandbox recovered the workflow.
+The earlier sandbox's exact failure cause was not verified.
+
+At 21:05:27 UTC, Glama's public score page showed **Active usage: 6 tool uses in the last 30 days**.
+The previous No recent usage message was absent.
+This aggregate does not identify unique users or attribute all six uses to this demonstration.
+Before this demonstration, Glama's [score page](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/score) recommended Try in Browser for its recent-usage check.
 Usage is separate from the documented TDQS formula and does not prove independent adoption.
 
 ## Reproduce the metadata checks
@@ -194,6 +216,7 @@ The running season deployment requires a separate verified upgrade before it use
 | Distribution | New public artifacts and fresh installation match the reviewed source | GitHub, PyPI, and MCP Registry verified |
 | Glama inspection | Public tool definitions match the changed descriptions and schemas | Verified for all 17 indexed manager tools |
 | TDQS improvement | A new score applies to the changed definitions | Verified: all 17 tools scored A; complete aggregate increased from 3.6 to 4.4 |
+| Hosted demonstration | Successful fictional calls through Glama's Inspector and a public recent-usage signal | Verified: three successful calls; public Active usage indicator |
 
 The complete server score increase is verified for the definitions indexed on 2026-09-09.
 A successful README sync does not establish a new executable inspection or score.

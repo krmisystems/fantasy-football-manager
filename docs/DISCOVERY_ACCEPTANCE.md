@@ -50,7 +50,13 @@ Its record counted all 17 tools, with a mean of 4.6 and a minimum of 4.1. Both p
 The earlier 4.6 aggregate covered only 14 tools and is superseded by this complete result.
 Tool definition quality increased from 3.3 to 4.4. Coherence remained 4.3.
 Completeness reached 5/5, disambiguation remained 4/5, and naming remained 5/5. Tool count appropriateness decreased from 4/5 to 3/5.
-Glama hosted tool-call usage remains **Not Tested**.
+At 21:04:38 UTC, the Glama hosted demonstration passed three calls: `get_capabilities`, `load_demo`, and `recommend_lineup`.
+The sandbox reported v0.3.3 and returned the fictional 124.53-to-130.03 lineup projection, an estimated 5.50-point improvement.
+All three calls returned `isError=false`. No real league data or live action was involved.
+An earlier call through a restored Inspector tab returned HTTP 404. A fresh sandbox recovered the workflow.
+At 21:05:27 UTC, the public score page showed **Active usage**, with six tool uses in the last 30 days.
+This count does not establish unique users or independent adoption.
+The 17:35:46 UTC TDQS evaluation retained 4.4 overall. Its coherence subscores were disambiguation 4, naming 5, tool count 4, and completeness 4.
 Read the [tool definition review](TOOL_DEFINITION_QUALITY.md) for lint results and scoring limits.
 
 These publication checks did not upgrade the running season service or establish new live ESPN acceptance.
