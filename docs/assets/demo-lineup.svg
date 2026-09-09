@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="410" viewBox="0 0 1120 410" role="img" aria-labelledby="title desc">
+  <title id="title">Fictional lineup demo</title>
+  <desc id="desc">The v0.3.2 fictional demo returns current projected points of 124.53 and suggested projected points of 130.03. The estimated increase is 5.50 points. The demo performs no live action.</desc>
+  <rect width="1120" height="410" rx="20" fill="#0f172a"/>
+  <rect x="36" y="34" width="234" height="30" rx="15" fill="#1e3a5f"/>
+  <text x="53" y="55" fill="#bfdbfe" font-family="Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1">FICTIONAL DEMO / v0.3.2</text>
+  <text x="36" y="111" fill="#f8fafc" font-family="Arial, sans-serif" font-size="34" font-weight="700">Calculate a legal weekly lineup</text>
+  <text x="36" y="143" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="18">Local Python calculation. Synthetic players. No live action.</text>
+  <rect x="36" y="174" width="336" height="132" rx="12" fill="#1e293b"/>
+  <text x="58" y="205" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="16">CURRENT PROJECTED POINTS</text>
+  <text x="58" y="270" fill="#f8fafc" font-family="Arial, sans-serif" font-size="51" font-weight="700">124.53</text>
+  <rect x="392" y="174" width="336" height="132" rx="12" fill="#1e293b"/>
+  <text x="414" y="205" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="16">SUGGESTED PROJECTED POINTS</text>
+  <text x="414" y="270" fill="#f8fafc" font-family="Arial, sans-serif" font-size="51" font-weight="700">130.03</text>
+  <rect x="748" y="174" width="336" height="132" rx="12" fill="#064e3b"/>
+  <text x="770" y="205" fill="#a7f3d0" font-family="Arial, sans-serif" font-size="16">ESTIMATED INCREASE</text>
+  <text x="770" y="270" fill="#ecfdf5" font-family="Arial, sans-serif" font-size="51" font-weight="700">+5.50</text>
+  <text x="36" y="347" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="17">Verified demo output: status = ok | live_actions = false</text>
+  <text x="36" y="378" fill="#94a3b8" font-family="Arial, sans-serif" font-size="15">Fictional estimates do not establish real scoring results. Command and evidence: docs/SHOWCASE.md</text>
+</svg>

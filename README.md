@@ -11,6 +11,23 @@ The **ESPN MCP companion** provides 13 tools for browser observation and control
 ESPN requests use your signed-in browser session. This independent project does not supply an ESPN account or bypass sign-in.
 Use browser sign-in without manually copying cookies between profiles.
 
+## Try a fictional lineup
+
+Run this demo with Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
+It requires no ESPN account, Chrome session, or MCP client.
+
+```sh
+uvx --from fantasy-football-manager==0.3.2 fantasy-football-manager --demo
+```
+
+The command prints a fictional lineup report and exits without changing saved league state.
+The verified demo returns `status: "ok"`, `live_actions: false`, and a projected improvement of **5.50 points**.
+These values describe synthetic inputs, not a measured fantasy result.
+
+![Fictional demo: current projected points 124.53, suggested projected points 130.03, estimated increase 5.50 points. No live action.](https://github.com/krmisystems/fantasy-football-manager/raw/main/docs/assets/demo-lineup.svg)
+
+Read the [developer showcase](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SHOWCASE.md) for the design, verified trials, and contribution ideas.
+
 ## Start with a weekly lineup
 
 Authenticated sign-in, roster sync, and advisory lineup analysis are verified workflows.
