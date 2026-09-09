@@ -18,7 +18,11 @@ The separate isolated Chrome run passed **17 tests in 20.07 seconds**.
 Combined, these runs passed **664 tests**. The two remaining skips require PostgreSQL configuration and Windows symlink privileges.
 The new cases cover emitted MCP schemas, representative calls, revision conflicts, proposal replay, evidence writes, and mocked ESPN delegation.
 These tests did not submit a live ESPN action or upgrade the running season service.
-Public release, CI, and external TDQS status are tracked in the [tool definition review](TOOL_DEFINITION_QUALITY.md).
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34314653579) passed for commit `f04710724a52ef0a2da35795ca27b00eda37b0f3`.
+A fresh public PyPI installation matched all 23 package files to the reviewed wheel.
+Its actual STDIO definitions matched the final export for all 30 tools, and both empty-state read-only checks passed.
+The installed CLI demo returned `status="ok"`, `live_actions=false`, and the same fictional 5.50-point improvement.
+Public distribution and external TDQS status are tracked in the [tool definition review](TOOL_DEFINITION_QUALITY.md).
 
 ## Version 0.3.2 source checks and fifth draft
 

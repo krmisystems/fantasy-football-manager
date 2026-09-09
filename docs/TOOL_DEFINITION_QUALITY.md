@@ -55,6 +55,37 @@ The dependency definitions and all 72 locked package records remain unchanged, e
 Offline lock validation and release metadata validation passed.
 Registry workflow permissions and the pinned publisher remain unchanged.
 
+## Release and Glama verification
+
+The [v0.3.3 release](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.3) uses commit `f04710724a52ef0a2da35795ca27b00eda37b0f3`.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34314653579) passed.
+The separate [PyPI release workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34314686784) passed its seven verification jobs and publication job.
+Five GitHub release downloads matched their reviewed hashes. The PyPI wheel and source archive matched the same reviewed files.
+The [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.3) was active and latest at 05:35:29 UTC on 2026-09-09.
+Both exact-version and latest responses matched the reviewed Registry metadata.
+
+A fresh public PyPI installation passed on 2026-09-09 at 05:33 UTC.
+All 23 installed package files matched the reviewed wheel.
+Actual STDIO metadata matched the final export for all 17 manager and 13 ESPN tools.
+Both empty-state read-only checks passed. The installed CLI demo returned the verified fictional 5.50-point improvement.
+An earlier install attempt could not resolve the new version from the package index.
+Index propagation is the likely cause, but the earlier index response was not captured.
+Both attempts remain separate in the private evidence record.
+
+Glama built and released the reviewed commit on 2026-09-09 at 05:26 UTC.
+Its image release is **0.1.1**; the initialized Python package is **0.3.3**.
+At 05:32:57 UTC, the public catalog contained all 17 updated manager definitions.
+Input schemas, output schemas, and annotations matched exactly.
+Descriptions matched after normalization of docstring indentation and surrounding blank lines.
+The public schema changelog recorded the new Glama release at 05:26:19 UTC.
+
+**Pending:** All 17 new tool scores were null at that check.
+The displayed aggregate of 3.6/5 still carried its original September 8 timestamp.
+It is the baseline score, not a score for the changed definitions.
+The hosted sandbox's tool-call workflow remains **Not Tested**.
+Glama's [score page](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/score) recommends Try in Browser for its recent-usage check.
+Usage is separate from the documented TDQS formula and does not prove independent adoption.
+
 ## Reproduce the metadata checks
 
 Install the development environment:
@@ -136,10 +167,10 @@ The running season deployment requires a separate verified upgrade before it use
 | Effects and workflow | Tests cover revision conflicts, replay, evidence writes, and mocked browser delegation | Verified in focused and base tests |
 | Shadow candidates | Manual review of the three schema-cost candidate pairs | Verified distinct operations; lint warnings retained |
 | Version metadata | Matching 0.3.3 metadata and unchanged dependencies | Verified locally |
-| Regression checks | Base, isolated Chrome, package, and all seven CI jobs pass | 647 base and 17 Chrome tests passed; package build, Twine, and privacy checks passed; CI pending |
-| Distribution | New public artifacts and fresh installation match the reviewed source | Planned |
-| Glama inspection | Public tool definitions match the changed descriptions and schemas | Planned |
-| TDQS improvement | A new score applies to the changed definitions | Not Tested |
+| Regression checks | Base, isolated Chrome, package, and all seven CI jobs pass | Verified |
+| Distribution | New public artifacts and fresh installation match the reviewed source | GitHub, PyPI, and MCP Registry verified |
+| Glama inspection | Public tool definitions match the changed descriptions and schemas | Verified for all 17 indexed manager tools |
+| TDQS improvement | A new score applies to the changed definitions | External rescoring pending |
 
 The exact score increase remains unverified until a new evaluation completes.
 A successful README sync does not establish a new executable inspection or score.

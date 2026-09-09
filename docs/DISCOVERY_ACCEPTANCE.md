@@ -1,6 +1,6 @@
 # Discovery and distribution acceptance
 
-**Scope: v0.3.2 distribution checks and historical discovery evidence. Updated: 2026-09-08.**
+**Scope: v0.3.3 distribution checks and historical discovery evidence. Updated: 2026-09-09.**
 
 This record separates implemented changes from publication and measured adoption.
 Deployment identities, credentials, traffic snapshots, and private league records remain outside the repository.
@@ -9,6 +9,49 @@ Version 0.3.2 adds the tested player-identity fix from the [fifth draft](FIFTH_D
 GitHub, PyPI, and MCP Registry publication checks passed. Fresh public installation and the local plugin update are verified.
 The v0.3.2 server upgrade and remote SSH command checks passed with the state-isolation limit recorded below.
 Historical release records retain their original evidence scope.
+
+## Version 0.3.3 distribution checks
+
+Version 0.3.3 improves descriptions, parameter schemas, and behavior annotations across 17 manager tools and 13 ESPN companion tools.
+The release source commit is `f04710724a52ef0a2da35795ca27b00eda37b0f3`.
+Local checks passed **664 tests**, including all 17 isolated Chrome cases.
+The two remaining skips require PostgreSQL configuration and Windows symlink privileges.
+All seven [source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34314653579) passed.
+
+| Channel | Verified state |
+|---|---|
+| GitHub releases | [v0.3.3](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.3) is published as a prerelease. All five public asset downloads matched the reviewed hashes. |
+| PyPI | [v0.3.3](https://pypi.org/project/fantasy-football-manager/0.3.3/) is published. All eight [release workflow jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34314686784) passed: seven verification jobs and publication. |
+| MCP Registry | The [v0.3.3 record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/0.3.3) was active and latest at 05:35:29 UTC on 2026-09-09. Exact-version and latest responses matched the reviewed metadata. The [publication workflow](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34315361802) passed. |
+| Glama inspection | Glama release 0.1.1 contains Python package 0.3.3. All 17 public manager definitions matched the reviewed export at 05:32:57 UTC on 2026-09-09. |
+
+Both public PyPI distributions matched the reviewed files:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `fantasy_football_manager-0.3.3-py3-none-any.whl` | 114309 | `2c1593cc788cb317b0008ddd8df841ee685b7f56d192f67445705303329b035d` |
+| `fantasy_football_manager-0.3.3.tar.gz` | 345471 | `ef442959c3a407a501475d4678847c144b3e72cfec9cd7c53aecb260a329edfd` |
+
+A fresh public PyPI installation passed at 05:32:47 UTC on 2026-09-09 with Python 3.12.13.
+All 23 installed package files matched the reviewed wheel.
+Both STDIO commands reported version 0.3.3.
+Their complete tool metadata matched the reviewed exports: 17 manager tools and 13 ESPN tools.
+Capability and status calls passed without a provider browser, real league state, or live action.
+
+The Glama comparison matched input schemas, output schemas, and annotations exactly.
+Descriptions matched after removal of common docstring indentation and blank lines at the beginning and end.
+The public changelog recorded Glama release 0.1.1 at 05:26:19 UTC.
+This Glama image version differs from the Python package version.
+
+**Not Tested:** a new TDQS result and Glama hosted usage.
+All 17 new tool score records were empty at the public check.
+The displayed aggregate retained **3.6/5** and its 2026-09-08 timestamp.
+This stale aggregate does not establish the score of the new definitions.
+Read the [tool definition review](TOOL_DEFINITION_QUALITY.md) for lint results and scoring limits.
+
+These publication checks did not upgrade the running season service or establish new live ESPN acceptance.
+Local plugin installation and any server upgrade require their own verification.
+Package publication and the personal plugin do not establish official Codex marketplace inclusion.
 
 ## Findings and verification
 

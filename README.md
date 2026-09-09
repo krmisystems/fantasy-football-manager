@@ -17,7 +17,7 @@ Run this demo with Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
 It requires no ESPN account, Chrome session, or MCP client.
 
 ```sh
-uvx --from fantasy-football-manager==0.3.2 fantasy-football-manager --demo
+uvx --from fantasy-football-manager==0.3.3 fantasy-football-manager --demo
 ```
 
 The command prints a fictional lineup report and exits without changing saved league state.
@@ -185,9 +185,9 @@ The package includes Playwright and uses installed Chrome.
 An optional `cdp_url` can connect to an explicit loopback browser debugging endpoint.
 Keep profiles, credentials, databases, logs, and real league exports outside Git. Read the [privacy notes](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PRIVACY.md).
 
-Use the [v0.3.2 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.2) for the versioned
-[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.2/fantasy_football_manager-0.3.2-py3-none-any.whl),
-[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.2/fantasy-football-manager-0.3.2-plugin.zip), and checksums.
+Use the [v0.3.3 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.3) for the versioned
+[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.3/fantasy_football_manager-0.3.3-py3-none-any.whl),
+[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.3/fantasy-football-manager-0.3.3-plugin.zip), and checksums.
 The [distribution acceptance record](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) tracks verified GitHub, PyPI, and MCP Registry publication separately.
 Follow the [release instructions](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/RELEASING.md) for publisher setup. Earlier published assets remain unchanged.
 
@@ -201,11 +201,11 @@ Follow the [release instructions](https://github.com/krmisystems/fantasy-footbal
 | Server team manager | Serial team visits, graceful stop, health, durable evidence, PostgreSQL archive, backups | Explicit weeks. Shared browser control is serial. |
 | Planned season actions | Live waivers, free-agent additions, drops, trades, and automatic week rollover | These execution adapters are not implemented. |
 
-The v0.3.2 source passed **628 tests across the base and separate Chrome runs**, including **17 isolated Chrome cases**.
+The v0.3.3 source passed **664 tests across the base and separate Chrome runs**, including **17 isolated Chrome cases**.
 Two remaining skips required PostgreSQL configuration and Windows symlink permissions.
-All seven [v0.3.2 source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34278096118) passed, including Windows, Ubuntu, Chrome, and PostgreSQL checks.
+All seven [v0.3.3 source CI jobs](https://github.com/krmisystems/fantasy-football-manager/actions/runs/34314653579) passed, including Windows, Ubuntu, Chrome, and PostgreSQL checks.
 These test counts are distinct from live account acceptance.
-Live draft execution of an installed v0.3.2 wheel remains **Not Tested**.
+Live draft execution of an installed v0.3.3 wheel remains **Not Tested**.
 See [validation status](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/VALIDATION.md), [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md), and the [compatibility matrix](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/ESPN_COMPATIBILITY.md).
 
 For a synthetic demonstration, run `uv run fantasy-football-manager --demo`.
