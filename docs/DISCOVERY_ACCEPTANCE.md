@@ -43,10 +43,13 @@ Descriptions matched after removal of common docstring indentation and blank lin
 The public changelog recorded Glama release 0.1.1 at 05:26:19 UTC.
 This Glama image version differs from the Python package version.
 
-**Not Tested:** a new TDQS result and Glama hosted usage.
-All 17 new tool score records were empty at the public check.
-The displayed aggregate retained **3.6/5** and its 2026-09-08 timestamp.
-This stale aggregate does not establish the score of the new definitions.
+At 05:50:52 UTC, all 17 updated tools had fresh **A** scores, ranging from 4.1 to 4.9.
+All three priority definitions improved: `execute_demo_action` 2.7 to 4.8, `start_draft_monitor` 2.7 to 4.4, and `recommend_draft` 2.9 to 4.6.
+The displayed aggregate increased from **3.6/5 to 4.6/5**, with a new 05:46:06 UTC timestamp.
+Its record still counted 14 tools and reported a 4.3 minimum. The complete set of 17 individual scores had a 4.1 minimum.
+The 4.6 aggregate is therefore **provisional** until Glama includes all 17 updated tools.
+Coherence increased to 4.8. Disambiguation and completeness reached 5/5, naming remained 5/5, and tool count remained 4/5.
+Glama hosted tool-call usage remains **Not Tested**.
 Read the [tool definition review](TOOL_DEFINITION_QUALITY.md) for lint results and scoring limits.
 
 These publication checks did not upgrade the running season service or establish new live ESPN acceptance.

@@ -79,9 +79,22 @@ Input schemas, output schemas, and annotations matched exactly.
 Descriptions matched after normalization of docstring indentation and surrounding blank lines.
 The public schema changelog recorded the new Glama release at 05:26:19 UTC.
 
-**Pending:** All 17 new tool scores were null at that check.
-The displayed aggregate of 3.6/5 still carried its original September 8 timestamp.
-It is the baseline score, not a score for the changed definitions.
+At 05:50:52 UTC, **all 17 updated tools had fresh A scores**, ranging from 4.1 to 4.9.
+The three priority definitions all improved:
+
+| Tool | Baseline score | New score |
+|---|---:|---:|
+| [`execute_demo_action`](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/tools/execute_demo_action) | 2.7 | 4.8 |
+| [`start_draft_monitor`](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/tools/start_draft_monitor) | 2.7 | 4.4 |
+| [`recommend_draft`](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/tools/recommend_draft) | 2.9 | 4.6 |
+
+The [public score page](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/score) showed a new aggregate of **4.6/5, tier A**, scored at 05:46:06 UTC.
+Its coherence score increased from 4.3 to 4.8.
+Disambiguation and completeness increased from 4/5 to 5/5. Naming consistency remained 5/5, and tool count remained 4/5.
+
+**Provisional:** The aggregate record still reported `scoredToolCount: 14` and a minimum tool score of 4.3.
+The complete set of 17 individual scores had a minimum of 4.1.
+The displayed 4.6 aggregate therefore reflects a partial evaluation. The aggregate for all 17 updated tools remains pending.
 The hosted sandbox's tool-call workflow remains **Not Tested**.
 Glama's [score page](https://glama.ai/mcp/servers/krmisystems/fantasy-football-manager/score) recommends Try in Browser for its recent-usage check.
 Usage is separate from the documented TDQS formula and does not prove independent adoption.
@@ -170,7 +183,7 @@ The running season deployment requires a separate verified upgrade before it use
 | Regression checks | Base, isolated Chrome, package, and all seven CI jobs pass | Verified |
 | Distribution | New public artifacts and fresh installation match the reviewed source | GitHub, PyPI, and MCP Registry verified |
 | Glama inspection | Public tool definitions match the changed descriptions and schemas | Verified for all 17 indexed manager tools |
-| TDQS improvement | A new score applies to the changed definitions | External rescoring pending |
+| TDQS improvement | A new score applies to the changed definitions | All 17 tools scored A; displayed aggregate increased to 4.6 with 14 tools counted; complete aggregate pending |
 
-The exact score increase remains unverified until a new evaluation completes.
+The complete server score increase remains unverified until a new aggregate evaluation completes.
 A successful README sync does not establish a new executable inspection or score.
