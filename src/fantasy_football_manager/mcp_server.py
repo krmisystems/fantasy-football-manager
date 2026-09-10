@@ -97,7 +97,7 @@ def create_server(data_dir=None):
 
     server = MCPServer("Fantasy Football Manager", version=__version__, lifespan=lifespan,
                        instructions="Use imported league snapshots or fictional demo data. Read capabilities before preparing actions. "
-                       "Use the companion ESPN MCP service for live draft observations and browser submissions. "
+                       "Use the companion ESPN MCP service for browser draft operations and HTTP season operations. "
                        "This server's execute_demo_action changes synthetic state only. Use exact proposal confirmation in review mode.")
     read = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
     write = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
@@ -112,7 +112,8 @@ def create_server(data_dir=None):
 
         Returns supported actions, effective automation modes, pause state, snapshot presence, and state and configuration revisions.
         This server analyzes imported data and executes synthetic demo actions only.
-        The response separately describes the ESPN companion for live observations, draft picks, and lineup changes.
+        The response separately describes browser drafts and HTTP season actions through the ESPN companion.
+        Its acceptance report distinguishes implemented actions from verified live execution.
         Works before a snapshot is loaded and does not change saved state.
         """
         snapshot, config, revision, config_revision = manager.state()
@@ -120,10 +121,13 @@ def create_server(data_dir=None):
                 "analysis": ["draft_simulation", "continuous_draft_batches", "weekly_lineup", "waivers", "weekly_power_rankings"],
                 "execution_scope": "synthetic_demo_only", "live_provider_writes": False, "live_browser_monitoring": False,
                 "capability_scope": "this_server", "espn_companion": {
-                    "command": "fantasy-football-espn", "browser_connection_required": True,
+                    "command": "fantasy-football-espn", "browser_connection_required": False,
+                    "draft_browser_required": True, "season_transport": "http",
                     "live_draft_observation": True, "live_draft_submission": True,
                     "continuous_automation": True, "standalone_worker": True,
-                    "live_season_actions": ["set_lineup"], "live_acquisitions_and_trades": False,
+                    "live_season_actions": ["set_lineup", "waiver_claim", "free_agent_add", "drop_player",
+                                            "move_to_ir", "activate_from_ir"],
+                    "live_acquisitions": True, "live_trades": False, "live_acquisitions_and_trades": False,
                     "live_acceptance_test": "versioned_evidence",
                     "acceptance_report_url": (
                         "https://github.com/krmisystems/fantasy-football-manager/"
@@ -162,7 +166,8 @@ def create_server(data_dir=None):
         """Validate and save a complete league snapshot supplied by the caller.
 
         Use the ESPN companion to fetch live observations or load_demo for fictional data.
-        Replacement requires the current snapshot revision and must preserve observation order, confirmed draft history, and pending browser action context.
+        Replacement requires the current snapshot revision and preserves observation order and confirmed draft history.
+        Pending browser submissions, HTTP submissions, and queued waivers retain their original context and rules until reconciliation resolves them.
         Changing the league, selected team, or season resets configuration to defaults.
         Records the import, increments the snapshot revision, and invalidates unexecuted proposals and monitor results.
         Returns status='imported', revision, config_revision, and config_reset, or an error without replacing state.
@@ -194,7 +199,8 @@ def create_server(data_dir=None):
         Requires an imported snapshot or loaded demo.
         Returns source fields, age_seconds, the phase-specific maximum_age_seconds, stale, and local draft monitor status.
         This tool reads saved data and does not refresh the source or run a simulation.
-        Use the ESPN companion for new browser observations or import_league_snapshot for replacement data.
+        Use the ESPN companion for fresh HTTP season observations or browser draft observations.
+        Use import_league_snapshot for replacement data supplied by the caller.
         """
         snapshot, config, revision, _ = manager.require_state()
         limit = config.limits.max_draft_age_seconds if snapshot.phase == "draft" else config.limits.max_season_age_seconds
@@ -299,10 +305,13 @@ def create_server(data_dir=None):
     @server.tool(annotations=write)
     @expected_errors
     def recommend_lineup() -> dict[str, Any]:
-        """Calculate the selected team's best legal weekly lineup for the configured season strategy.
+        """Optimize the selected team's known weekly projections while preserving locked slots.
 
         Uses the saved season snapshot, weekly projections, verified player locks, and configured source age limits.
-        Returns status='ok' with lineup, projected points, and improvement, or status='incomplete' with errors and missing-input details.
+        Returns status='ok' with a lineup and comparison details, or status='incomplete' with errors and missing-input details.
+        Unknown unchanged scores can cancel from improvement while total projected points remain null.
+        Comparison scope and coverage gaps describe those limits. Coverage suggestions do not authorize a repair.
+
         Locked players remain in their current slots, including unavailable players whose games have locked.
         Appends calculation evidence without changing the lineup, and includes the input snapshot and configuration revisions.
         Use prepare_action for a synthetic proposal or the ESPN companion for live lineup changes.
@@ -324,6 +333,7 @@ def create_server(data_dir=None):
         Status is ok, incomplete for missing inputs, or blocked when the weekly move limit is reached.
         Unrostered players are not verified free agents, and this tool does not estimate winning bids or submit claims.
         Appends calculation evidence. Use prepare_action only for synthetic acquisitions that pass action checks.
+        Use the ESPN companion's espn_prepare_season_action for a live HTTP acquisition proposal.
         """
         snapshot, config, revision, config_revision = manager.require_state()
         result = rank_waivers(snapshot, config, limit)
@@ -358,7 +368,7 @@ def create_server(data_dir=None):
         Checks action-specific player eligibility, locks, projections, roster rules, and user limits before saving the proposal.
         Returns proposal_id, normalized payload, mode, requires_confirmation, scope, and the bound snapshot and configuration revisions.
         Each call creates a new proposal and audit record. Use execute_demo_action with that exact proposal_id for execution.
-        Use the ESPN companion to prepare live draft picks or lineup changes.
+        Use the ESPN companion for browser draft proposals or HTTP lineup, acquisition, drop, and IR proposals.
         """
         return manager.prepare(action, payload)
 

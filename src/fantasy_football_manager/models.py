@@ -9,7 +9,8 @@ from urllib.parse import parse_qs, urlsplit
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 POSITIONS = ("QB", "RB", "WR", "TE", "DST", "K")
-ACTIONS = ("draft_pick", "set_lineup", "waiver_claim", "free_agent_add", "drop_player", "trade_offer", "trade_accept")
+ACTIONS = ("draft_pick", "set_lineup", "waiver_claim", "free_agent_add", "drop_player", "trade_offer", "trade_accept",
+           "move_to_ir", "activate_from_ir")
 STARTERS = {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 1, "DST": 1, "K": 1}
 CAPS = {"QB": 4, "RB": 8, "WR": 8, "TE": 3, "DST": 3, "K": 3}
 
@@ -39,6 +40,43 @@ class BrowserObservation(Model):
         return self
 
 
+class ESPNHTTPObservation(Model):
+    league_id: str
+    team_id: str
+    season: int
+    week: int
+    roster_url: str
+    ownership_verified: bool
+    transaction_period: int = Field(ge=1, le=18)
+    latest_period: int = Field(ge=1, le=18)
+    final_period: int = Field(ge=1, le=18)
+    team_transaction_locked: bool | None = None
+    pending_transactions_known: bool = False
+    pending_transactions: list[dict] = Field(default_factory=list)
+    recent_transactions: list[dict] = Field(default_factory=list)
+    uses_faab: bool | None = None
+    acquisition_type: str | None = None
+    minimum_bid: int | None = Field(default=None, ge=0)
+    acquisition_limit: int | None = Field(default=None, ge=-1)
+    matchup_acquisition_limit: int | None = Field(default=None, ge=-1)
+    acquisitions_season: int | None = Field(default=None, ge=0)
+    acquisitions_period: int | None = Field(default=None, ge=0)
+    uses_undroppable_list: bool | None = None
+
+    @model_validator(mode="after")
+    def scoped_roster(self):
+        from .espn_http_client import league_url
+        expected = league_url(self.league_id, self.season)
+        parsed = urlsplit(self.roster_url)
+        if self.roster_url.split("?", 1)[0] != expected or parsed.fragment:
+            raise ValueError("The HTTP roster URL must identify the selected ESPN league and season.")
+        query = parse_qs(parsed.query)
+        if (query.get("forTeamId") != [self.team_id] or query.get("scoringPeriodId") != [str(self.week)]
+                or query.get("view") != ["mRoster"]):
+            raise ValueError("HTTP lock evidence requires the exact selected-team roster request.")
+        return self
+
+
 class Source(Model):
     provider: str = Field(min_length=1, max_length=80)
     observed_at: datetime
@@ -48,6 +86,7 @@ class Source(Model):
     synthetic: bool = False
     projections_observed_at: datetime | None = None
     browser: BrowserObservation | None = None
+    http: ESPNHTTPObservation | None = None
     notes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
@@ -109,6 +148,18 @@ class Rules(Model):
                 for pos, count in self.starters.items() for number in range(1, count + 1)}
 
 
+class ESPNPlayerState(Model):
+    roster_locked: bool | None = None
+    trade_locked: bool | None = None
+    droppable: bool | None = None
+    injured: bool | None = None
+    bye_verified: bool | None = None
+    eligible_slots: list[int] = Field(default_factory=list)
+    acquisition_status: str | None = None
+    waiver_process_date: int | None = None
+    pending_transaction_ids: list[str] = Field(default_factory=list)
+
+
 class Player(Model):
     id: str = Field(min_length=1, max_length=120)
     name: str = Field(min_length=1, max_length=160)
@@ -123,6 +174,7 @@ class Player(Model):
     availability: str = "UNKNOWN"
     locked: bool = False
     bye: int | None = Field(default=None, ge=1, le=18)
+    espn: ESPNPlayerState | None = None
 
     @model_validator(mode="after")
     def valid_player(self):
@@ -176,6 +228,12 @@ class LeagueSnapshot(Model):
 
     @model_validator(mode="after")
     def consistent_snapshot(self):
+        if self.source.http is not None:
+            http = self.source.http
+            if (http.league_id, http.team_id, http.season, http.week) != (self.league_id, self.team_id, self.season, self.week):
+                raise ValueError("HTTP observations must match the selected league, team, season, and week.")
+            if self.source.provider != "espn_http" or self.source.synthetic or self.source.browser is not None:
+                raise ValueError("HTTP evidence requires a non-synthetic ESPN HTTP source without browser evidence.")
         if self.source.browser is not None:
             if (self.source.browser.league_id, self.source.browser.team_id) != (self.league_id, self.team_id):
                 raise ValueError("Browser observations must match the selected league and team.")
@@ -244,6 +302,15 @@ class Automation(Model):
     paused: bool = False
     actions: dict[str, Mode] = Field(default_factory=lambda: {action: "advisory" for action in ACTIONS})
 
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_ir_modes(cls, value):
+        if isinstance(value, dict) and isinstance(value.get("actions"), dict):
+            old = set(ACTIONS) - {"move_to_ir", "activate_from_ir"}
+            if set(value["actions"]) == old:
+                return {**value, "actions": {**value["actions"], "move_to_ir": "advisory", "activate_from_ir": "advisory"}}
+        return value
+
     @model_validator(mode="after")
     def validate_actions(self):
         if set(self.actions) != set(ACTIONS):
@@ -258,6 +325,8 @@ class Automation(Model):
 
 class Limits(Model):
     protected_ids: list[str] = Field(default_factory=list)
+    coverage_repair_ids: list[str] = Field(default_factory=list)
+    coverage_repair_add_ids: list[str] = Field(default_factory=list)
     drop_mode: Literal["listed_only", "any_unprotected"] = "listed_only"
     allowed_drop_ids: list[str] = Field(default_factory=list)
     max_weekly_moves: int = Field(default=3, ge=0, le=100)

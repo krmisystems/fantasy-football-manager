@@ -74,7 +74,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: uv sync --locked --extra server --dev
-      - run: uv run pytest -q tests/test_archive.py
+      - run: uv run pytest -q tests/test_archive.py tests/test_archive_incremental.py tests/test_archive_compaction.py
         env:
           FFM_ARCHIVE_TEST_DSN: host=127.0.0.1 port=5432 dbname=ffm_test user=ffm_test password=fixture-only-password
   package:

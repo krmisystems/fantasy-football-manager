@@ -1,8 +1,10 @@
 # Server and archive acceptance
 
-**Status: Verified five-team Week 1 observation and analysis, archive import, historical backup recovery, and service restart.**
+**Historical status: Verified v0.3.2 five-team Week 1 observation and analysis, archive import, backup recovery, and service restart.**
 
 This record includes the v0.3.2 five-team handoff and retains the earlier versioned checks on 2026-09-08.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the deployed v0.4.0 candidate and its five-team HTTP observation sweep.
+Live HTTP writes and public release remain incomplete. Production archive compaction is still in progress.
 Deployment identities, account information, manifests, and raw evidence remain private.
 The checks below describe the tested configuration. They do not establish unattended season operation.
 
@@ -41,7 +43,7 @@ The review account could not read the journal directly; the privileged read reso
 
 These checks verify five-team observation and analysis. No live server lineup swap occurred during the checked cycles.
 Live server lineup submission and an unattended season remain **Not Tested**.
-Automatic week rollover, live waivers, drops, acquisitions, and trades are not implemented.
+At this v0.3.2 handoff, automatic week rollover, live waivers, drops, acquisitions, and trades were not implemented.
 Read [the multi-team evaluation plan](MULTI_TEAM_ACCEPTANCE.md) for the remaining season evidence.
 
 ## Five-team archive and backup verification

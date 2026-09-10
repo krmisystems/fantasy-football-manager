@@ -21,16 +21,30 @@ from .store import Manager
 
 
 class ESPNService:
-    def __init__(self, data_dir=None, browser=None):
+    def __init__(self, data_dir=None, browser=None, *, transport=None, credential_file=None, auto_rollover=False):
         self.manager = Manager(data_dir)
         self.browser_data_dir = Path(os.environ.get("FFM_BROWSER_DATA_DIR") or self.manager.data_dir).expanduser().resolve()
         self.draft = BrowserDraft(self.manager)
         self.lineup = BrowserLineup(self.manager)
+        from .espn_http_actions import ESPNHTTPActions
+        self.http_actions = ESPNHTTPActions(self.manager)
+        self.transport = transport or (getattr(browser, "transport", "browser") if browser is not None
+                                       else os.environ.get("FFM_ESPN_TRANSPORT", "http"))
+        require(self.transport in {"http", "browser"}, "Transport must be http or browser.")
+        self.credential_file = credential_file
+        self.auto_rollover = auto_rollover
         self._injected_browser = browser is not None
         self.phase = "draft"
         if browser is None:
-            from .espn_browser import ESPNBrowser
-            browser = ESPNBrowser(self.browser_data_dir)
+            if self.transport == "http":
+                from .espn_http_season import ESPNHTTPSeason
+                browser = ESPNHTTPSeason(self.browser_data_dir, credential_file=credential_file)
+            else:
+                try:
+                    from .espn_browser import ESPNBrowser
+                except ImportError:
+                    raise ValueError("Install the browser extra before using the ESPN browser adapter.") from None
+                browser = ESPNBrowser(self.browser_data_dir)
         self.browser = browser
         self.browser.permit_validator = self._validate_permit
         self.task = None
@@ -78,7 +92,7 @@ class ESPNService:
     def saved_connection(self):
         with self.manager.transaction() as db:
             row = db.execute("SELECT connection FROM espn_runtime WHERE id=1").fetchone()
-        require(row["connection"] is not None, "Connect the ESPN browser before starting a standalone worker.")
+        require(row["connection"] is not None, "Connect ESPN before starting a standalone worker.")
         return json.loads(row["connection"])
 
     def status(self):
@@ -94,27 +108,37 @@ class ESPNService:
                    snapshot.age_seconds() <= (config.limits.max_season_age_seconds if snapshot.phase == "season" else config.limits.max_draft_age_seconds)
                    and not config.automation.paused)
         review = self._review_proposals()
-        return {"browser": self.browser.status(), "local_status": self.local_status,
+        live_http = getattr(self.browser, "transport", "browser") == "http"
+        live_actions = ["set_lineup", "waiver_claim", "free_agent_add", "drop_player", "move_to_ir", "activate_from_ir"] if live_http else ["draft_pick", "set_lineup"]
+        return {"browser": self.browser.status(), "transport": "http" if live_http else "browser", "local_status": self.local_status,
                 "automation_running": self.task is not None and not self.task.done(),
                 "worker": shared, "paused": config.automation.paused,
                 "draft_mode": config.automation.mode_for("draft_pick"), "revision": revision,
                 "config_revision": config_revision, "pending": self._controller(snapshot).pending(),
                 "review_proposals": review, "awaiting_review": any(item["current"] for item in review),
                 "latest_recommendations": self.latest if current else None,
-                "live_actions": ["draft_pick", "set_lineup"], "season_actions": ["set_lineup"],
-                "unsupported_live_actions": ["waiver_claim", "free_agent_add", "drop_player", "trade_offer", "trade_accept"],
+                "live_actions": live_actions, "season_actions": [action for action in live_actions if action != "draft_pick"],
+                "pending_waivers": self.http_actions.pending(include_waivers=True) if live_http else [],
+                "unsupported_live_actions": ["trade_offer", "trade_accept"] if live_http else ["waiver_claim", "free_agent_add", "drop_player", "trade_offer", "trade_accept"],
                 "phase": self.phase, "lineup_mode": config.automation.mode_for("set_lineup"),
                 "snapshot_age_seconds": snapshot.age_seconds() if snapshot else None}
 
-    async def connect(self, league_id, team_id, season, cdp_url=None, headless=False, phase="draft", week=1):
+    async def connect(self, league_id, team_id, season, cdp_url=None, headless=False, phase="draft", week=1,
+                      transport=None, auto_rollover=None):
         require(phase in {"draft", "season"}, "Phase must be draft or season.")
         require(type(week) is int and 1 <= week <= 18, "Week must be an integer from 1 through 18.")
         require(self.task is None or self.task.done(), "Stop automation before changing its browser connection.")
+        if transport is not None:
+            require(transport in {"http", "browser"}, "Transport must be http or browser.")
+            self.transport = transport
+        if auto_rollover is not None:
+            require(type(auto_rollover) is bool, "Auto rollover must be a boolean.")
+            self.auto_rollover = auto_rollover
         async with self.operation:
             with self.manager.transaction() as db:
                 claims = []
-                for table in ("browser_proposals", "browser_lineup_proposals"):
-                    claims.extend(db.execute(f"SELECT baseline FROM {table} WHERE status='awaiting_verification'").fetchall())
+                for table in ("browser_proposals", "browser_lineup_proposals", "espn_http_proposals"):
+                    claims.extend(db.execute(f"SELECT baseline FROM {table} WHERE status IN ('awaiting_verification','pending_waiver')").fetchall())
             for claim in claims:
                 baseline = LeagueSnapshot.model_validate_json(claim["baseline"])
                 require((str(league_id), str(team_id), season, phase, week) ==
@@ -123,10 +147,20 @@ class ESPNService:
             if not self._injected_browser:
                 await self.browser.close()
                 if phase == "season":
-                    from .espn_season_browser import ESPNSeasonBrowser
-                    self.browser = ESPNSeasonBrowser(self.browser_data_dir, week=week)
+                    if self.transport == "http":
+                        from .espn_http_season import ESPNHTTPSeason
+                        self.browser = ESPNHTTPSeason(self.browser_data_dir, week=week, credential_file=self.credential_file)
+                    else:
+                        try:
+                            from .espn_season_browser import ESPNSeasonBrowser
+                        except ImportError:
+                            raise ValueError("Install the browser extra before using the ESPN browser adapter.") from None
+                        self.browser = ESPNSeasonBrowser(self.browser_data_dir, week=week)
                 else:
-                    from .espn_browser import ESPNBrowser
+                    try:
+                        from .espn_browser import ESPNBrowser
+                    except ImportError:
+                        raise ValueError("Install the browser extra before using the ESPN draft adapter.") from None
                     self.browser = ESPNBrowser(self.browser_data_dir)
                 self.browser.permit_validator = self._validate_permit
             elif phase == "season" and hasattr(self.browser, "week"):
@@ -141,7 +175,8 @@ class ESPNService:
                 self._save_status("connection_failed", error=str(exc))
                 raise
             connection = {"league_id": str(league_id), "team_id": str(team_id), "season": season,
-                          "cdp_url": cdp_url, "headless": headless, "phase": phase, "week": week}
+                          "cdp_url": cdp_url, "headless": headless, "phase": phase, "week": week,
+                          "transport": self.transport if phase == "season" else "browser", "auto_rollover": self.auto_rollover}
             with self.manager.transaction() as db:
                 db.execute("UPDATE espn_runtime SET connection=? WHERE id=1", (json.dumps(connection),))
             self._save_status("connected", ready=result.get("ready", False))
@@ -150,6 +185,8 @@ class ESPNService:
     def _controller(self, snapshot=None):
         if snapshot is None:
             snapshot = self.manager.state()[0]
+        if snapshot is not None and snapshot.source.provider == "espn_http":
+            return self.http_actions
         return self.lineup if snapshot is not None and snapshot.phase == "season" else self.draft
 
     @staticmethod
@@ -187,7 +224,7 @@ class ESPNService:
             if snapshot is None:
                 return []
             season = snapshot.phase == "season"
-            table = "browser_lineup_proposals" if season else "browser_proposals"
+            table = "espn_http_proposals" if snapshot.source.provider == "espn_http" else "browser_lineup_proposals" if season else "browser_proposals"
             week_clause = " AND week=?" if season else ""
             values = (snapshot.league_id, snapshot.team_id, snapshot.season) + ((snapshot.week,) if season else ())
             rows = db.execute(f"""SELECT id,revision,config_revision,decision FROM {table}
@@ -199,13 +236,29 @@ class ESPNService:
 
     async def _sync(self):
         old, _, revision, _ = self.manager.state()
+        if getattr(self.browser, "transport", None) == "http" and self.auto_rollover:
+            outstanding = self.http_actions.pending(include_waivers=True)
+            if not outstanding and not self.lineup.pending():
+                period = await self.browser.current_period()
+                require(old is None or period >= old.week, "ESPN period rollover cannot move backward.")
+                if period != self.browser.week:
+                    self.browser.week = period
+                    with self.manager.transaction() as db:
+                        row = db.execute("SELECT connection FROM espn_runtime WHERE id=1").fetchone()
+                        if row["connection"]:
+                            connection = json.loads(row["connection"])
+                            connection["week"] = period
+                            db.execute("UPDATE espn_runtime SET connection=? WHERE id=1", (json.dumps(connection),))
+                        self.manager._audit(db, "espn_period_rollover", {"previous_week": old.week if old else None, "week": period})
         observed = await self.browser.observe(previous=old)
         controller = self._controller(observed)
-        pending = controller.pending()
+        pending = controller.pending(include_waivers=True) if controller is self.http_actions else controller.pending()
         if pending:
-            result = controller.reconcile(pending[0]["proposal_id"], observed.model_dump(mode="json"))
-            if result["status"] != "awaiting_verification":
-                return {"status": "synced", "reconciliation": result, "revision": result["revision"]}
+            for proposal in pending:
+                result = controller.reconcile(proposal["proposal_id"], observed.model_dump(mode="json"))
+                if result["status"] not in {"awaiting_verification", "pending_waiver"}:
+                    return {"status": "synced", "reconciliation": result, "revision": result["revision"]}
+            _, _, revision, _ = self.manager.state()
         result = self._accept_observation(observed, revision)
         return {**result, "status": "synced", "pending_verification": bool(pending)}
 
@@ -214,6 +267,8 @@ class ESPNService:
             return await self._sync()
 
     def _validate_permit(self, permit, fresh_snapshot=None):
+        if permit.get("scope") == "espn_http":
+            return self.http_actions.validate_permit(permit, fresh_snapshot)
         if permit.get("action") == "set_lineup":
             return self.lineup.validate_permit(permit, fresh_snapshot)
         current = self.draft.get(permit["proposal_id"])
@@ -301,19 +356,56 @@ class ESPNService:
     async def prepare_lineup(self, lineup):
         async with self.operation:
             await self._sync()
+            if self.manager.require_state()[0].source.provider == "espn_http":
+                return self.http_actions.prepare("set_lineup", {"lineup": lineup})
             return self.lineup.prepare(lineup)
 
     async def submit_lineup(self, proposal_id, confirmation=False):
         async with self.operation:
+            if self.manager.require_state()[0].source.provider == "espn_http":
+                return await self._submit_http(proposal_id, confirmation)
             return await self._submit(proposal_id, confirmation, action="set_lineup")
 
     async def reconcile_lineup(self, proposal_id):
         async with self.operation:
             old, _, _, _ = self.manager.require_state()
             observed = await self.browser.observe(previous=old)
-            return self.lineup.reconcile(proposal_id, observed.model_dump(mode="json"))
+            return self._controller(observed).reconcile(proposal_id, observed.model_dump(mode="json"))
+
+    async def prepare_season_action(self, action, payload):
+        async with self.operation:
+            await self._sync()
+            return self.http_actions.prepare(action, payload)
+
+    async def submit_season_action(self, proposal_id, confirmation=False):
+        async with self.operation:
+            return await self._submit_http(proposal_id, confirmation)
+
+    async def _submit_http(self, proposal_id, confirmation=False):
+        from .espn_http_season import ESPNPreflightError
+        proposal = self.http_actions.get(proposal_id)
+        if proposal["status"] != "pending":
+            return {**proposal, "should_submit": False}
+        await self._sync()
+        permit = self.http_actions.authorize(proposal_id, confirmation)
+        if not permit["should_submit"]:
+            return permit
+        try:
+            returned = await self.browser.submit_action(permit)
+            self.http_actions.record_response(proposal_id, returned["response"])
+            observed = await self.browser.observe()
+            return self.http_actions.reconcile(proposal_id, observed.model_dump(mode="json"))
+        except ESPNPreflightError as exc:
+            result = self.http_actions.record_not_submitted(proposal_id, exc)
+            self._save_status("not_submitted", proposal_id=proposal_id, error=str(exc))
+            return result
+        except Exception as exc:
+            self._save_status("awaiting_verification", proposal_id=proposal_id, error=str(exc))
+            return {**self.http_actions.get(proposal_id), "error": str(exc), "retry_allowed": False}
 
     async def _season_step(self, snapshot, config, revision, config_revision):
+        if snapshot.source.provider == "espn_http":
+            return await self._http_season_step(snapshot, config, revision, config_revision)
         result = await asyncio.to_thread(recommend_lineup, snapshot, config)
         self.latest = {"revision": revision, "config_revision": config_revision, "phase": "season", "result": result}
         review = self._review_proposals()
@@ -336,6 +428,86 @@ class ESPNService:
         proposal = self.lineup.prepare(candidate)
         submitted = await self._submit(proposal["proposal_id"], action="set_lineup")
         self._save_status(submitted["status"], proposal_id=proposal["proposal_id"], week=snapshot.week)
+
+    async def _http_season_step(self, snapshot, config, revision, config_revision):
+        """Select one policy-checked HTTP action. Observe again before another action."""
+        from .season import rank_waivers
+        result = await asyncio.to_thread(recommend_lineup, snapshot, config)
+        self.latest = {"phase": "season", "revision": revision, "config_revision": config_revision, "result": result}
+        _, current_config, current_revision, current_config_revision = self.manager.require_state()
+        disposition = ("stopped" if self.stop_event.is_set() else "paused" if current_config.automation.paused else
+                       "state_changed" if (revision, config_revision) != (current_revision, current_config_revision) else "current")
+        self.manager.record_calculation("lineup", snapshot, config, revision, config_revision, result,
+                                        accepted=disposition == "current", reason=disposition)
+        if disposition != "current":
+            self._save_status(disposition)
+            return
+        team = snapshot.own_team()
+        players = {player.id: player for player in snapshot.players}
+        candidates = []
+        # Explicit coverage repairs precede ordinary point comparisons.
+        for repaired in config.limits.coverage_repair_ids:
+            if repaired not in team.lineup.values():
+                continue
+            slot = next(slot for slot, pid in team.lineup.items() if pid == repaired)
+            alternatives = sorted((player for player in snapshot.players if player.weekly_projection is not None
+                                   and set(player.eligible_positions).intersection(snapshot.rules.lineup_slots()[slot])),
+                                  key=lambda player: (-player.weekly_projection, player.id))
+            for player in alternatives:
+                if player.id in team.roster_ids and player.id not in team.lineup.values():
+                    candidates.append(("set_lineup", {"lineup": {**team.lineup, slot: player.id}, "repair_player_id": repaired}))
+            owned = {pid for other in snapshot.teams for pid in other.roster_ids + other.reserve_ids}
+            drops = ([None] if len(team.roster_ids) < snapshot.rules.rounds else [])
+            drops += sorted((pid for pid in team.roster_ids if pid not in team.lineup.values()
+                             and pid not in config.limits.protected_ids
+                             and (config.limits.drop_mode == "any_unprotected" or pid in config.limits.allowed_drop_ids)),
+                            key=lambda pid: (players[pid].projection if players[pid].projection is not None else float("inf"), pid))
+            for player in alternatives:
+                if player.id in owned or player.espn is None:
+                    continue
+                action = {"FREEAGENT": "free_agent_add", "WAIVERS": "waiver_claim"}.get(player.espn.acquisition_status)
+                if action:
+                    bid = (snapshot.source.http.minimum_bid or 0) if action == "waiver_claim" and snapshot.source.http.uses_faab else 0
+                    candidates.extend((action, {"player_id": player.id, "drop_id": drop, "bid": bid,
+                                                "repair_player_id": repaired}) for drop in drops)
+        if result.get("status") == "ok" and not lineup_equivalent(snapshot, team.lineup, result["lineup"]):
+            candidates.append(("set_lineup", {"lineup": result["lineup"]}))
+        # IR automation moves benched eligible players and activates healthy reserves into a vacancy.
+        for pid in sorted(team.roster_ids):
+            if pid not in team.lineup.values() and players[pid].espn and players[pid].espn.injured is True:
+                candidates.append(("move_to_ir", {"player_id": pid}))
+        for pid in sorted(team.reserve_ids):
+            if players[pid].espn and players[pid].espn.injured is False and players[pid].availability in {"ACTIVE", "HEALTHY", "QUESTIONABLE"}:
+                candidates.append(("activate_from_ir", {"player_id": pid}))
+        if any(config.automation.mode_for(action) == "automatic" for action in ("free_agent_add", "waiver_claim")):
+            waivers = await asyncio.to_thread(rank_waivers, snapshot, config)
+            for candidate in waivers.get("recommendations", []):
+                player = players[candidate["add_player_id"]]
+                action = {"FREEAGENT": "free_agent_add", "WAIVERS": "waiver_claim"}.get(player.espn.acquisition_status) if player.espn else None
+                if action:
+                    bid = (snapshot.source.http.minimum_bid or 0) if action == "waiver_claim" and snapshot.source.http.uses_faab else 0
+                    candidates.append((action, {"player_id": player.id, "drop_id": candidate["drop_player_id"], "bid": bid}))
+        rejected = []
+        for action, payload in candidates:
+            if config.automation.mode_for(action) != "automatic":
+                continue
+            try:
+                decision = check_action(snapshot, current_config, action, payload, execution_scope="espn_http")
+                if decision["requires_confirmation"]:
+                    continue
+            except ValueError as exc:
+                rejected.append({"action": action, "reason": str(exc)})
+                continue
+            _, final_config, final_revision, final_config_revision = self.manager.require_state()
+            if self.stop_event.is_set() or final_config.automation.paused or (final_revision, final_config_revision) != (revision, config_revision):
+                self._save_status("state_changed")
+                return
+            proposal = self.http_actions.prepare(action, payload)
+            submitted = await self._submit_http(proposal["proposal_id"])
+            self._save_status(submitted["status"], proposal_id=proposal["proposal_id"], action=action, week=snapshot.week)
+            return
+        self._save_status("lineup_current" if result.get("status") == "ok" else "analysis_incomplete",
+                          week=snapshot.week, rejected_candidates=rejected[:20], errors=result.get("errors", []))
 
     async def start(self, interval_seconds=2, trials=40):
         require(type(interval_seconds) in {int, float} and 1 <= interval_seconds <= 60,
@@ -446,12 +618,13 @@ class ESPNService:
         return await self.stop()
 
     async def start_standalone(self):
-        self.saved_connection()
+        connection = self.saved_connection()
         closed = await self.close()
         require(closed["status"] == "disconnected", "Wait for the current operation before starting the standalone worker.")
         from filelock import FileLock, Timeout
         self.browser_data_dir.mkdir(parents=True, exist_ok=True)
-        lease = FileLock(self.browser_data_dir / "espn-browser.lock")
+        lease_name = "espn-http-worker-launch.lock" if connection.get("phase") == "season" and connection.get("transport", self.transport) == "http" else "espn-browser.lock"
+        lease = FileLock(self.browser_data_dir / lease_name)
         try:
             lease.acquire(timeout=0)
         except Timeout as exc:
@@ -460,6 +633,8 @@ class ESPNService:
             lease.release()
         log_path = self.manager.data_dir / "espn-worker.log"
         command = [sys.executable, "-m", "fantasy_football_manager.espn_mcp", "--worker", "--data-dir", str(self.manager.data_dir)]
+        if self.credential_file is not None:
+            command += ["--credential-file", str(self.credential_file)]
         launch_id = uuid.uuid4().hex
         worker_env = {**os.environ, "FFM_BROWSER_DATA_DIR": str(self.browser_data_dir), "FFM_WORKER_LAUNCH_ID": launch_id}
         with log_path.open("ab") as log:

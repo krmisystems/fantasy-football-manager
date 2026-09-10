@@ -378,7 +378,7 @@ async def test_real_worker_early_failure_keeps_reason_without_erasing_other_work
     try:
         process.communicate(timeout=10)
         assert process.returncode != 0
-        with pytest.raises(ValueError, match="Connect the ESPN browser before starting a standalone worker"):
+        with pytest.raises(ValueError, match="Connect ESPN before starting a standalone worker"):
             await service._await_worker_start(process, timeout=0, launch_id=launch_id)
         assert service._last_status["worker_pid"] > 0
         assert service._last_status["launcher_pid"] == process.pid

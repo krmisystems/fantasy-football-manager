@@ -1,8 +1,11 @@
 [Unit]
-Description=Fantasy Football season coordinator
+Description=Fantasy Football HTTP season coordinator
 Wants=network-online.target
 After=network-online.target
 
+# Start from deployment/leagues.http.example.json in a private installation.
+# The manifest selects the protected session file and saved team policies.
+# HTTP season operation requires no browser, DISPLAY, or Xvfb service.
 [Service]
 Type=simple
 User=fantasy-football

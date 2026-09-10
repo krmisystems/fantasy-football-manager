@@ -102,11 +102,11 @@ def next_lineup_swap(snapshot: LeagueSnapshot, config: ManagerConfig,
             check_action(snapshot, config, "set_lineup", {"lineup": candidate}, execution_scope="host_browser")
         except (PolicyError, ValueError):
             continue
-        before = [pid for pid in current.values() if pid is not None]
-        if any(getattr(players[pid], field) is None for pid in set(before) | set(candidate.values())):
+        from .season import lineup_delta
+        objective = lineup_delta(current, candidate, players, field)
+        mean = lineup_delta(current, candidate, players, "weekly_projection")
+        if objective is None or mean is None:
             continue
-        objective = sum(getattr(players[pid], field) for pid in candidate.values()) - sum(getattr(players[pid], field) for pid in before)
-        mean = sum(players[pid].weekly_projection for pid in candidate.values()) - sum(players[pid].weekly_projection for pid in before)
         progress = sum(candidate[slot] == target[slot] for slot in target)
         candidates.append((objective, mean, progress, tuple(sorted(candidate.items())), candidate))
     return max(candidates, key=lambda item: item[:4])[-1] if candidates else None

@@ -46,6 +46,20 @@
           "title": "Protected Ids",
           "type": "array"
         },
+        "coverage_repair_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Coverage Repair Ids",
+          "type": "array"
+        },
+        "coverage_repair_add_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Coverage Repair Add Ids",
+          "type": "array"
+        },
         "drop_mode": {
           "default": "listed_only",
           "enum": [

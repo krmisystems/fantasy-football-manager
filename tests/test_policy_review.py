@@ -53,8 +53,16 @@ def test_bench_upside_does_not_override_a_positive_improvement_limit():
         check_action(state, config, "free_agent_add", {"player_id": "available", "drop_id": "bench"})
 
 
-def test_acquisition_can_repair_a_vacancy_with_known_player_projections():
+def test_acquisition_cannot_score_an_unknown_out_starter_as_a_vacancy():
     state, config = fixture(vacancy=True)
+    with pytest.raises(PolicyError, match="Complete comparisons"):
+        check_action(state, config, "free_agent_add", {"player_id": "available", "drop_id": "bench"})
+    assert state.players[1].weekly_projection is None
+
+
+def test_acquisition_can_repair_an_actual_empty_slot_with_known_incoming_projection():
+    state, config = fixture(vacancy=True)
+    state.own_team().lineup["RB1"] = None
     decision = check_action(state, config, "free_agent_add", {"player_id": "available", "drop_id": "bench"})
     assert decision["mode"] == "review"
 

@@ -1,8 +1,16 @@
 # ESPN compatibility matrix
 
-**Record version: 3. Target version: v0.3.2. Updated: 2026-09-08.**
+**Record version: 4. Candidate: v0.4.0. Updated: 2026-09-10 UTC.**
 
-This matrix separates the v0.3.2 source checks from historical installed-version evidence.
+The v0.4.0 candidate implements HTTP season actions and retains browser draft execution.
+Source tests verify the new HTTP workflows with fictional responses.
+Authenticated HTTP reads have verified five team contexts.
+The reviewed candidate wheel is deployed privately. Its first HTTP sweep returned fresh observations for all five teams.
+Live HTTP writes and publication remain incomplete at this checkpoint.
+
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the candidate results and remaining gates.
+Read [HTTP compatibility evidence](ESPN_HTTP_COMPATIBILITY.md) for the verified ESPN request contract and source artifacts.
+This matrix retains the earlier source checks and installed-version evidence below.
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for verified publication status on each channel.
 It does not guarantee compatibility with every ESPN layout or future website change.
 Use [the ESPN workflow](ESPN_AUTOMATION.md) for operating instructions.
@@ -17,6 +25,8 @@ Use [the ESPN workflow](ESPN_AUTOMATION.md) for operating instructions.
 Fictional browser tests intercept page requests and supply controlled ESPN JSON responses.
 They do not sign in to a real account or submit changes to a real league.
 The test source contains inline fixtures where no separate HTML file is linked.
+Fictional HTTP tests use a simulated ESPN service without a browser or a network connection.
+These source tests do not establish live transaction acceptance.
 
 ## Version and layout coverage
 
@@ -35,6 +45,12 @@ The test source contains inline fixtures where no separate HTML file is linked.
 | v0.3.1 | Surrounding whitespace in an API team name | [Waiting-room tests](../tests/test_espn_browser.py), [public draft Chrome test](../tests/test_espn_public_draft_integration.py) | Verified, fictional. Name normalization retains exact team, member, and roster checks. The third draft required a private workaround. The fourth draft completed with unchanged installed v0.3.1 methods. |
 | v0.3.1 | Slash delimiters in D/ST autocomplete and position selectors | [D/ST Chrome tests](../tests/test_browser_integration.py) | Both `D/ST` and `DST` display variants reproduced the failure before the fix and passed afterward. Wrong-team and wrong-position suggestions remain blocked. A live Ravens D/ST selection succeeded in the fourth draft. The exact autocomplete branch was not established. |
 | v0.3.2 | Confirmed opponent selection with an absent or empty season projection | [Draft normalization and replay](../tests/test_espn_data.py), [draft engine checks](../tests/test_draft.py) | Verified, fictional. The parser retains the verified identity with `projection=None`. The engine counts roster occupancy without scoring or recommending that player. Missing selected-team projections, ambiguous identities, and wrong owners still block. Live draft execution of an installed v0.3.2 wheel is Not Tested. |
+| v0.4.0 candidate | Authenticated HTTP ownership, selected-team locks, request scope, and session leases | [HTTP authentication](../tests/test_espn_http_auth.py), [HTTP client](../tests/test_espn_http_client.py), [HTTP normalization](../tests/test_espn_http_data.py), [HTTP service](../tests/test_espn_http_service.py) | Verified, fictional and five authenticated team reads. HTTP mode does not require a browser. Live HTTP writes remain Not Tested. |
+| v0.4.0 candidate | Full lineup proposals, acquisitions with optional drops, and observed ownership confirmation | [HTTP policy](../tests/test_espn_http_policy.py), [HTTP claims and receipts](../tests/test_espn_http_actions.py), [HTTP service](../tests/test_espn_http_service.py) | Verified, fictional. Authorization precedes one POST. A response alone does not establish roster ownership. |
+| v0.4.0 candidate | Queued waivers, terminal receipts, changed FAAB bids, and context protection | [HTTP claims and receipts](../tests/test_espn_http_actions.py), [reconnect checks](../tests/test_espn_service.py), [HTTP service](../tests/test_espn_http_service.py) | Verified, fictional. A queued waiver retains its original context. Conflicting bids produce `conflict`. Reconciliation and settled replay do not submit another request. |
+| v0.4.0 candidate | Unknown projections, named coverage repair, independent unavailable starters, and verified bye weeks | [Season comparisons](../tests/test_season.py), [HTTP policy](../tests/test_espn_http_policy.py), [HTTP normalization](../tests/test_espn_http_data.py) | Verified, fictional. Unknown projections remain null. A named repair does not invent an improvement. Unknown bye evidence blocks incoming starters and acquisitions. |
+| v0.4.0 candidate | IR eligibility, active-roster capacity, and current-period rollover | [HTTP policy](../tests/test_espn_http_policy.py), [HTTP service](../tests/test_espn_http_service.py), [coordinator](../tests/test_server.py) | Verified, fictional. ESPN injury and slot evidence govern IR moves. Pending claims prevent rollover. Live IR moves and rollover remain Not Tested. |
+| v0.4.0 candidate | Browser dependency isolation, readiness, and resulting roster evidence | [Dependency isolation](../tests/test_dependency_isolation.py), [coordinator](../tests/test_server.py), [evidence archive](../tests/test_evidence.py) | Verified, fictional. HTTP status works without Playwright. Health separates process activity from analysis and action readiness. Reconciliation archives the resulting snapshot. |
 
 The version column identifies the implementation series. It does not relabel historical live runs as released-wheel acceptance.
 The second draft trial used installed v0.2.1 dependencies and changing working-tree patches.
@@ -55,6 +71,8 @@ The second draft trial used installed v0.2.1 dependencies and changing working-t
 | Fourth draft preauthorization error | One `browser_control` error occurred at the first turn. Its exact text was unavailable. | A later check recovered before submission. The error remains recorded despite all 16 confirmed selections. |
 | Fifth draft history failure | An opponent selected a verified player whose matching season projection statistics were empty. Version 0.3.1 had excluded that identity and stopped accepting history after 132 picks. | The operator stopped the worker with zero unresolved claims. Version 0.3.2 separates history identity from projected value. This was not an availability-label parsing failure. |
 | Fifth draft completion | The final host capture contains 160 selections and matches the stored 132-pick prefix. The roster has 13 manager-confirmed picks, two direct host picks, and one unattributed selection. | Installed v0.3.1 package methods remained unchanged. The browser handoff completed picks 146 and 155 with Autopick off. Read the [fifth-draft record](FIFTH_DRAFT_ACCEPTANCE.md). |
+| v0.4.0 candidate HTTP reads | Authenticated reads verified ownership and selected-team locks in five private contexts. Four teams had complete lineup analysis with no projected improvement. | The remaining team had an unavailable starter with an unknown projection. Saved drop limits blocked its proposed acquisition. No live HTTP write occurred. Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md). |
+| v0.4.0 candidate deployment | All 28 installed Python files matched the reviewed wheel. Dependencies and team policies remained unchanged. The first HTTP sweep returned five fresh observations. | Four teams had current analysis and no required lineup change. One team had incomplete tight-end coverage. No live HTTP POST occurred. |
 
 Read the [live draft acceptance record](LIVE_DRAFT_ACCEPTANCE.md) for failures, interventions, and receipt timing.
 Read [server acceptance](SERVER_ACCEPTANCE.md) for deployment, archive, backup, and restart evidence.
@@ -71,10 +89,20 @@ uv sync --locked --dev --extra server
 Run unit, policy, parser, service, and coordinator checks:
 
 ```sh
-uv run pytest -q
+uv run python -m pytest -q
 ```
 
 That command skips Chrome and PostgreSQL integration cases unless their settings are supplied.
+The v0.4.0 local suite passed 1,034 tests with 21 skips. Separate PostgreSQL validation passed all 77 archive tests.
+A fresh base installation passed actual STDIO checks for 17 manager tools and 16 ESPN tools without Playwright.
+Public release gates and live HTTP write acceptance remain incomplete.
+Run the focused HTTP checks without a browser:
+
+```sh
+uv run python -m pytest -q tests/test_espn_http_auth.py tests/test_espn_http_client.py tests/test_espn_http_data.py tests/test_espn_http_policy.py tests/test_espn_http_actions.py tests/test_espn_http_service.py tests/test_dependency_isolation.py
+```
+
+The following counts remain historical results. They do not describe the complete v0.4.0 candidate suite.
 The recorded v0.3.1 Windows run passed **611 tests**, including **17 isolated Chrome cases**, with two skips for PostgreSQL configuration and Windows symlink privileges.
 The separate Linux PostgreSQL run passed **23 archive tests**.
 These counts describe the recorded runs. Re-run the gates for a changed candidate.
@@ -112,12 +140,20 @@ The [release workflow](../.github/workflows/release.yml) requires the same commi
 
 ## Limits and maintenance
 
-The supported live actions are draft picks and one legal lineup swap per proposal.
-Live waivers, free-agent additions, drops, trades, and automatic week rollover remain planned.
-Each intermediate lineup swap must meet the configured improvement limit.
+The browser adapter supports draft picks and one legal lineup swap per proposal.
+Each ordinary browser swap must meet the configured improvement limit.
+The HTTP candidate implements full lineup proposals, waiver claims, free-agent additions, drops, IR moves, and IR activation.
+It also implements rollover from verified current-period evidence.
+These HTTP workflows have source-test coverage. Their live execution remains Not Tested at this checkpoint.
+An HTTP proposal does not authorize a trade. Trade execution remains outside this release scope.
+
+Ordinary lineup and acquisition proposals must meet the configured improvement limit.
+A named coverage repair requires explicit configuration and preserves an unknown improvement when its baseline projection is missing.
+Pending submissions retain their original context until reconciliation resolves them.
+Queued waivers do not establish ownership, and uncertain responses do not authorize another submission.
 The draft model uses a two-pick horizon and conditional availability estimates.
 
-When ESPN changes a supported layout, record the blocked observation or action before changing the adapter.
+When ESPN changes a supported layout or HTTP response, record the blocked observation or action before changing the adapter.
 Create a fictional fixture that reproduces the failure without private account data.
 Add both a successful case and a case that must block an unsafe action.
 Run the relevant fixture command and the complete release gates.

@@ -599,3 +599,31 @@ async def test_equivalent_lineup_order_reports_current_without_click(season_serv
         "status": "ok", "lineup": {"RB1": "p2", "RB2": "p1"}})
     await service._season_step(*service.manager.require_state())
     assert service.local_status == "lineup_current" and service.browser.clicks == []
+
+
+@pytest.mark.asyncio
+async def test_queued_http_waiver_blocks_reconnect_context_change_before_any_request(tmp_path):
+    from test_espn_http_service import FakeESPN, case
+
+    world = FakeESPN()
+    world.projection(109, 40)
+    next(row for row in world.pool["players"] if row["id"] == 109)["status"] = "WAIVERS"
+    world.post_behavior = "pending"
+    service, adapter, world = await case(tmp_path, world=world, automatic=("waiver_claim", "drop_player"),
+                                        limits={"allowed_drop_ids": ["103"]})
+    try:
+        proposal = await service.prepare_season_action("waiver_claim", {"player_id": "109", "drop_id": "103", "bid": 3})
+        assert (await service.submit_season_action(proposal["proposal_id"]))["status"] == "pending_waiver"
+        saved = service.saved_connection()
+        requests = len(world.requests)
+        for changes in ({"week": 2}, {"league_id": "456"}, {"team_id": "2"}, {"season": 2027}, {"phase": "draft"}):
+            with pytest.raises(ValueError, match="Reconnect its exact"):
+                await service.connect(**{**saved, **changes})
+            assert len(world.requests) == requests
+            assert adapter.context == ("123", "1", 2026) and adapter.week == 1
+            assert service.saved_connection() == saved
+        assert (await service.connect(**saved))["ready"]
+        assert service.http_actions.get(proposal["proposal_id"])["status"] == "pending_waiver"
+        assert len(world.posts) == 1
+    finally:
+        await service.close()

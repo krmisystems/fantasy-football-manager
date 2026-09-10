@@ -2,8 +2,10 @@
 
 The source plugin adds three workflow skills and two local MCP servers.
 It uses the installed `fantasy-football-manager` and `fantasy-football-espn` commands.
-The ESPN companion implements live draft observation and submission.
-It requires an authenticated browser connection. Season mode supports lineup swaps. Live waivers, acquisitions, drops, and trades remain planned.
+The unreleased v0.4.0 candidate exposes 16 ESPN tools, including HTTP season transactions without a browser runtime.
+Draft operation retains the browser adapter. Trade execution remains unavailable.
+The published v0.3.3 package has the original 13 ESPN tools and browser lineup workflow.
+Do not assume that installing the published package supplies the new HTTP tools.
 
 ## Install the commands
 
@@ -24,15 +26,92 @@ fantasy-football-manager --help
 fantasy-football-espn --help
 ```
 
-For development, use the [source installation](../README.md#install-from-source).
+For the unreleased HTTP implementation, use the [source installation](../README.md#install-from-source).
+Run these commands from the repository root to install both optional workflows:
+
+```sh
+uv sync --extra browser --extra session-import
+uv run fantasy-football-espn --help
+```
+
+The base HTTP runtime requires neither Chrome nor Playwright.
+The `browser` extra supplies Playwright for draft and legacy season operation. Those workflows also require installed Google Chrome.
+The `session-import` extra supplies cryptography for the optional Linux session importer.
+An already provisioned HTTP session file does not require that extra.
+Configure source commands through the checkout environment until a release includes this implementation.
 
 Check that the Codex process can find both commands on `PATH`.
 Restart Codex if you changed its environment.
-Install Google Chrome before using the managed ESPN profile.
-The package includes Playwright but does not copy an existing browser's cookies.
 Both servers must use the same data directory to share policy, observations, and pause state.
 
+## Configure an HTTP season session (unreleased)
+
+Use an existing authorized ESPN session. The HTTP adapter does not provide password sign-in or renew expired sessions.
+Store only `SWID` and `espn_s2` in a protected local JSON file.
+Do not put their values in a prompt, tool argument, command line, log, or repository file.
+Set `FFM_ESPN_CREDENTIAL_FILE` to that file, or pass its path through `--credential-file`.
+On Linux, the file must belong to the service account and exclude group and other access.
+The importer writes mode `0600`. Restrict file access separately on other operating systems.
+
+The optional importer reads only ESPN session cookies from a Linux Chromium cookie database.
+It opens the database read-only and does not start a browser.
+It supports the inspected Linux `v10` cookie format and rejects unsupported encryption or expired cookies.
+It does not import passwords, other sites, or a complete browser profile.
+Use it only for a profile whose account session you are authorized to access.
+
+Set the following shell variables to private local paths before this command.
+Keep their values outside public examples.
+
+```sh
+uv run --extra session-import fantasy-football-espn \
+  --import-linux-session "$PRIVATE_ESPN_COOKIE_DATABASE" \
+  --credential-file "$PRIVATE_ESPN_SESSION_FILE"
+```
+
+This command replaces the destination only after a successful import and validation.
+It reports credential names and status without printing their values.
+An import does not verify that ESPN still accepts the session. Connection performs authenticated ownership checks.
+See [authentication tests](../tests/test_espn_http_auth.py) and the [HTTP source contract](ESPN_HTTP_COMPATIBILITY.md).
+
+The following MCP configuration uses placeholders. Replace them in a private local configuration.
+The `command` paths select the installed or source-environment executables.
+
+```json
+{
+  "mcpServers": {
+    "fantasy-manager-season": {
+      "command": "<manager-command>",
+      "args": ["--data-dir", "<league-state-directory>"]
+    },
+    "fantasy-espn-season": {
+      "command": "<espn-command>",
+      "args": ["--data-dir", "<league-state-directory>", "--transport", "http"],
+      "env": {
+        "FFM_ESPN_CREDENTIAL_FILE": "<protected-session-file>"
+      }
+    }
+  }
+}
+```
+
+1. Restart the configured MCP processes.
+2. Read `get_capabilities`, `get_manager_config`, and `espn_get_status`.
+3. Connect the selected context with `phase="season"`, `transport="http"`, and the requested `week`.
+4. Call `espn_sync`.
+5. Verify the current period, source freshness, ownership, locks, and pending claims.
+6. Preserve the user's action modes and limits before starting automation.
+
+Use a separate state directory for each managed league and team context.
+Use one protected credential directory for controllers that share an account.
+A team lease blocks simultaneous HTTP controllers for the same league and team, even across separate state directories.
+Different teams have separate leases. Copies of credentials in unrelated directories do not share this protection.
+Set `auto_rollover=true` only when authorized operation should follow ESPN's verified current period.
+Unresolved submissions and pending waivers retain their original week.
+
 ## Select league state and a shared browser profile
+
+This section applies to browser drafts and the legacy browser season adapter.
+Install the source `browser` extra and Google Chrome for these workflows.
 
 Use a separate state directory for each league that you want to preserve.
 Set the same `--data-dir` argument on both MCP commands for that league.
@@ -51,7 +130,7 @@ Keep these personal settings outside the public repository.
     },
     "fantasy-espn-league-two": {
       "command": "fantasy-football-espn",
-      "args": ["--data-dir", "<league-two-state-directory>"],
+      "args": ["--data-dir", "<league-two-state-directory>", "--transport", "browser"],
       "env": {
         "FFM_BROWSER_DATA_DIR": "<shared-browser-directory>"
       }
@@ -111,7 +190,8 @@ Run the printed `codex plugin add` command.
 Start a new Codex conversation.
 Ask Codex to call `get_capabilities` and `espn_get_status`.
 Use the synthetic workflow to check the manager without a real league.
-Use `espn_connect` and sign in through its dedicated Chrome profile for ESPN.
+Use the HTTP session setup above for season operation from the unreleased source checkout.
+For a browser draft, use `espn_connect` in draft phase and complete sign-in in the dedicated profile.
 See the [ESPN workflow](ESPN_AUTOMATION.md) before enabling automatic submissions.
 
 The default personal marketplace is discovered implicitly.

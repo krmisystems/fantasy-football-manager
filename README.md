@@ -1,15 +1,23 @@
 # Fantasy Football Manager
 
-ESPN fantasy football draft and lineup tools for **Codex and other Model Context Protocol (MCP) clients**.
+ESPN fantasy football team management for **Codex and other Model Context Protocol (MCP) clients**.
+Season operations use authenticated HTTP without Chrome or Playwright.
 Connect your league, sync its roster, and calculate a legal weekly lineup from current projections.
 The same package provides a draft assistant with continuous Monte Carlo simulations and a server coordinator for multiple teams.
 
 <!-- mcp-name: io.github.krmisystems/fantasy-football-manager -->
 
 The **manager MCP server** provides 17 tools for analysis, policy, and league state.
-The **ESPN MCP companion** provides 13 tools for browser observation and controlled draft or lineup submissions.
-ESPN requests use your signed-in browser session. This independent project does not supply an ESPN account or bypass sign-in.
-Use browser sign-in without manually copying cookies between profiles.
+The **ESPN MCP companion** provides 16 tools for live observations, controlled transactions, and continuous operation.
+HTTP season actions include lineups, free-agent additions, waiver claims, drops, and IR moves.
+Draft support retains the existing browser adapter.
+
+**Release candidate:** The reviewed v0.4.0 wheel is deployed privately and has completed a five-team HTTP observation sweep.
+Live HTTP writes and public release remain incomplete. Public v0.3.3 assets retain their earlier behavior.
+Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the current evidence and remaining live validation.
+
+This independent project requires your ESPN account. A protected session file supplies HTTP authentication.
+An optional Linux import reads only the two ESPN session cookies from an existing profile without starting a browser.
 
 ## Try a fictional lineup
 
@@ -30,17 +38,24 @@ Read the [developer showcase](https://github.com/krmisystems/fantasy-football-ma
 
 ## Start with a weekly lineup
 
-Authenticated sign-in, roster sync, and advisory lineup analysis are verified workflows.
-Start in advisory mode to inspect the recommendation before enabling live actions.
+HTTP roster reads have verified ownership and player locks across five team contexts. Live write acceptance is tracked separately.
 
-1. [Install and connect both MCP servers](#install-from-pypi).
-2. Read the saved action modes with `get_manager_config`.
-3. Keep `set_lineup` in advisory mode for the first check.
-4. Call `espn_connect` with your league ID, team ID, season, `phase="season"`, and scoring `week`.
-5. Sign in to ESPN in the dedicated Chrome window when required.
-6. Call `espn_sync` to import the observed roster, projections, and player locks.
-7. Call `recommend_lineup` on the manager to calculate the weekly lineup.
-8. Read `espn_get_status` to check the context, observation age, and pending actions.
+For the v0.4.0 source checkout:
+
+```sh
+uv sync --no-dev --extra session-import
+```
+
+1. Configure the protected session file with `FFM_ESPN_CREDENTIAL_FILE`.
+2. Connect both MCP servers to the same per-team state directory.
+3. Read the saved action modes with `get_manager_config`.
+4. Call `espn_connect` with the league, team, season, `phase="season"`, `transport="http"`, and scoring week.
+5. Call `espn_sync` to read current rosters, projections, locks, and pending transactions.
+6. Call `recommend_lineup` to calculate a legal lineup.
+7. Read `espn_get_status` before enabling the required action modes.
+
+The [HTTP setup guide](docs/ESPN_AUTOMATION.md) explains credential permissions, supported imports, and renewal requirements.
+No ESPN credential values are MCP tool arguments. HTTP mode does not start a browser.
 
 The result includes the legal lineup and estimated projection change when the required inputs are complete.
 Missing projections or lock evidence can prevent a recommendation or submission.
@@ -49,12 +64,16 @@ Selected-team lock evidence does not establish league-wide power rankings.
 ```mermaid
 flowchart LR
     Client[Codex or MCP client] --> Companion[ESPN MCP companion]
-    Companion --> Chrome[Dedicated signed-in Chrome]
-    Chrome --> ESPN[ESPN league]
-    Companion --> State[Per-league SQLite state]
-    Client --> Manager[Manager MCP analysis and policy]
+    Companion --> HTTP[Authenticated HTTP season adapter]
+    HTTP --> ESPN[ESPN league]
+    Companion --> Draft[Optional browser draft adapter]
+    Draft --> ESPN
+    Companion --> Claim[Durable transaction claim]
+    Claim --> Verify[Observe and verify result]
+    Companion --> State[Per-team SQLite state]
+    Client --> Manager[Analysis and policy]
     State --> Manager
-    Manager --> Result[Lineup or draft recommendation]
+    State --> Archive[Incremental PostgreSQL archive]
 ```
 
 Read the [ESPN workflow and tool reference](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/ESPN_AUTOMATION.md) for configuration and submission steps.
@@ -66,25 +85,30 @@ Check the [versioned compatibility matrix](https://github.com/krmisystems/fantas
 |---|---|
 | Advisory | Calculate recommendations without submitting a live action. |
 | Review | Prepare an exact proposal. Submit it after explicit confirmation. |
-| Automatic | Submit qualifying draft picks or lineup swaps within the saved policy. No per-action confirmation is required. |
+| Automatic | Submit supported actions within the saved per-action policy. No per-action confirmation is required. |
 | Disabled | Block the selected action. |
 
 Use `update_manager_config` to replace the full config with its current revision.
 Read that config before changing one action mode. Strategy preferences do not grant execution permission.
 For lineup changes with approval, use review mode and confirm each exact proposal.
 
-For season automation, call `espn_start_automation` after connecting to the explicit week and setting the authorized `set_lineup` mode.
-Each intermediate lineup swap must meet the configured improvement limit.
-Some optimized lineups require intermediate swaps that the limit blocks.
-A confirmed swap does not mean the full optimized lineup was applied.
+For season automation, connect through HTTP and configure the required action modes and limits.
+Then call `espn_start_automation`. Set `auto_rollover=true` to follow ESPN's verified current transaction period.
+An unresolved submission keeps its original week until reconciliation completes.
 
-Each live submission receives a durable claim before the browser click.
-The service verifies the resulting ESPN state. An uncertain result blocks another click until reconciliation.
+HTTP mode submits a complete legal lineup transaction. Legacy browser mode still verifies one exchange at a time.
+Acquisitions respect protected players, allowed drops, roster capacity, pending commitments, and league limits.
+A named coverage repair requires explicit saved authorization when its improvement cannot be calculated. Unknown projections remain `null`.
+
+Each live submission receives a durable claim before the HTTP request or draft click.
+The service verifies the resulting ESPN state. An uncertain result blocks another submission until reconciliation.
+A `pending_waiver` result identifies a queued claim. Only observed ownership can confirm an acquisition.
 Use `espn_stop_automation` to pause new actions for that league's data directory.
 It does not undo an action already submitted.
 
 ## Draft with continuous simulations
 
+Install the `browser` extra for draft operations.
 Connect with `phase="draft"`, then call `espn_sync` to verify complete history and the current pick.
 Set the requested draft strategy, action mode, and limits before calling `espn_start_automation`.
 Automatic submissions require the correct team on the clock and verified disabled ESPN Autopick.
@@ -126,10 +150,18 @@ The browser handoff missed the final two turns. This trial also required operato
 Use `espn_start_standalone_worker` for a local worker that continues after Codex closes while that computer remains available.
 
 For operation without the client PC, install the [season coordinator on a server](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER.md).
-The server retains its own signed-in Chrome profile and visits configured teams serially.
-Each team keeps a separate SQLite database, policy, explicit week, and pending claims.
-One shared profile lease prevents simultaneous browser control.
-The optional PostgreSQL archive preserves labeled evidence. Private backups preserve the operational databases and configuration.
+The HTTP coordinator uses a protected server session file and visits configured teams serially.
+It runs without the client PC, a Chrome process, or a display service.
+Each team keeps a separate SQLite database, policy, scoring week, and pending claims.
+A lease prevents simultaneous HTTP control of the same team through the same session directory.
+Health separates process activity, observation freshness, analysis readiness, and action readiness.
+The optional PostgreSQL archive exports bounded batches and commits checkpoints with the evidence.
+Private backups preserve the operational databases and configuration.
+
+The deployed v0.4.0 coordinator returned fresh HTTP observations for all five teams.
+Four teams had current analysis and required no lineup change. One team had incomplete tight-end coverage with an unknown projection.
+Health correctly reported degraded analysis. No live transaction was submitted, and existing team policies remained unchanged.
+Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the deployment, package checks, and remaining live acceptance.
 
 After the fifth draft, the v0.3.2 server verified fresh Week 1 observations, selected-team locks, and current lineup calculations for **five exact team contexts**.
 The verified handoff recorded zero new lineup authorizations and zero unresolved authorized claims.
@@ -147,7 +179,8 @@ Version 0.3.1 fixed draft team-name whitespace and D/ST selectors.
 Version 0.3.0 introduced server season scheduling, durable evidence, and a PostgreSQL archive.
 Check the [PyPI project](https://pypi.org/project/fantasy-football-manager/) and [distribution status](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) for available releases.
 The manager has an active [MCP Registry record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.krmisystems%2Ffantasy-football-manager/versions/latest).
-Use Python 3.11 or later, [uv](https://docs.astral.sh/uv/), and installed Google Chrome.
+Use Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
+The published v0.3.3 browser workflow also requires installed Google Chrome.
 
 ```sh
 uv tool install fantasy-football-manager
@@ -180,9 +213,11 @@ The plugin already registers both commands. Avoid duplicate direct registrations
 The plugin contains workflow instructions and command registrations; it does not install the Python package.
 
 Use the same `FFM_DATA_DIR` or `--data-dir` for both MCP servers that manage one league.
+For v0.4.0 HTTP operation, configure `FFM_ESPN_CREDENTIAL_FILE` on the MCP host.
+The base HTTP runtime requires neither Chrome nor Playwright.
+For draft or legacy browser operation, install the `browser` extra and Google Chrome.
 Use `FFM_BROWSER_DATA_DIR` to select a shared browser profile root across separate league databases.
-The package includes Playwright and uses installed Chrome.
-An optional `cdp_url` can connect to an explicit loopback browser debugging endpoint.
+Browser mode accepts an optional `cdp_url` for an explicit loopback browser debugging endpoint.
 Keep profiles, credentials, databases, logs, and real league exports outside Git. Read the [privacy notes](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PRIVACY.md).
 
 Use the [v0.3.3 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.3) for the versioned
@@ -197,9 +232,16 @@ Follow the [release instructions](https://github.com/krmisystems/fantasy-footbal
 |---|---|---|
 | Draft assistant | Snake drafts, roster legality, strategy preferences, continuous Monte Carlo estimates | No auction support. Two-pick planning horizon. |
 | Weekly analysis | Lineups, available-player comparisons, projected power rankings | Requires current projections, ownership, eligibility, and sufficient lock evidence. |
-| ESPN live actions | Draft picks and one lineup swap per verified proposal | Browser compatibility and current authorization are required. |
-| Server team manager | Serial team visits, graceful stop, health, durable evidence, PostgreSQL archive, backups | Explicit weeks. Shared browser control is serial. |
-| Planned season actions | Live waivers, free-agent additions, drops, trades, and automatic week rollover | These execution adapters are not implemented. |
+| ESPN HTTP season actions | Complete lineups, acquisitions, required drops, IR moves | Fresh authenticated evidence and saved policy are required. |
+| ESPN draft actions | One verified pick per proposal | Requires the optional browser adapter. |
+| Server team manager | HTTP team visits, optional period rollover, readiness, incremental archive, backups | Session renewal and unresolved transactions can require operator input. |
+| Trade execution | Not implemented | Pending trades remain protected from conflicting automatic actions. |
+
+The v0.4.0 local suite passed **1,034 tests with 21 skips**. A separate PostgreSQL run passed **77 archive tests**.
+A fresh base installation passed actual STDIO checks for 17 manager tools and 16 ESPN tools without Playwright.
+All 28 deployed Python files matched the reviewed wheel. Existing dependency versions and team policies remained unchanged.
+Live HTTP writes, public release, and production archive compaction remain incomplete at this checkpoint.
+Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the exact evidence boundary.
 
 The v0.3.3 source passed **664 tests across the base and separate Chrome runs**, including **17 isolated Chrome cases**.
 Two remaining skips required PostgreSQL configuration and Windows symlink permissions.

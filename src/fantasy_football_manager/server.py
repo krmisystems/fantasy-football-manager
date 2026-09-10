@@ -1,13 +1,14 @@
-"""Serial season visits for an authenticated server browser.
+"""Serial season visits through the configured ESPN transport.
 
 The private manifest selects explicit league contexts. Saved manager configs
-control actions. This module does not advance weeks or run draft automation.
+control actions. HTTP mode can follow verified scoring periods. Draft automation
+uses the separate ESPN companion workflow.
 """
 
 import argparse
 import asyncio
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import math
 import os
@@ -20,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Literal
 
 from .espn_service import ESPNService
+from .browser_lineup import lineup_equivalent, next_lineup_swap
 
 
 def utc_now():
@@ -60,6 +62,9 @@ class Manifest(BaseModel):
     browser_data_dir: str = Field(min_length=1)
     status_file: str | None = None
     headless: bool = True
+    transport: Literal["http", "browser"] = "http"
+    credential_file: str | None = None
+    auto_rollover: bool = True
     leagues: list[LeagueEntry] = Field(min_length=1)
 
 
@@ -69,6 +74,8 @@ def load_manifest(path):
     resolve = lambda value: str((path.parent / Path(value).expanduser()).resolve())
     manifest.browser_data_dir = resolve(manifest.browser_data_dir)
     manifest.status_file = resolve(manifest.status_file or "season-status.json")
+    if manifest.credential_file is not None:
+        manifest.credential_file = resolve(manifest.credential_file)
     directories, contexts = set(), set()
     for entry in manifest.leagues:
         entry.data_dir = resolve(entry.data_dir)
@@ -85,7 +92,7 @@ def load_manifest(path):
 
 @contextmanager
 def stop_signals(callback):
-    """Request a stop without cancelling an authorized browser operation."""
+    """Request a stop without cancelling an authorized platform operation."""
     loop = asyncio.get_running_loop()
     previous = {}
     for name in (signal.SIGINT, signal.SIGTERM):
@@ -125,8 +132,91 @@ def write_status(path, value):
         temporary.unlink(missing_ok=True)
 
 
+def _not_ready(reason):
+    return {"analysis": {"ready": False, "status": "not_run", "reasons": [reason]},
+            "action": {"ready": False, "status": "blocked", "reasons": [reason], "scope": "set_lineup"}}
+
+
+def lineup_readiness(snapshot, config, revision, config_revision, latest, *, pending_count=0, stopped=False):
+    """Describe the last calculation and next automatic exchange. This does not authorize an action."""
+    now = datetime.now(timezone.utc)
+    reasons = []
+    source = snapshot.source
+    expires = source.observed_at + timedelta(seconds=config.limits.max_season_age_seconds)
+    if not source.complete:
+        reasons.append("source_incomplete")
+    if not source.locks_verified:
+        reasons.append("player_locks_unverified")
+    if source.observed_at > now or expires < now:
+        reasons.append("snapshot_not_fresh")
+    if source.projections_observed_at is None:
+        reasons.append("projection_timestamp_unknown")
+    else:
+        projection_expiry = source.projections_observed_at + timedelta(seconds=config.limits.max_projection_age_seconds)
+        expires = min(expires, projection_expiry)
+        if source.projections_observed_at > now or projection_expiry < now:
+            reasons.append("projections_not_fresh")
+    result = latest.get("result", {}) if isinstance(latest, dict) else {}
+    if not latest or latest.get("phase") != "season":
+        reasons.append("analysis_not_run")
+    else:
+        if (latest.get("revision"), latest.get("config_revision")) != (revision, config_revision):
+            reasons.append("analysis_input_changed")
+        if result.get("status") != "ok":
+            reasons.append("analysis_incomplete")
+        if result.get("blocking_missing_projections", result.get("missing_projections")):
+            reasons.append("weekly_projections_missing")
+    mode, paused = config.automation.mode_for("set_lineup"), config.automation.paused
+    hold = "coordinator_stopped" if stopped else "intentional_paused" if paused else "pending_claim" if pending_count else None
+    if hold and not latest:
+        reasons.append(hold)
+    analysis = {"ready": not reasons, "status": "ready" if not reasons else "not_run" if not latest else "incomplete",
+                "reasons": reasons, "evaluated_at": now.isoformat(), "expires_at": expires.isoformat(),
+                "revision": latest.get("revision") if latest else None,
+                "config_revision": latest.get("config_revision") if latest else None,
+                "result_status": result.get("status"), "errors": result.get("errors", []),
+                "missing_projections": result.get("missing_projections", [])}
+    action = {"ready": False, "status": "blocked", "reasons": [], "scope": "set_lineup",
+              "revision": revision, "config_revision": config_revision}
+    if hold:
+        action["reasons"] = [hold]
+    elif reasons:
+        action["reasons"] = ["analysis_not_ready"]
+    elif mode != "automatic":
+        action.update(status="approval_required" if mode == "review" else "disabled", reasons=[f"mode_{mode}"])
+    elif lineup_equivalent(snapshot, snapshot.own_team().lineup, result["lineup"]):
+        action.update(status="not_needed", reasons=["lineup_current"])
+    else:
+        legal = False
+        if snapshot.source.provider == "espn_http":
+            from .policy import check_action
+            try:
+                decision = check_action(snapshot, config, "set_lineup", {"lineup": result["lineup"]}, execution_scope="espn_http")
+                legal = not decision["requires_confirmation"]
+            except ValueError:
+                pass
+        else:
+            legal = next_lineup_swap(snapshot, config, result["lineup"]) is not None
+        if legal:
+            action.update(ready=True, status="ready")
+        else:
+            action.update(status="not_needed", reasons=["no_admissible_lineup_exchange"])
+    return {"analysis": analysis, "action": action}
+
+
+def _invalid_health():
+    return {"healthy": False, "process_active": False, "heartbeat_fresh": False, "observations_fresh": False,
+            "analysis_ready": False, "action_ready": False, "action_ready_count": 0, "team_count": 0,
+            "degraded": True, "reasons": ["invalid_health"], "leagues": [], "status": "invalid_health"}
+
+
 def health(value):
-    """Require recent successful observations, not only a live process."""
+    """Separate reported process activity, fresh observations, and current lineup readiness.
+
+    Old status files remain readable, but missing readiness cannot imply success.
+    Analysis readiness requires every enabled team. Action readiness requires at least one team.
+    A saved status file does not prove that its process still exists.
+    """
     try:
         now = datetime.now(timezone.utc)
         def age(text):
@@ -148,25 +238,74 @@ def health(value):
         ):
             raise ValueError("The health league entries are invalid.")
         enabled = [item for item in value["leagues"] if item["enabled"]]
-        observations_ok = bool(enabled) and all(
-            item.get("last_success_at") and age(item["last_success_at"]) >= 0
-            and item.get("snapshot_observed_at")
-            and 0 < item.get("max_age_seconds", 300) <= 86400
-            and age(item["snapshot_observed_at"]) <= item.get("max_age_seconds", 300)
-            and item.get("status") not in {"error", "profile_busy", "authentication_required", "awaiting_verification"}
-            for item in enabled
-        )
-        return {"healthy": bool(active and heartbeat_ok and observations_ok), "heartbeat_fresh": heartbeat_ok,
-                "observations_fresh": bool(observations_ok), "status": value.get("status")}
+        summaries = []
+        for index, item in enumerate(value["leagues"]):
+            if not item["enabled"]:
+                continue
+            limit = item.get("max_age_seconds", 300)
+            observed = bool(item.get("last_success_at") and age(item["last_success_at"]) >= 0
+                            and item.get("snapshot_observed_at") and type(limit) in {int, float}
+                            and math.isfinite(limit) and 0 < limit <= 86400
+                            and age(item["snapshot_observed_at"]) <= limit
+                            and item["status"] not in {"error", "profile_busy", "authentication_required"})
+            analysis, action = item.get("analysis", {}), item.get("action", {})
+            if not isinstance(analysis, dict) or not isinstance(action, dict):
+                raise ValueError("The saved readiness entries are invalid.")
+            reasons = list(analysis.get("reasons", ["readiness_unknown"]))
+            current = bool(observed and analysis.get("ready") is True and analysis.get("status") == "ready"
+                           and analysis.get("reasons") == [] and analysis.get("result_status") == "ok"
+                           and type(item.get("revision")) is int and type(item.get("config_revision")) is int
+                           and (analysis.get("revision"), analysis.get("config_revision"))
+                           == (item["revision"], item["config_revision"])
+                           and analysis.get("evaluated_at") and age(analysis["evaluated_at"]) <= limit
+                           and analysis.get("expires_at")
+                           and datetime.fromisoformat(analysis["expires_at"]) >= now)
+            if not observed:
+                reasons.append("observation_not_fresh")
+            if not current and not reasons:
+                reasons.append("analysis_not_current")
+            if item.get("paused") is True:
+                reasons.append("intentional_paused")
+            pending = item.get("pending_count")
+            if type(pending) is not int or pending < 0:
+                reasons.append("pending_claims_unknown")
+            elif pending:
+                reasons.append("pending_claim")
+            actionable = bool(active and heartbeat_ok and current and item.get("paused") is False
+                              and type(pending) is int and pending == 0 and item.get("mode") == "automatic"
+                              and action.get("ready") is True and action.get("status") == "ready"
+                              and action.get("reasons") == [] and action.get("scope") == "set_lineup"
+                              and (action.get("revision"), action.get("config_revision"))
+                              == (item["revision"], item["config_revision"]))
+            summaries.append({"league_index": index, "observations_fresh": observed, "analysis_ready": current,
+                              "action_ready": actionable, "reasons": list(dict.fromkeys(reasons))})
+        observations_ok = bool(enabled) and all(item["observations_fresh"] for item in summaries)
+        analysis_ok = bool(enabled) and all(item["analysis_ready"] for item in summaries)
+        reasons = []
+        if not active:
+            reasons.append("process_inactive")
+        if not heartbeat_ok:
+            reasons.append("heartbeat_stale")
+        if not enabled:
+            reasons.append("no_enabled_teams")
+        for item in summaries:
+            reasons.extend(item["reasons"])
+        healthy = bool(active and heartbeat_ok and observations_ok and analysis_ok and not reasons)
+        ready_count = sum(item["action_ready"] for item in summaries)
+        return {"healthy": healthy, "process_active": active, "heartbeat_fresh": heartbeat_ok,
+                "observations_fresh": observations_ok, "analysis_ready": analysis_ok,
+                "action_ready": bool(ready_count), "action_ready_count": ready_count, "team_count": len(enabled),
+                "degraded": not healthy, "reasons": list(dict.fromkeys(reasons)), "leagues": summaries,
+                "status": value.get("status")}
     except (KeyError, TypeError, ValueError, AttributeError, OverflowError):
-        return {"healthy": False, "heartbeat_fresh": False, "observations_fresh": False, "status": "invalid_health"}
+        return _invalid_health()
 
 
 def read_health(path):
     try:
         return health(json.loads(Path(path).read_text(encoding="utf-8")))
     except (OSError, ValueError, UnicodeError):
-        return {"healthy": False, "heartbeat_fresh": False, "observations_fresh": False, "status": "invalid_health"}
+        return _invalid_health()
 
 
 class SeasonCoordinator:
@@ -183,7 +322,8 @@ class SeasonCoordinator:
                       "updated_at": utc_now(), "interval_seconds": interval, "cycles": 0,
                       "leagues": [{"league_id": item.league_id, "team_id": item.team_id, "season": item.season,
                                    "week": item.week, "enabled": item.enabled,
-                                   "status": "pending" if item.enabled else "disabled"}
+                                   "status": "pending" if item.enabled else "disabled",
+                                   **_not_ready("visit_pending" if item.enabled else "team_disabled")}
                                   for item in manifest.leagues]}
 
     def save(self, status=None):
@@ -202,7 +342,8 @@ class SeasonCoordinator:
         if self.service_factory:
             return self.service_factory(entry, Path(self.manifest.browser_data_dir))
         # The process owns one browser root. Set it before constructing adapters.
-        return ESPNService(entry.data_dir)
+        return ESPNService(entry.data_dir, transport=self.manifest.transport,
+                           credential_file=self.manifest.credential_file, auto_rollover=self.manifest.auto_rollover)
 
     @staticmethod
     def _global_error(error):
@@ -215,7 +356,7 @@ class SeasonCoordinator:
 
     async def visit(self, index, entry):
         item = self.value["leagues"][index]
-        item.update(status="visiting", last_attempt_at=utc_now())
+        item.update(status="visiting", last_attempt_at=utc_now(), **_not_ready("visit_in_progress"))
         self.value["active_league_index"] = index
         self.save("visiting")
         service = None
@@ -231,16 +372,23 @@ class SeasonCoordinator:
                 raise ValueError("The saved lineup mode differs from the manifest mode. No config was changed.")
             item.update(mode=mode, paused=config.automation.paused)
             if self.stop_event.is_set():
-                item["status"] = "stopped"
+                item.update(status="stopped", **_not_ready("coordinator_stopped"))
                 return False
+            requested_week = max(entry.week, old.week) if self.manifest.auto_rollover and old is not None else entry.week
             connected = await service.connect(entry.league_id, entry.team_id, entry.season,
-                                              phase="season", week=entry.week, headless=self.manifest.headless)
+                                              phase="season", week=requested_week, headless=self.manifest.headless)
             if not connected.get("ready"):
                 raise ValueError(connected.get("error") or "The ESPN browser is not ready for this league.")
             async with service.operation:
                 await service._sync()
                 snapshot, config, revision, config_revision = service.manager.require_state()
-                if (snapshot.league_id, snapshot.team_id, snapshot.season, snapshot.phase, snapshot.week) != entry.context():
+                actual_context = (snapshot.league_id, snapshot.team_id, snapshot.season, snapshot.phase, snapshot.week)
+                expected_context = entry.context()
+                if self.manifest.transport == "http" and self.manifest.auto_rollover and snapshot.source.http is not None:
+                    expected_context = (*entry.context()[:4], snapshot.source.http.transaction_period)
+                    if service._controller(snapshot).pending(include_waivers=True):
+                        expected_context = (*entry.context()[:4], requested_week)
+                if actual_context != expected_context:
                     raise ValueError("The observed league context differs from the manifest.")
                 if entry.mode != "existing" and config.automation.mode_for("set_lineup") != entry.mode:
                     raise ValueError("The saved lineup mode changed during observation.")
@@ -253,15 +401,18 @@ class SeasonCoordinator:
                     service._save_status("awaiting_verification")
                 else:
                     await service._season_step(snapshot, config, revision, config_revision)
-                current, _, revision, config_revision = service.manager.require_state()
+                current, config, revision, config_revision = service.manager.require_state()
                 item.update(status="stopped" if self.stop_event.is_set() else service.local_status,
                             last_success_at=utc_now(), snapshot_observed_at=current.source.observed_at.isoformat(),
                             max_age_seconds=config.limits.max_season_age_seconds, revision=revision,
-                            config_revision=config_revision, pending_count=len(service._controller(current).pending()))
+                            config_revision=config_revision, pending_count=len(service._controller(current).pending()),
+                            mode=config.automation.mode_for("set_lineup"), paused=config.automation.paused)
+                item.update(lineup_readiness(current, config, revision, config_revision, service.latest,
+                                             pending_count=item["pending_count"], stopped=self.stop_event.is_set()))
                 item.pop("error", None)
         except Exception as exc:
             global_error = self._global_error(exc)
-            item.update(status=global_error or "error", error=str(exc))
+            item.update(status=global_error or "error", error=str(exc), **_not_ready(global_error or "visit_failed"))
         finally:
             if service is not None:
                 try:
@@ -270,7 +421,7 @@ class SeasonCoordinator:
                         raise RuntimeError("The browser has not released its profile.")
                 except Exception as exc:
                     # Never start a second adapter after uncertain browser cleanup.
-                    item.update(status="error", error=f"Browser cleanup failed: {exc}")
+                    item.update(status="error", error=f"Browser cleanup failed: {exc}", **_not_ready("browser_cleanup_failed"))
                     self.cleanup_error = str(exc)
                     self.request_stop()
                     global_error = "profile_busy"
@@ -344,11 +495,11 @@ async def _run_cli(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Visit explicit ESPN season contexts with one server browser.")
+    parser = argparse.ArgumentParser(description="Visit ESPN season contexts through HTTP or the optional browser transport.")
     parser.add_argument("--manifest", required=True, help="Read a private JSON manifest. Restart after manifest changes.")
     parser.add_argument("--interval", type=float, default=60, help="Wait at least 60 seconds after each complete league sweep.")
-    parser.add_argument("--once", action="store_true", help="Run one sweep, close Chrome, and exit.")
-    parser.add_argument("--health", action="store_true", help="Read saved health without starting a browser.")
+    parser.add_argument("--once", action="store_true", help="Run one sweep, close the transport, and exit.")
+    parser.add_argument("--health", action="store_true", help="Read saved health without connecting to ESPN.")
     args = parser.parse_args()
     if args.health:
         manifest = load_manifest(args.manifest)

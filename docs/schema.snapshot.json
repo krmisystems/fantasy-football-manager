@@ -115,6 +115,305 @@
       "title": "Budget",
       "type": "object"
     },
+    "ESPNHTTPObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "league_id": {
+          "title": "League Id",
+          "type": "string"
+        },
+        "team_id": {
+          "title": "Team Id",
+          "type": "string"
+        },
+        "season": {
+          "title": "Season",
+          "type": "integer"
+        },
+        "week": {
+          "title": "Week",
+          "type": "integer"
+        },
+        "roster_url": {
+          "title": "Roster Url",
+          "type": "string"
+        },
+        "ownership_verified": {
+          "title": "Ownership Verified",
+          "type": "boolean"
+        },
+        "transaction_period": {
+          "maximum": 18,
+          "minimum": 1,
+          "title": "Transaction Period",
+          "type": "integer"
+        },
+        "latest_period": {
+          "maximum": 18,
+          "minimum": 1,
+          "title": "Latest Period",
+          "type": "integer"
+        },
+        "final_period": {
+          "maximum": 18,
+          "minimum": 1,
+          "title": "Final Period",
+          "type": "integer"
+        },
+        "team_transaction_locked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Transaction Locked"
+        },
+        "pending_transactions_known": {
+          "default": false,
+          "title": "Pending Transactions Known",
+          "type": "boolean"
+        },
+        "pending_transactions": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Pending Transactions",
+          "type": "array"
+        },
+        "recent_transactions": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Recent Transactions",
+          "type": "array"
+        },
+        "uses_faab": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uses Faab"
+        },
+        "acquisition_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acquisition Type"
+        },
+        "minimum_bid": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum Bid"
+        },
+        "acquisition_limit": {
+          "anyOf": [
+            {
+              "minimum": -1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acquisition Limit"
+        },
+        "matchup_acquisition_limit": {
+          "anyOf": [
+            {
+              "minimum": -1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matchup Acquisition Limit"
+        },
+        "acquisitions_season": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acquisitions Season"
+        },
+        "acquisitions_period": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acquisitions Period"
+        },
+        "uses_undroppable_list": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uses Undroppable List"
+        }
+      },
+      "required": [
+        "league_id",
+        "team_id",
+        "season",
+        "week",
+        "roster_url",
+        "ownership_verified",
+        "transaction_period",
+        "latest_period",
+        "final_period"
+      ],
+      "title": "ESPNHTTPObservation",
+      "type": "object"
+    },
+    "ESPNPlayerState": {
+      "additionalProperties": false,
+      "properties": {
+        "roster_locked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roster Locked"
+        },
+        "trade_locked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trade Locked"
+        },
+        "droppable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Droppable"
+        },
+        "injured": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Injured"
+        },
+        "bye_verified": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bye Verified"
+        },
+        "eligible_slots": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Eligible Slots",
+          "type": "array"
+        },
+        "acquisition_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acquisition Status"
+        },
+        "waiver_process_date": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Waiver Process Date"
+        },
+        "pending_transaction_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pending Transaction Ids",
+          "type": "array"
+        }
+      },
+      "title": "ESPNPlayerState",
+      "type": "object"
+    },
     "Pick": {
       "additionalProperties": false,
       "properties": {
@@ -260,6 +559,17 @@
           ],
           "default": null,
           "title": "Bye"
+        },
+        "espn": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ESPNPlayerState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -393,6 +703,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/BrowserObservation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "http": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ESPNHTTPObservation"
             },
             {
               "type": "null"
