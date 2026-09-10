@@ -366,7 +366,14 @@ class Portfolio:
 
     def _summary(self, frame):
         entry, snapshot, config = frame.entry, frame.snapshot, frame.config
-        summary = {"team_key": entry.key, "name": entry.label or entry.key, "league_name": entry.league_name or "Managed league",
+        league_id = snapshot.league_id if snapshot is not None else entry.context[0] if entry.context else None
+        season = snapshot.season if snapshot is not None else entry.context[2] if entry.context else None
+        league_key = None
+        if league_id is not None and season is not None and frame.status != "unsupported":
+            identity = json.dumps([entry.sport, entry.provider, league_id, season], separators=(",", ":"))
+            league_key = "league-" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+        league_name = entry.league_name or (f"League {league_id}" if league_id is not None else "Managed league")
+        summary = {"team_key": entry.key, "name": entry.label or entry.key, "league_name": league_name, "league_key": league_key,
                    "sport": entry.sport, "provider": entry.provider,
                    "season": entry.context[2] if entry.context else None, "week": None, "phase": None,
                    "data_status": frame.status, "observed_at": None, "age_seconds": None,

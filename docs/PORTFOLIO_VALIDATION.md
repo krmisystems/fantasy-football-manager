@@ -15,6 +15,7 @@ It did not import the manager constructor or provider service.
 | Observation | Result |
 | --- | --- |
 | Managed teams | 5 |
+| Distinct league identities | 5 |
 | Ready snapshots | 5 |
 | Successful lineup analyses | 5 |
 | Owned players | 78 |
@@ -112,8 +113,8 @@ No pixel-identical or formal visual-conformity claim is made.
 
 ## Reproduce the checks
 
-Local validation passed with 1,219 Python tests and 31 environment-dependent skips.
-Eight separately enabled dashboard browser tests passed.
+Local validation passed with 1,222 Python tests and 32 environment-dependent skips.
+Nine separately enabled dashboard browser tests passed.
 Five frontend unit tests passed.
 The wheel and source distribution passed package metadata validation.
 The plugin and its new portfolio skill passed their validators.

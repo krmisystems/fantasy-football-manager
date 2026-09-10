@@ -191,3 +191,19 @@ def test_empty_configuration_and_failed_read(browser_page):
         page.get_by_role("button", name="Refresh saved data").click()
         expect(page.get_by_role("alert")).to_contain_text("The saved portfolio data is unavailable.")
         assert external == []
+
+
+def test_league_count_uses_identity_when_labels_match(browser_page):
+    from playwright.sync_api import expect
+    from fantasy_football_manager.portfolio import Portfolio
+
+    page, errors, external = browser_page
+    overview = Portfolio(demo=True).overview()
+    for team in overview['teams']:
+        team['league_name'] = 'Shared display name'
+    with running(demo=True) as url:
+        page.route('**/api/overview', lambda route: route.fulfill(
+            content_type='application/json', body=json.dumps(overview)))
+        page.goto(url)
+        expect(page.get_by_text('5 teams across 5 leagues', exact=True)).to_be_visible()
+        assert errors == [] and external == []

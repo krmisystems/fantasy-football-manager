@@ -10,14 +10,15 @@ export function TeamTable({
   filters,
   avatarTeams = teams,
 }) {
+  const leagueCount = new Set(teams.map((team) => team.league_key).filter(Boolean)).size;
+  const unknownLeagues = teams.some((team) => !team.league_key);
   return (
     <section className="panel team-panel" aria-labelledby="managed-heading">
       <div className="panel-heading">
         <div>
           <h2 id="managed-heading">Managed teams</h2>
           <p>
-            {teams.length} teams across{" "}
-            {new Set(teams.map((team) => team.league_name)).size} leagues
+            {teams.length} teams{leagueCount ? ` across ${leagueCount} ${unknownLeagues ? "known " : ""}${leagueCount === 1 ? "league" : "leagues"}` : " · League data unavailable"}
           </p>
         </div>
         {filters}

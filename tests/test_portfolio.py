@@ -109,6 +109,9 @@ def test_legacy_manifest_uses_stable_context_keys_and_relative_paths(tmp_path):
     path.write_text(json.dumps(data), encoding="utf-8")
     assert Portfolio(path).overview()["teams"][0]["team_key"] == first["team_key"]
     assert first["data_status"] == "ready"
+    assert first["league_name"] == f"League {snapshot.league_id}"
+    assert first["league_key"].startswith("league-")
+    assert Portfolio(path).overview()["teams"][0]["league_key"] == first["league_key"]
     assert "private" not in json.dumps(first)
 
 
@@ -142,6 +145,49 @@ def test_duplicate_observed_contexts_are_invalid_for_every_endpoint(tmp_path):
     assert {team["data_status"] for team in portfolio.overview()["teams"]} == {"invalid"}
     assert portfolio.team("one")["roster"] == []
     assert portfolio.players()["total"] == 0
+
+
+def test_two_managed_teams_in_one_league_share_a_stable_league_key(tmp_path):
+    first = store(tmp_path, league="shared-league")
+    second = make_demo()
+    second.team_id = second.teams[1].id
+    second.rules.slot = second.teams[1].slot
+    store(tmp_path, "two", league=first.league_id, snapshot=second)
+    portfolio = Portfolio(manifest(tmp_path, "one", "two"))
+    teams = portfolio.overview()["teams"]
+    assert all(team["data_status"] == "ready" for team in teams)
+    assert len({team["team_key"] for team in teams}) == 2
+    assert len({team["league_key"] for team in teams}) == 1
+    assert teams[0]["league_key"] is not None
+    assert {team["league_name"] for team in teams} == {"League shared-league"}
+    assert portfolio.team("one")["team"]["league_key"] == teams[0]["league_key"]
+
+
+def test_distinct_leagues_with_identical_names_have_distinct_league_keys(tmp_path):
+    store(tmp_path)
+    store(tmp_path, "two")
+    path = manifest(tmp_path, "one", "two")
+    document = json.loads(path.read_text())
+    for entry in document["teams"]:
+        entry["league_name"] = "Fictional Football League"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    teams = Portfolio(path).overview()["teams"]
+    assert len({team["league_name"] for team in teams}) == 1
+    assert len({team["league_key"] for team in teams}) == 2
+
+
+def test_missing_store_can_report_explicit_league_identity(tmp_path):
+    path = manifest(tmp_path, "missing", "unknown", "unsupported")
+    document = json.loads(path.read_text())
+    document["teams"][0].update(league_id="fictional-league", team_id="fictional-team", season=2026)
+    document["teams"][2]["sport"] = "basketball"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    teams = Portfolio(path).overview()["teams"]
+    assert teams[0]["data_status"] == "missing"
+    assert teams[0]["league_key"].startswith("league-")
+    assert teams[0]["league_name"] == "League fictional-league"
+    assert teams[1]["league_key"] is None
+    assert teams[2]["league_key"] is None
 
 
 def test_mismatched_store_does_not_break_other_teams(tmp_path):

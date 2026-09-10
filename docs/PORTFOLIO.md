@@ -62,6 +62,9 @@ Use your existing private state directories in the actual configuration.
 Relative paths resolve from the manifest directory.
 Optional `league_id`, `team_id`, and `season` fields bind an entry to one exact context.
 Keys, state directories, and team contexts must be unique.
+Each summary includes a stable `league_key` for league identity.
+League counts use that key because display names can match or be absent.
+Without a saved label, the interface displays the league ID from private local state.
 The manifest permits at most 100 teams.
 
 Keep manifests and credentials outside the public repository.
