@@ -58,9 +58,9 @@ def test_four_metrics_collected_without_raw_repository_or_secret_fields():
 
 
 def test_partial_failure_is_missing_and_never_zero():
-    secret = 'fictional-private-token'
-    fail = {'views': HTTPError('https://api.github.com/', 403, secret, {}, None),
-            'referrers': OSError(secret)}
+    fictional_auth_value = 'fictional-private-token'
+    fail = {'views': HTTPError('https://api.github.com/', 403, fictional_auth_value, {}, None),
+            'referrers': OSError(fictional_auth_value)}
     value = report(failures=fail)
     assert value['status'] == 'partial'
     assert value['results']['views'] == {'status': 'error', 'data': None, 'error_code': 'http_error', 'http_status': 403}
@@ -69,7 +69,7 @@ def test_partial_failure_is_missing_and_never_zero():
     assert summary['views']['previous_7_days']['observed_count'] is None
     assert summary['referrers']['latest_successful_14_day_snapshot'] is None
     assert summary['stars']['latest_successful_snapshot']['count'] == 12
-    assert secret not in metrics.canonical(value) + metrics.canonical(summary)
+    assert fictional_auth_value not in metrics.canonical(value) + metrics.canonical(summary)
 
 
 @pytest.mark.parametrize('failure', [IncompleteRead(b'fictional-private-response', 30),

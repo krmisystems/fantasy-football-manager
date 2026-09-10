@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+from copy import deepcopy
 import json
 import re
 import sys
@@ -15,6 +16,7 @@ NAME = "fantasy-football-manager"
 COMPANION = "fantasy-football-espn"
 PORTFOLIO = "fantasy-football-portfolio"
 SKILLS = ("draft-assistant", "espn-automation", "season-manager", "portfolio-manager")
+CATALOG_FILES = (".mcp.json", *(f"skills/{name}/SKILL.md" for name in SKILLS))
 SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", "build",
              ".demo-state", ".ci-demo", ".test-state", ".local-state", ".ruff_cache",
              "node_modules", "playwright-report", "test-results"}
@@ -32,6 +34,16 @@ SECRET_PATTERNS = (
     re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{32,}|github_pat_[A-Za-z0-9_]{32,}|sk-[A-Za-z0-9]{32,})\b"),
     re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 )
+
+
+def catalog_manifest(plugin: dict) -> dict:
+    """Use the same plugin metadata with paths relative to the repository root."""
+    manifest = deepcopy(plugin)
+    prefix = f"./plugins/{NAME}/"
+    manifest["skills"] = "./skills/"
+    manifest["mcpServers"] = "./.mcp.json"
+    manifest.setdefault("interface", {})["composerIcon"] = prefix + "assets/icon.svg"
+    return manifest
 
 
 def validate(root: Path, expected_version: str | None = None) -> tuple[list[str], int]:
@@ -62,6 +74,21 @@ def validate(root: Path, expected_version: str | None = None) -> tuple[list[str]
     plugin = json.loads((plugin_dir / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     registry = json.loads((root / "docs" / "registry" / "server.json").read_text(encoding="utf-8"))
     command = json.loads((plugin_dir / ".mcp.json").read_text(encoding="utf-8"))
+    for relative in CATALOG_FILES:
+        try:
+            matches = (root / relative).read_bytes() == (plugin_dir / relative).read_bytes()
+        except OSError:
+            matches = False
+        if not matches:
+            errors.append(f"Catalog file must match the canonical plugin: {relative}")
+    try:
+        catalog = json.loads((root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+        if catalog != catalog_manifest(plugin):
+            errors.append("Root catalog manifest must match the canonical plugin metadata and rebased paths")
+    except (OSError, ValueError):
+        errors.append("Root catalog manifest is missing or invalid")
+    if plugin.get("interface", {}).get("composerIcon") != "./assets/icon.svg" or not (plugin_dir / "assets/icon.svg").is_file():
+        errors.append("Plugin composer icon must reference its packaged assets/icon.svg")
     if expected_version and expected_version != version:
         errors.append("Requested release version does not match pyproject.toml")
     if project["name"] != NAME or plugin.get("name") != NAME:

@@ -1,0 +1,34 @@
+name: HOL Plugin Scanner
+
+on:
+  push:
+    branches: [main, 'feat/hashgraph-plugin-catalog']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan the public plugin source
+        uses: hashgraph-online/ai-plugin-scanner-action@b6087cac286c39d504f9d0d8a45778da5ee6f1b9 # reviewed v1, scanner 3.0.151
+        with:
+          plugin_dir: '.'
+          mode: scan
+          min_score: 80
+          fail_on_severity: high
+          format: sarif
+          output: hol-plugin-report.sarif
+          online: false
+          upload_sarif: true
+          pr_comment: 'off'
+          submission_enabled: false

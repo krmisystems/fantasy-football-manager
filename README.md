@@ -298,4 +298,6 @@ The [discovery measurement plan](https://github.com/krmisystems/fantasy-football
 The repository's [distribution check](docs/DISTRIBUTION_STATUS.md) reports GitHub and Glama state after updates and each day.
 It records release gaps and unknown build evidence without publishing or requesting a rebuild.
 
+The [Codex catalog package](docs/CATALOG_PLUGIN.md) uses validated root metadata and generated plugin files.
+
 License: [MIT](https://github.com/krmisystems/fantasy-football-manager/blob/main/LICENSE). Copyright 2026 krmisystems.

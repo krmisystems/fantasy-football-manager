@@ -20,7 +20,7 @@ SPEC.loader.exec_module(distribution)
 HEAD = "a" * 40
 OLD_HEAD = "b" * 40
 VERSION = "0.0.7"
-SECRET = "fictional-private-token"
+FICTIONAL_AUTH_VALUE = "fictional-private-token"
 AT = "2026-08-20T08:00:00Z"
 
 
@@ -184,8 +184,8 @@ def test_matching_public_sources_do_not_attest_a_hosted_build(public_reader):
     ("pypi", "pypi_release"), ("tree", "glama_index"), ("schema", "glama_tools"),
     ("overview", "glama_listing"), ("tools", "glama_tools"), ("source", "source_package")])
 def test_upstream_failures_stay_unknown_and_preserve_independent_checks(public_reader, endpoint, check):
-    public_reader.failures[endpoint] = distribution.CheckError(SECRET)
-    report = distribution.collect(reader=public_reader, token=SECRET)
+    public_reader.failures[endpoint] = distribution.CheckError(FICTIONAL_AUTH_VALUE)
+    report = distribution.collect(reader=public_reader, token=FICTIONAL_AUTH_VALUE)
     assert report["checks"][check]["status"] == "unknown"
     assert report["checks"]["github_main"]["status"] == "current"
     if endpoint != "tree":
@@ -193,7 +193,7 @@ def test_upstream_failures_stay_unknown_and_preserve_independent_checks(public_r
     if endpoint == "source":
         assert report["checks"]["github_release"]["status"] == "unknown"
         assert report["checks"]["pypi_release"]["status"] == "unknown"
-    assert SECRET not in json.dumps(report) + distribution.markdown(report)
+    assert FICTIONAL_AUTH_VALUE not in json.dumps(report) + distribution.markdown(report)
     assert report["status"] == "attention"
 
 
@@ -307,8 +307,8 @@ def fake_opener(monkeypatch, response=None, error=None):
 def test_token_is_sent_only_to_the_fixed_github_host(monkeypatch):
     requests = fake_opener(monkeypatch)
     for url in (distribution.GITHUB + "/commits/main", distribution.GLAMA, "https://pypi.org/pypi/fantasy-football-manager/json"):
-        assert distribution.fetch(url, token=SECRET) == "{}"
-    assert requests[0].get_header("Authorization") == "Bearer " + SECRET
+        assert distribution.fetch(url, token=FICTIONAL_AUTH_VALUE) == "{}"
+    assert requests[0].get_header("Authorization") == "Bearer " + FICTIONAL_AUTH_VALUE
     assert all(request.get_header("Authorization") is None for request in requests[1:])
 
 
@@ -317,30 +317,30 @@ def test_token_is_sent_only_to_the_fixed_github_host(monkeypatch):
                                  "https://api.github.com:444/", "file:///private/secret", "https://glama.ai@evil.example/"])
 def test_untrusted_endpoints_are_rejected_before_a_request(url):
     with pytest.raises(distribution.CheckError, match="unexpected_endpoint"):
-        distribution.fetch(url, token=SECRET)
+        distribution.fetch(url, token=FICTIONAL_AUTH_VALUE)
 
 
 def test_redirect_cannot_forward_a_github_token():
-    request = Request(distribution.GITHUB, headers={"Authorization": "Bearer " + SECRET})
+    request = Request(distribution.GITHUB, headers={"Authorization": "Bearer " + FICTIONAL_AUTH_VALUE})
     with pytest.raises(distribution.CheckError, match="redirect_refused"):
         distribution.NoRedirect().redirect_request(request, None, 302, "Found", {}, "https://evil.example/")
 
 
-@pytest.mark.parametrize("failure", [URLError(SECRET), TimeoutError(SECRET), OSError(SECRET),
-                                     HTTPError("https://api.github.com/", 403, SECRET, {}, None)])
+@pytest.mark.parametrize("failure", [URLError(FICTIONAL_AUTH_VALUE), TimeoutError(FICTIONAL_AUTH_VALUE), OSError(FICTIONAL_AUTH_VALUE),
+                                     HTTPError("https://api.github.com/", 403, FICTIONAL_AUTH_VALUE, {}, None)])
 def test_transport_errors_do_not_expose_tokens(monkeypatch, failure):
     fake_opener(monkeypatch, error=failure)
     with pytest.raises(distribution.CheckError) as error:
-        distribution.fetch(distribution.GITHUB, token=SECRET)
-    assert SECRET not in str(error.value)
+        distribution.fetch(distribution.GITHUB, token=FICTIONAL_AUTH_VALUE)
+    assert FICTIONAL_AUTH_VALUE not in str(error.value)
 
 
-@pytest.mark.parametrize("failure", [IncompleteRead(b"private-response", 30), BadStatusLine(SECRET)])
+@pytest.mark.parametrize("failure", [IncompleteRead(b"private-response", 30), BadStatusLine(FICTIONAL_AUTH_VALUE)])
 def test_broken_http_stream_is_a_safe_unknown_failure(monkeypatch, failure):
     fake_opener(monkeypatch, response=Response(error=failure))
     with pytest.raises(distribution.CheckError) as error:
-        distribution.fetch(distribution.GITHUB, token=SECRET)
-    assert SECRET not in str(error.value) and "private-response" not in str(error.value)
+        distribution.fetch(distribution.GITHUB, token=FICTIONAL_AUTH_VALUE)
+    assert FICTIONAL_AUTH_VALUE not in str(error.value) and "private-response" not in str(error.value)
 
 
 def test_oversized_and_invalid_utf8_responses_are_rejected(monkeypatch):
@@ -370,14 +370,14 @@ def test_cli_exit_status_does_not_confuse_collection_with_readiness(tmp_path, mo
 
 def test_failed_main_lookup_produces_unknown_report_and_exit_two(tmp_path, monkeypatch, capsys):
     def fail(**kwargs):
-        raise distribution.CheckError(SECRET)
+        raise distribution.CheckError(FICTIONAL_AUTH_VALUE)
     monkeypatch.setattr(distribution, "collect", fail)
-    monkeypatch.setenv("GH_TOKEN", SECRET)
+    monkeypatch.setenv("GH_TOKEN", FICTIONAL_AUTH_VALUE)
     output, summary = tmp_path / "report.json", tmp_path / "summary.md"
     monkeypatch.setattr("sys.argv", ["check_distribution_status", "--output", str(output), "--summary", str(summary)])
     assert distribution.main() == 2
     text = output.read_text() + summary.read_text() + capsys.readouterr().out
-    assert SECRET not in text
+    assert FICTIONAL_AUTH_VALUE not in text
     assert json.loads(output.read_text())["status"] == "unknown"
 
 
