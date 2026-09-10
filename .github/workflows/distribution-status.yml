@@ -1,0 +1,98 @@
+name: Distribution status
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ['Test and package']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 7 * * *'
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+concurrency:
+  group: distribution-status-main
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Collect distribution evidence
+    if: >-
+      github.repository == 'krmisystems/fantasy-football-manager' &&
+      (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event != 'pull_request'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: '3.11'
+          enable-cache: false
+      - name: Check public distribution state
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          uv run --no-project --python 3.11 python scripts/check_distribution_status.py
+          --output .local-state/distribution-status/report.json
+          --summary .local-state/distribution-status/summary.md
+      - name: Show evidence and collection status
+        if: ${{ always() }}
+        env:
+          COLLECTOR_OUTCOME: ${{ steps.collect.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          directory = Path('.local-state/distribution-status')
+          directory.mkdir(parents=True, exist_ok=True)
+          report = directory / 'report.json'
+          summary = directory / 'summary.md'
+          outcome = os.environ.get('COLLECTOR_OUTCOME', 'unknown')
+          if not report.is_file():
+              report.write_text(json.dumps({
+                  'collection_status': outcome,
+                  'distribution_status': 'unknown',
+                  'reason': 'The checker did not produce a JSON report.',
+              }, indent=2) + '\n', encoding='utf-8')
+          if not summary.is_file():
+              summary.write_text(
+                  '**Unknown:** The checker did not produce a status summary. '
+                  'Review the workflow logs.\n', encoding='utf-8')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as stream:
+              stream.write('## Distribution evidence\n\n')
+              stream.write(f'Checker execution: **{outcome}**.\n\n')
+              stream.write('A successful workflow means the check ran. '
+                           'It does not mean every external service is current.\n\n')
+              stream.write(summary.read_text(encoding='utf-8'))
+          PY
+      - name: Save status reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: distribution-status-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .local-state/distribution-status/report.json
+            .local-state/distribution-status/summary.md
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

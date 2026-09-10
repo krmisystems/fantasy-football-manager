@@ -295,5 +295,7 @@ Browser and PostgreSQL cases require their explicit test settings. Use the [comp
 Release packaging waits for the requested commit's Windows, Ubuntu, Chrome, and PostgreSQL gates.
 See [architecture](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/ARCHITECTURE.md), [policy](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/POLICY.md), and [release instructions](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/RELEASING.md).
 The [discovery measurement plan](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_MEASUREMENT.md) separates publication checks from observed discovery results.
+The repository's [distribution check](docs/DISTRIBUTION_STATUS.md) reports GitHub and Glama state after updates and each day.
+It records release gaps and unknown build evidence without publishing or requesting a rebuild.
 
 License: [MIT](https://github.com/krmisystems/fantasy-football-manager/blob/main/LICENSE). Copyright 2026 krmisystems.
