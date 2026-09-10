@@ -41,6 +41,16 @@ async def test_in_memory_tools_and_schemas(tmp_path):
         assert capabilities["execution_scope"] == "synthetic_demo_only"
         assert capabilities["live_provider_writes"] is False
         assert capabilities["snapshot_loaded"] is False
+        companion = capabilities["espn_companion"]
+        assert companion["browser_connection_required"] is False
+        assert companion["draft_browser_required"] is True and companion["season_transport"] == "http"
+        assert set(companion["live_season_actions"]) == {
+            "set_lineup", "waiver_claim", "free_agent_add", "drop_player", "move_to_ir", "activate_from_ir"}
+        assert companion["live_acquisitions"] is True and companion["live_trades"] is False
+        assert companion["live_acquisitions_and_trades"] is False
+        assert set(capabilities["supported_demo_actions"]) == {
+            "draft_pick", "set_lineup", "waiver_claim", "free_agent_add", "drop_player"}
+        assert set(capabilities["unsupported_actions"]) == {"trade_offer", "trade_accept", "move_to_ir", "activate_from_ir"}
         assert capabilities["espn_companion"]["live_acceptance_test"] == "versioned_evidence"
         assert capabilities["espn_companion"]["acceptance_report_url"] == (
             "https://github.com/krmisystems/fantasy-football-manager/"
@@ -52,6 +62,31 @@ async def test_in_memory_tools_and_schemas(tmp_path):
             assert schema["title"] == model
             assert schema["type"] == "object"
             assert schema["additionalProperties"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action,payload", [
+    ("set_lineup", {"lineup": {"RB1": "103", "FLEX1": "102"}}),
+    ("free_agent_add", {"player_id": "109", "drop_id": "103", "bid": 0}),
+    ("move_to_ir", {"player_id": "103"}),
+])
+async def test_companion_capabilities_do_not_enable_local_http_execution(tmp_path, action, payload):
+    from test_espn_http_policy import automatic_config, http_snapshot
+
+    manager = Manager(tmp_path)
+    manager.import_snapshot(http_snapshot().model_dump(mode="json"))
+    manager.update_config(automatic_config().model_dump(mode="json"), 0)
+    before = manager.state(), manager.history()
+    async with Client(create_server(tmp_path)) as client:
+        capabilities = await call(client, "get_capabilities")
+        assert action in capabilities["espn_companion"]["live_season_actions"]
+        result = await client.call_tool("prepare_action", {"action": action, "payload": payload})
+        assert result.is_error
+        assert "Live provider writes require the ESPN MCP service" in " ".join(
+            item.text for item in result.content if item.type == "text")
+    assert (manager.state(), manager.history()) == before
+    with manager.transaction() as db:
+        assert db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0] == 0
 
 
 @pytest.mark.asyncio

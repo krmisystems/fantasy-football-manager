@@ -7,7 +7,7 @@ The archive records observed results separately from executor attribution.
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from copy import deepcopy
 import hashlib
@@ -18,11 +18,17 @@ import sqlite3
 import time
 from urllib.parse import urlencode
 
-from . import __version__
+from . import __version__, evidence
 from .models import LeagueSnapshot, ManagerConfig
 
 
 SCHEMA_VERSION = 1
+INCREMENTAL_SCHEMA_VERSION = 2
+DEFAULT_BATCH_SIZE = 500
+COMPACT_RECEIPT_FORMAT = 'ffm-compact-receipt-v1'
+SNAPSHOT_HASH_FORMAT = 'decision-inputs-v1'
+OBSERVATION_FIELDS = ('observed_at', 'projections_observed_at')
+SHA256 = re.compile(r'^[0-9a-f]{64}$')
 KINDS = {"snapshot", "draft_pick", "proposal", "audit_event", "runtime_observation", "failure", "recommendation", "outbox_event", "config"}
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
 PRIVATE_TEXT = re.compile(
@@ -61,8 +67,17 @@ score_se score_sum score_sq_sum simulation_count availability_count survival_cou
 survival_next_pick adp_reach estimate_quality current_points current_projected_points objective_value
 weekly_upside_gain maximum_faab_bid baseline_projected_points bid_win_probability platform_claim_status_verified
 championship_odds basis effective_limits candidates rankings blocked_candidates missing_projections runtime top roster
+http ownership_verified transaction_period latest_period final_period team_transaction_locked pending_transactions_known
+uses_faab acquisition_type minimum_bid acquisition_limit matchup_acquisition_limit acquisitions_season acquisitions_period
+uses_undroppable_list pending_transactions recent_transactions transaction type teamId scoringPeriodId isPending bidAmount
+executionType items playerId fromTeamId toTeamId fromLineupSlotId toLineupSlotId espn roster_locked trade_locked droppable
+injured bye_verified eligible_slots acquisition_status waiver_process_date pending_transaction_ids coverage_repair_ids coverage_repair_add_ids
+comparison_complete projection_complete comparison_scope objective_field objective_points fixed_slots blocking_missing_projections
+excluded_players unfilled_slots baseline_unfilled_slots coverage gaps source_ready platform_eligibility_verified authorized
+repair_player_id drop_id reasons blocking_reasons fields reason backup_player_ids should_submit actual_roster_ids actual_reserve_ids
+remaining_weekly_moves bid submission_phase
 """.split())
-DYNAMIC_MAPS = {"lineup", "actual_lineup", "starters", "caps", "actions"}
+DYNAMIC_MAPS = {"lineup", "actual_lineup", "starters", "caps", "actions", "fixed_slots"}
 
 
 class ArchiveError(ValueError):
@@ -149,6 +164,17 @@ def sanitize(value, parent=""):
                 raise ArchiveError("A dynamic evidence map contains an invalid key.")
         elif key not in SAFE_KEYS:
             continue
+        if key == 'http' and isinstance(item, dict):
+            item = evidence.http_record(item)
+        elif key == 'transaction' and isinstance(item, dict):
+            item = evidence.transaction_record(item)
+        elif key in {'pending_transactions', 'recent_transactions'} and isinstance(item, list):
+            item = [evidence.transaction_record(row) for row in item if isinstance(row, dict)]
+        elif key in {'reasons', 'blocking_reasons', 'fields', 'reason', 'submission_phase'}:
+            selected = evidence.action_or_result({key: item})
+            if key not in selected:
+                continue
+            item = selected[key]
         result[key] = sanitize(item, key)
     return result
 
@@ -172,7 +198,7 @@ def _context(value, expected=None):
     return {**result, 'phase': phase, 'week': week}
 
 
-def _snapshot(value, expected, *, redacted=False):
+def _snapshot(value, expected, *, redacted=False, archived=False):
     # Validate before sanitization, so a malformed raw object cannot become valid
     # merely because a required field was omitted by the exporter.
     if redacted:
@@ -187,8 +213,23 @@ def _snapshot(value, expected, *, redacted=False):
         if browser is not None:
             browser['page_url'] = 'https://fantasy.espn.com/football/' + ('draft' if value.get('phase') == 'draft' else 'team') + '?' + urlencode({
                 'leagueId': value['league_id'], 'teamId': value['team_id'], 'seasonId': value['season']})
+    http = value.get('source', {}).get('http')
+    if (redacted or archived) and http is not None and 'roster_url' not in http:
+        from .espn_http_client import league_url
+        value = deepcopy(value)
+        value['source']['http']['roster_url'] = league_url(http['league_id'], http['season']) + '?' + urlencode({
+            'view': 'mRoster', 'forTeamId': http['team_id'], 'scoringPeriodId': http['week']})
     snapshot = LeagueSnapshot.model_validate(value)
     raw = snapshot.model_dump(mode='json')
+    # Missing optional evidence stays missing in historical bundles. New model
+    # defaults must not change an old observation's hash during validation.
+    if 'http' not in value.get('source', {}):
+        raw['source'].pop('http', None)
+    for original, player in zip(value.get('players', []), raw['players']):
+        if 'espn' not in original:
+            player.pop('espn', None)
+        elif isinstance(original['espn'], dict) and isinstance(player.get('espn'), dict):
+            player['espn'] = {key: item for key, item in player['espn'].items() if key in original['espn']}
     context = _context(raw, expected)
     clean = sanitize(raw)
     # Retain a scoped, canonical source URL. Never preserve a member query value.
@@ -198,6 +239,19 @@ def _snapshot(value, expected, *, redacted=False):
             query['scoringPeriodId'] = context['week']
         clean['source']['browser']['page_url'] = 'https://fantasy.espn.com/football/' + ('draft' if context['phase'] == 'draft' else 'team') + '?' + urlencode(query)
     return clean, context
+
+
+def _config(raw):
+    """Validate stored configuration without inventing newly added fields."""
+    value = json.loads(raw) if isinstance(raw, str) else raw
+    result = ManagerConfig.model_validate(value).model_dump(mode='json')
+    for key in ('coverage_repair_ids', 'coverage_repair_add_ids'):
+        if key not in value.get('limits', {}):
+            result['limits'].pop(key, None)
+    actions = value.get('automation', {}).get('actions')
+    if isinstance(actions, dict):
+        result['automation']['actions'] = {key: item for key, item in result['automation']['actions'].items() if key in actions}
+    return result
 
 
 def _read_file(path, base):
@@ -338,7 +392,7 @@ def export_bundle(manifest, *, base_dir=None):
                     raise ArchiveError("The manager state is missing.")
                 if row['snapshot']:
                     builder.snapshot(source, f"state:{row['revision']}", json.loads(row['snapshot']))
-                config = ManagerConfig.model_validate_json(row['config']).model_dump(mode='json')
+                config = _config(row['config'])
                 builder.add(source, 'config', f"config:{row['config_revision']}", {'config': config, 'config_revision': row['config_revision']})
                 for table in ('browser_proposals', 'browser_lineup_proposals'):
                     if table in tables:
@@ -398,7 +452,432 @@ def export_bundle(manifest, *, base_dir=None):
     return bundle
 
 
+def _execute(connection, sql, values=()):
+    return connection.execute(sql.replace('?', '?' if isinstance(connection, sqlite3.Connection) else '%s'), values)
+
+
+def _has_table(connection, name):
+    if isinstance(connection, sqlite3.Connection):
+        return connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+    return connection.execute('SELECT to_regclass(%s)', (name,)).fetchone()[0] is not None
+
+
+def _source_reset(reason):
+    raise ArchiveError(f"Source continuity check failed ({reason}). Restore the original source, or use a new source_id and run_id after a reviewed reset.")
+
+
+def _snapshot_fingerprint(raw):
+    value = deepcopy(raw)
+    if value is not None:
+        for key in OBSERVATION_FIELDS:
+            value['source'].pop(key, None)
+    return _hash(value)
+
+
+def _observation_clock(raw):
+    source = raw['source'] if raw is not None else {}
+    return {'snapshot_' + key: _timestamp(source.get(key)) for key in OBSERVATION_FIELDS}
+
+
+def _check_observation_clock(previous, current):
+    for key in OBSERVATION_FIELDS:
+        old, new = previous['snapshot_' + key], current['snapshot_' + key]
+        if old is not None and (new is None or new < old):
+            _source_reset('an observation timestamp moved backward')
+
+
+def _legacy_snapshot_clock(connection, source, previous, raw):
+    """Prove an old raw hash before changing its checkpoint hash format."""
+    if _hash(raw) == previous['snapshot_sha256']:
+        return _observation_clock(raw)
+    if raw is None:
+        _source_reset('the legacy snapshot cannot be reconstructed')
+    after = ''
+    while True:
+        rows = _execute(connection, "SELECT record_id,payload FROM archive_records WHERE run_id=? AND source_id=? "
+                        "AND kind='snapshot' AND source_key=? AND record_id>? ORDER BY record_id LIMIT 20",
+                        (source['run_id'], source['source_id'], 'state:' + str(previous['revision']), after)).fetchall()
+        if not rows:
+            break
+        for record_id, payload in rows:
+            retained = json.loads(payload)['source']
+            candidates = [deepcopy(raw)]
+            for key in OBSERVATION_FIELDS:
+                value = retained.get(key)
+                forms = [value]
+                if value is not None:
+                    parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    forms += [parsed.isoformat(), parsed.isoformat().replace('+00:00', 'Z')]
+                replacements = []
+                for candidate in candidates:
+                    for form in dict.fromkeys(forms):
+                        changed = deepcopy(candidate)
+                        changed['source'][key] = form
+                        replacements.append(changed)
+                    if value is None:
+                        changed = deepcopy(candidate)
+                        changed['source'].pop(key, None)
+                        replacements.append(changed)
+                candidates = replacements
+            for candidate in candidates:
+                if _hash(candidate) == previous['snapshot_sha256']:
+                    clock = _observation_clock(candidate)
+                    _check_observation_clock(clock, _observation_clock(raw))
+                    return clock
+            after = record_id
+    _source_reset('retained timestamps cannot reconstruct the exact legacy snapshot hash')
+
+
+def _verify_hash_upgrade(connection, checkpoint, previous, manifest, base_dir):
+    if manifest is None:
+        raise ArchiveError('A legacy checkpoint hash upgrade requires the private source manifest. Use sync, or import with --manifest.')
+    matches = [entry for entry in manifest.get('sources', []) if entry['source_id'] == checkpoint['source_id']
+               and _hash({'source_id': entry['source_id'], 'external_id': entry['run']['run_id']}) == checkpoint['run_id']]
+    if len(matches) != 1 or not matches[0].get('database'):
+        raise ArchiveError('The hash upgrade manifest does not identify the committed source.')
+    entry = matches[0]
+    path = _read_file(entry['database'], Path(base_dir or '.'))
+    with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        db.row_factory = sqlite3.Row
+        db.execute('PRAGMA query_only=ON')
+        row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+        raw = json.loads(row['snapshot']) if row['snapshot'] else None
+    next_state = checkpoint['state']['database']
+    if row['revision'] != next_state['revision'] or _snapshot_fingerprint(raw) != next_state['snapshot_sha256']:
+        _source_reset('the source changed before its checkpoint hash upgrade')
+    source = {'run_id': checkpoint['run_id'], 'source_id': checkpoint['source_id']}
+    old_clock = _legacy_snapshot_clock(connection, source, previous['database'], raw)
+    _check_observation_clock(old_clock, next_state)
+    _check_observation_clock(next_state, _observation_clock(raw))
+
+
+def _stream_batch(db, table, previous, limit):
+    """Check committed boundaries and read only the next append-only batch."""
+    cursor = previous['last_id'] if previous else None
+    if cursor is not None:
+        count = db.execute(f'SELECT count(*) FROM {table} WHERE id<=?', (cursor,)).fetchone()[0]
+        first = db.execute(f'SELECT * FROM {table} WHERE id=?', (previous['first_id'],)).fetchone()
+        last = db.execute(f'SELECT * FROM {table} WHERE id=?', (cursor,)).fetchone()
+        if (count != previous['count'] or first is None or last is None
+                or _hash(dict(first)) != previous['first_sha256'] or _hash(dict(last)) != previous['last_sha256']):
+            _source_reset(f'{table} committed rows changed or disappeared')
+    rows = [dict(row) for row in db.execute(f'SELECT * FROM {table} WHERE id>? ORDER BY id LIMIT ?',
+                                           (cursor if cursor is not None else 0, limit))]
+    if db.execute(f'SELECT 1 FROM {table} WHERE id<=0 LIMIT 1').fetchone():
+        raise ArchiveError('Incremental event rows require positive integer identifiers.')
+    state = deepcopy(previous) if previous else {'count': 0, 'first_id': None, 'last_id': None,
+                                                'first_sha256': None, 'last_sha256': None}
+    if rows:
+        if not state['count']:
+            state.update(first_id=rows[0]['id'], first_sha256=_hash(rows[0]))
+        state.update(count=state['count'] + len(rows), last_id=rows[-1]['id'], last_sha256=_hash(rows[-1]))
+    more = db.execute(f'SELECT 1 FROM {table} WHERE id>? LIMIT 1', (state['last_id'] or 0,)).fetchone() is not None
+    return rows, state, more
+
+
+def _dataset_batch(path, fmt, previous, limit):
+    """Verify an event-file prefix. Keep JSONL memory bounded by the batch."""
+    def rows():
+        with path.open(encoding='utf-8-sig') as stream:
+            if fmt == 'runtime_jsonl':
+                for line in stream:
+                    if line.strip():
+                        yield json.loads(line)
+            else:
+                value = json.load(stream)
+                if not isinstance(value, list):
+                    raise ArchiveError('An event dataset must contain a list of records.')
+                yield from value
+    old_count = previous['count'] if previous else 0
+    digest, count, batch, more = _hash([]), 0, [], False
+    iterator = rows()
+    try:
+        for index, row in enumerate(iterator):
+            if not isinstance(row, dict):
+                raise ArchiveError('An event dataset contains a non-object record.')
+            if index >= old_count + limit:
+                more = True
+                break
+            digest = _hash([digest, row])
+            count += 1
+            if count == old_count and digest != previous['prefix_sha256']:
+                _source_reset('dataset committed prefix changed')
+            if index >= old_count:
+                batch.append((index, row))
+    finally:
+        iterator.close()
+    if count < old_count:
+        _source_reset('dataset became shorter')
+    return batch, {'format': fmt, 'count': count, 'prefix_sha256': digest}, more
+
+
+def _archived_picks(connection, source):
+    if not _has_table(connection, 'archive_records'):
+        return {}
+    columns = ('record_id', 'run_id', 'source_id', 'kind', 'source_key', 'league_id', 'team_id', 'season',
+               'phase', 'week', 'observed_at', 'recorded_at', 'payload_sha256', 'payload')
+    result = {}
+    for values in _execute(connection, 'SELECT ' + ','.join(columns) +
+                           " FROM archive_records WHERE run_id=? AND source_id=? AND kind='draft_pick'",
+                           (source['run_id'], source['source_id'])):
+        row = dict(zip(columns, values))
+        row['context'] = {key: row.pop(key) for key in ('league_id', 'team_id', 'season', 'phase', 'week')}
+        row['payload'] = json.loads(row['payload'])
+        result[row['record_id']] = row
+    return result
+
+
+def export_incremental_bundle(connection, manifest, *, base_dir=None, batch_size=DEFAULT_BATCH_SIZE):
+    """Read committed destination checkpoints without advancing them.
+
+    Each event stream and proposal table contributes at most batch_size rows.
+    A failed export or import cannot acknowledge source data. Source files stay read-only.
+    """
+    if type(batch_size) is not int or not 1 <= batch_size <= 10000:
+        raise ArchiveError('The archive batch size must be from 1 through 10000.')
+    if not isinstance(manifest, dict) or manifest.get('schema_version') != SCHEMA_VERSION:
+        raise ArchiveError('Use a version 1 archive input manifest.')
+    entries = manifest.get('sources')
+    if not isinstance(entries, list) or not entries:
+        raise ArchiveError('At least one explicit source is required.')
+    # The legacy validator remains the single run-metadata contract.
+    metadata = export_bundle({'schema_version': SCHEMA_VERSION,
+                              'sources': [{key: entry[key] for key in ('source_id', 'run', 'context')} for entry in entries]})
+    builder, transitions, has_more = _Builder(), [], False
+    builder.runs = {run['run_id']: run for run in metadata['runs']}
+    runs = {run['source_id']: run for run in metadata['runs']}
+    base = Path(base_dir or '.')
+    for entry in entries:
+        run = runs[entry['source_id']]
+        source = {'source_id': run['source_id'], 'run_id': run['run_id'], 'context': run['context']}
+        previous = None
+        if _has_table(connection, 'archive_source_checkpoints'):
+            old = _execute(connection, 'SELECT source_id,payload FROM archive_source_checkpoints WHERE run_id=?', (run['run_id'],)).fetchone()
+            if old:
+                if old[0] != source['source_id']:
+                    _source_reset('checkpoint source identity differs')
+                previous = json.loads(old[1])
+        epoch = _identifier(entry.get('source_epoch', run['external_id']))
+        datasets = entry.get('datasets', [])
+        dataset_ids = [_identifier(item['dataset_id']) for item in datasets]
+        if len(set(dataset_ids)) != len(dataset_ids):
+            raise ArchiveError('Dataset identifiers must be unique within a source.')
+        selection = _hash({'run': run, 'source_epoch': epoch, 'database': bool(entry.get('database')),
+                           'datasets': sorted([{'dataset_id': item['dataset_id'], 'format': item.get('format')} for item in datasets],
+                                              key=lambda item: item['dataset_id'])})
+        if previous and (previous['selection_sha256'] != selection or previous['source_epoch'] != epoch):
+            _source_reset('source selection, epoch, context, or run metadata differs')
+        state = deepcopy(previous) if previous else {'sequence': 0, 'source_epoch': epoch, 'selection_sha256': selection,
+                                                      'database': None, 'streams': {}, 'datasets': {},
+                                                      'operator_labels_sha256': _hash([])}
+        objects = []
+        if entry.get('database'):
+            path = _read_file(entry['database'], base)
+            db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)
+            db.row_factory = sqlite3.Row
+            try:
+                db.execute('PRAGMA query_only=ON')
+                db.execute('BEGIN')
+                tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if 'state' not in tables:
+                    raise ArchiveError('The source is not a manager database.')
+                row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+                if row is None:
+                    raise ArchiveError('The manager state is missing.')
+                raw_snapshot = json.loads(row['snapshot']) if row['snapshot'] else None
+                config = _config(row['config'])
+                current = {'revision': row['revision'], 'config_revision': row['config_revision'],
+                           'snapshot_sha256': _snapshot_fingerprint(raw_snapshot), 'config_sha256': _hash(json.loads(row['config'])),
+                           'snapshot_hash_format': SNAPSHOT_HASH_FORMAT, **_observation_clock(raw_snapshot)}
+                if any(type(current[key]) is not int or current[key] < 0 for key in ('revision', 'config_revision')):
+                    raise ArchiveError('Source revisions must be nonnegative integers.')
+                prior = state['database']
+                if prior:
+                    if current['revision'] < prior['revision']:
+                        _source_reset('revision rolled back')
+                    if (current['config_revision'] < prior['config_revision'] or
+                            (current['config_revision'] == prior['config_revision'] and current['config_sha256'] != prior['config_sha256'])):
+                        _source_reset('config_revision rolled back or changed without a revision')
+                    if prior.get('snapshot_hash_format') == SNAPSHOT_HASH_FORMAT:
+                        if current['revision'] == prior['revision'] and current['snapshot_sha256'] != prior['snapshot_sha256']:
+                            _source_reset('revision changed without a revision')
+                        _check_observation_clock(prior, current)
+                    elif current['revision'] == prior['revision']:
+                        _legacy_snapshot_clock(connection, source, prior, raw_snapshot)
+                if raw_snapshot is not None:
+                    _context(raw_snapshot, source['context'])
+                    if (prior is None or current['revision'] != prior['revision']
+                            or prior.get('snapshot_hash_format') != SNAPSHOT_HASH_FORMAT):
+                        builder.snapshot(source, f"state:{row['revision']}", raw_snapshot)
+                if prior is None or current['config_revision'] != prior['config_revision']:
+                    builder.add(source, 'config', f"config:{row['config_revision']}", {'config': config, 'config_revision': row['config_revision']})
+                state['database'] = current
+                known = {}
+                if _has_table(connection, 'archive_source_objects'):
+                    known = dict(_execute(connection, 'SELECT source_key,payload_sha256 FROM archive_source_objects WHERE run_id=?', (run['run_id'],)))
+                for table in ('browser_proposals', 'browser_lineup_proposals'):
+                    seen, selected = set(), 0
+                    if table in tables:
+                        for proposal in db.execute(f'SELECT * FROM {table} ORDER BY id'):
+                            value = dict(proposal)
+                            key = table + ':' + _identifier(value['id'])
+                            seen.add(key)
+                            digest = _hash(value)
+                            if known.get(key) == digest:
+                                continue
+                            if selected == batch_size:
+                                has_more = True
+                                continue
+                            builder.proposal(source, table, value)
+                            objects.append({'source_key': key, 'payload_sha256': digest})
+                            selected += 1
+                    if any(key.startswith(table + ':') and key not in seen for key in known):
+                        _source_reset('a committed proposal disappeared')
+                if any(table not in tables for table in state['streams']):
+                    _source_reset('an event table disappeared')
+                for table, prefix in (('audit', 'audit'), ('ffm_archive_outbox', 'outbox')):
+                    if table not in tables:
+                        continue
+                    rows, cursor, more = _stream_batch(db, table, state['streams'].get(table), batch_size)
+                    state['streams'][table] = cursor
+                    has_more |= more
+                    for event in rows:
+                        builder.event(source, f"{prefix}:{event['id']}", event['event'], json.loads(event['detail']), event['at'])
+            finally:
+                db.rollback()
+                db.close()
+        for dataset in datasets:
+            dataset_id, fmt = dataset['dataset_id'], dataset.get('format')
+            if fmt not in {'snapshot', 'audit_json', 'runtime_jsonl'}:
+                raise ArchiveError('Only structured snapshot, audit JSON, or runtime JSONL datasets are supported.')
+            path = _read_file(dataset['path'], base)
+            old = state['datasets'].get(dataset_id)
+            if fmt == 'snapshot':
+                raw = json.loads(path.read_text(encoding='utf-8-sig'))
+                cursor = {'format': fmt, 'sha256': _hash(raw)}
+                if old != cursor:
+                    builder.snapshot(source, 'dataset:' + dataset_id, raw)
+            else:
+                rows, cursor, more = _dataset_batch(path, fmt, old, batch_size)
+                has_more |= more
+                for index, event in rows:
+                    builder.event(source, f'dataset:{dataset_id}:{index}', event.get('event', 'runtime_observation'),
+                                  event.get('detail', event), event.get('at'))
+            state['datasets'][dataset_id] = cursor
+        labels = [label for label in manifest.get('operator_labels', []) if label.get('source_id') == source['source_id']]
+        if _hash(labels) != state['operator_labels_sha256']:
+            candidates = _archived_picks(connection, source)
+            candidates.update({key: value for key, value in builder.records.items() if value['run_id'] == run['run_id'] and value['kind'] == 'draft_pick'})
+            assertions = {}
+            for label in labels:
+                if (label.get('evidence_type') != 'operator_observation' or label.get('kind') != 'draft_pick'
+                        or label.get('key') != 'executor' or label.get('value') not in {'espn_autopick', 'manual', 'manager_browser', 'host_browser', 'unknown'}):
+                    raise ArchiveError('Unsupported operator label.')
+                matched = [record for record in candidates.values() if record['payload']['pick_no'] == label.get('pick_no')]
+                if len(matched) != 1:
+                    raise ArchiveError('An operator label must identify exactly one observed draft pick. Complete the initial backfill before adding historical labels.')
+                record = matched[0]
+                if record['record_id'] in assertions and assertions[record['record_id']] != label['value']:
+                    raise ArchiveError('Operator observations conflict for the same record and label.')
+                assertions[record['record_id']] = label['value']
+                builder.records[record['record_id']] = record
+                builder.label(record['record_id'], 'executor', label['value'], evidence_type='operator_observation', rule='operator-annotation-v1')
+            state['operator_labels_sha256'] = _hash(labels)
+        if previous != state or objects:
+            state['sequence'] += 1
+            transitions.append({'run_id': run['run_id'], 'source_id': source['source_id'],
+                                'previous_sha256': _hash(previous) if previous else None,
+                                'state': state, 'objects': sorted(objects, key=lambda item: item['source_key'])})
+    if any(label.get('source_id') not in runs for label in manifest.get('operator_labels', [])):
+        raise ArchiveError('Operator labels require an explicit known source and observation evidence.')
+    bundle = {'schema_version': INCREMENTAL_SCHEMA_VERSION, 'exporter_version': __version__, 'exported_at': _now(),
+              'runs': sorted(builder.runs.values(), key=lambda row: row['run_id']),
+              'records': sorted(builder.records.values(), key=lambda row: row['record_id']),
+              'labels': sorted(builder.labels.values(), key=lambda row: row['label_id']),
+              'checkpoints': sorted(transitions, key=lambda row: row['run_id']), 'has_more': has_more}
+    bundle['manifest'] = _bundle_manifest(bundle)
+    bundle['bundle_id'] = _hash(bundle['manifest'])
+    validate_bundle(bundle)
+    return bundle
+
+
+def _validate_checkpoints(bundle, runs):
+    if type(bundle.get('has_more')) is not bool or not isinstance(bundle['checkpoints'], list):
+        raise ArchiveError('An incremental bundle has invalid batch metadata.')
+    seen = set()
+    digest = lambda value: isinstance(value, str) and SHA256.fullmatch(value) is not None
+    integer = lambda value: type(value) is int and value >= 0
+    for checkpoint in bundle['checkpoints']:
+        if set(checkpoint) != {'run_id', 'source_id', 'previous_sha256', 'state', 'objects'}:
+            raise ArchiveError('An incremental checkpoint contains unsupported metadata.')
+        run_id = checkpoint['run_id']
+        if (run_id not in runs or run_id in seen or checkpoint['source_id'] != runs[run_id]['source_id']
+                or (checkpoint['previous_sha256'] is not None and not digest(checkpoint['previous_sha256']))):
+            raise ArchiveError('An incremental checkpoint has invalid provenance.')
+        seen.add(run_id)
+        state = checkpoint['state']
+        if (set(state) != {'sequence', 'source_epoch', 'selection_sha256', 'database', 'streams', 'datasets', 'operator_labels_sha256'}
+                or not integer(state['sequence']) or not state['sequence']
+                or not digest(state['selection_sha256']) or not digest(state['operator_labels_sha256'])):
+            raise ArchiveError('An incremental checkpoint has invalid state.')
+        _identifier(state['source_epoch'])
+        value = state['database']
+        if value is not None:
+            legacy_keys = {'revision', 'config_revision', 'snapshot_sha256', 'config_sha256'}
+            current_keys = legacy_keys | {'snapshot_hash_format', 'snapshot_observed_at', 'snapshot_projections_observed_at'}
+            if (set(value) not in (legacy_keys, current_keys)
+                    or not all(integer(value[key]) for key in ('revision', 'config_revision'))
+                    or not all(digest(value[key]) for key in ('snapshot_sha256', 'config_sha256'))):
+                raise ArchiveError('An incremental checkpoint has invalid database state.')
+            if set(value) == current_keys:
+                if value['snapshot_hash_format'] != SNAPSHOT_HASH_FORMAT:
+                    raise ArchiveError('An incremental checkpoint has an unsupported snapshot hash format.')
+                for key in OBSERVATION_FIELDS:
+                    if _timestamp(value['snapshot_' + key]) != value['snapshot_' + key]:
+                        raise ArchiveError('Checkpoint observation timestamps must use canonical UTC values.')
+        if not isinstance(state['streams'], dict) or set(state['streams']) - {'audit', 'ffm_archive_outbox'}:
+            raise ArchiveError('An incremental checkpoint has an invalid event stream.')
+        for cursor in state['streams'].values():
+            if set(cursor) != {'count', 'first_id', 'last_id', 'first_sha256', 'last_sha256'} or not integer(cursor['count']):
+                raise ArchiveError('An incremental checkpoint has an invalid cursor.')
+            if cursor['count']:
+                if (not all(integer(cursor[key]) and cursor[key] > 0 for key in ('first_id', 'last_id'))
+                        or cursor['first_id'] > cursor['last_id'] or cursor['count'] > cursor['last_id'] - cursor['first_id'] + 1
+                        or not all(digest(cursor[key]) for key in ('first_sha256', 'last_sha256'))):
+                    raise ArchiveError('An incremental checkpoint has invalid boundaries.')
+            elif any(cursor[key] is not None for key in ('first_id', 'last_id', 'first_sha256', 'last_sha256')):
+                raise ArchiveError('An empty stream cannot contain boundaries.')
+        if not isinstance(state['datasets'], dict):
+            raise ArchiveError('An incremental checkpoint has invalid datasets.')
+        for key, cursor in state['datasets'].items():
+            _identifier(key)
+            if cursor.get('format') == 'snapshot':
+                valid = set(cursor) == {'format', 'sha256'} and digest(cursor['sha256'])
+            else:
+                valid = (set(cursor) == {'format', 'count', 'prefix_sha256'} and cursor['format'] in {'audit_json', 'runtime_jsonl'}
+                         and integer(cursor['count']) and digest(cursor['prefix_sha256']))
+            if not valid:
+                raise ArchiveError('An incremental checkpoint has invalid dataset state.')
+        keys = set()
+        for item in checkpoint['objects']:
+            if set(item) != {'source_key', 'payload_sha256'} or not digest(item['payload_sha256']):
+                raise ArchiveError('An incremental object has invalid metadata.')
+            table, separator, key = item['source_key'].partition(':')
+            if not separator or table not in {'browser_proposals', 'browser_lineup_proposals'} or item['source_key'] in keys:
+                raise ArchiveError('An incremental object has an invalid source key.')
+            _identifier(key)
+            keys.add(item['source_key'])
+    if any(row['run_id'] not in seen for row in bundle['records']):
+        raise ArchiveError('Incremental evidence requires a checkpoint transition.')
+
+
 def _bundle_manifest(bundle):
+    if bundle['schema_version'] == INCREMENTAL_SCHEMA_VERSION:
+        # A receipt commits to all content without repeating a growing ID list.
+        return {'schema_version': INCREMENTAL_SCHEMA_VERSION, 'exporter_version': bundle['exporter_version'],
+                'has_more': bundle['has_more'],
+                **{kind: {'count': len(bundle[kind]), 'sha256': _hash(bundle[kind])}
+                   for kind in ('runs', 'records', 'labels', 'checkpoints')}}
     return {'schema_version': SCHEMA_VERSION, 'exporter_version': bundle['exporter_version'],
             **{kind: [{'id': row[key], 'sha256': _hash(row)} for row in bundle[kind]]
                for kind, key in (('runs', 'run_id'), ('records', 'record_id'), ('labels', 'label_id'))}}
@@ -406,7 +885,7 @@ def _bundle_manifest(bundle):
 
 def validate_bundle(bundle):
     """Reject changed payloads, broken references, and invalid evidence before writes."""
-    if bundle.get('schema_version') != SCHEMA_VERSION or bundle.get('manifest') != _bundle_manifest(bundle) or bundle.get('bundle_id') != _hash(bundle['manifest']):
+    if bundle.get('schema_version') not in {SCHEMA_VERSION, INCREMENTAL_SCHEMA_VERSION} or bundle.get('manifest') != _bundle_manifest(bundle) or bundle.get('bundle_id') != _hash(bundle['manifest']):
         raise ArchiveError("The archive bundle manifest does not match its contents.")
     runs = {r['run_id']: r for r in bundle['runs']}
     records = {r['record_id']: r for r in bundle['records']}
@@ -433,7 +912,7 @@ def validate_bundle(bundle):
             raise ArchiveError("An evidence record has invalid provenance.")
         _context(row['context'], runs[row['run_id']]['context'])
         _timestamp(row['observed_at']); _timestamp(row['recorded_at'])
-        clean = _snapshot(row['payload'], row['context'])[0] if row['kind'] == 'snapshot' else sanitize(row['payload'])
+        clean = _snapshot(row['payload'], row['context'], archived=True)[0] if row['kind'] == 'snapshot' else sanitize(row['payload'])
         if clean != row['payload']:
             raise ArchiveError("An evidence record contains fields outside the sanitized archive contract.")
     for label in bundle['labels']:
@@ -445,6 +924,8 @@ def validate_bundle(bundle):
             raise ArchiveError("An evidence label has an unsupported type.")
         if isinstance(label['value'], str) and _safe_text(label['value']) != label['value']:
             raise ArchiveError("An evidence label contains private text.")
+    if bundle['schema_version'] == INCREMENTAL_SCHEMA_VERSION:
+        _validate_checkpoints(bundle, runs)
 
 
 DDL = (
@@ -458,6 +939,10 @@ DDL = (
         label_key TEXT NOT NULL, label_value TEXT NOT NULL, evidence_type TEXT NOT NULL, payload TEXT NOT NULL)''',
     'CREATE INDEX IF NOT EXISTS archive_records_scope ON archive_records(league_id, team_id, season, phase, week, kind)',
     'CREATE INDEX IF NOT EXISTS archive_records_source ON archive_records(source_id, source_key)',
+    '''CREATE TABLE IF NOT EXISTS archive_source_checkpoints (run_id TEXT PRIMARY KEY REFERENCES archive_runs(run_id),
+        source_id TEXT NOT NULL, payload TEXT NOT NULL)''',
+    '''CREATE TABLE IF NOT EXISTS archive_source_objects (run_id TEXT NOT NULL REFERENCES archive_runs(run_id),
+        source_key TEXT NOT NULL, payload_sha256 TEXT NOT NULL, PRIMARY KEY(run_id, source_key))''',
 )
 
 
@@ -475,20 +960,265 @@ def _transaction(connection):
             connection.rollback()
             raise
     else:
+        if connection.info.transaction_status != 0:
+            raise ArchiveError('Archive import requires its own database transaction.')
         with connection.transaction():
             yield
 
 
-def import_bundle(connection, bundle):
+def _check_advance(previous, state, *, hash_upgrade_verified=False):
+    if previous is None:
+        if state['sequence'] != 1:
+            raise ArchiveError('An initial checkpoint must start at sequence one.')
+        return
+    if (state['sequence'] != previous['sequence'] + 1 or state['source_epoch'] != previous['source_epoch']
+            or state['selection_sha256'] != previous['selection_sha256']):
+        raise ArchiveError('An incremental checkpoint cannot reset source identity or sequence.')
+    old, new = previous['database'], state['database']
+    if old is not None and (new is None or any(new[key] < old[key] for key in ('revision', 'config_revision'))):
+        raise ArchiveError('An incremental checkpoint cannot reduce source revisions.')
+    if old is not None:
+        if new['config_revision'] == old['config_revision'] and new['config_sha256'] != old['config_sha256']:
+            raise ArchiveError('An incremental checkpoint cannot change configuration without a source revision.')
+        old_format, new_format = old.get('snapshot_hash_format'), new.get('snapshot_hash_format')
+        if old_format and old_format != new_format:
+            raise ArchiveError('An incremental checkpoint cannot downgrade its snapshot hash format.')
+        if new['revision'] == old['revision']:
+            if old_format != new_format:
+                if not hash_upgrade_verified:
+                    raise ArchiveError('The legacy snapshot hash upgrade was not verified against its source.')
+            elif new['snapshot_sha256'] != old['snapshot_sha256']:
+                raise ArchiveError('An incremental checkpoint cannot change data without a source revision.')
+        if old_format == SNAPSHOT_HASH_FORMAT:
+            _check_observation_clock(old, new)
+    for collection in ('streams', 'datasets'):
+        if set(previous[collection]) - set(state[collection]):
+            raise ArchiveError('An incremental checkpoint cannot remove a source stream.')
+        for key, old in previous[collection].items():
+            new = state[collection][key]
+            if collection == 'datasets' and new['format'] != old['format']:
+                raise ArchiveError('An incremental checkpoint cannot change a dataset format.')
+            if 'count' in old:
+                if new.get('count', -1) < old['count'] or (new['count'] == old['count'] and new != old):
+                    raise ArchiveError('An incremental checkpoint cannot replace a committed prefix.')
+                if collection == 'streams' and old['count'] and (
+                        new['first_id'] != old['first_id'] or new['first_sha256'] != old['first_sha256']
+                        or (new['count'] > old['count'] and new['last_id'] <= old['last_id'])):
+                    raise ArchiveError('An incremental checkpoint cannot replace committed stream boundaries.')
+
+
+def _compact_manifest(manifest, runs):
+    """Retain the original manifest commitment and bounded run provenance."""
+    return {'receipt_format': COMPACT_RECEIPT_FORMAT, 'original_schema_version': SCHEMA_VERSION,
+            'original_manifest_sha256': _hash(manifest), 'exporter_version': manifest['exporter_version'],
+            'counts': {kind: len(manifest[kind]) for kind in ('runs', 'records', 'labels')},
+            'membership_sha256': {kind: _hash(manifest[kind]) for kind in ('runs', 'records', 'labels')},
+            'runs': [{'run_id': item['id'], 'source_id': runs[item['id']]['source_id'],
+                      'external_id': runs[item['id']]['external_id'], 'context': runs[item['id']]['context'],
+                      'run_payload_sha256': item['sha256']} for item in manifest['runs']]}
+
+
+def _receipt_matches(saved, bundle):
+    if saved == bundle['manifest']:
+        return True
+    return (bundle['schema_version'] == SCHEMA_VERSION and saved.get('receipt_format') == COMPACT_RECEIPT_FORMAT
+            and saved == _compact_manifest(bundle['manifest'], {run['run_id']: run for run in bundle['runs']}))
+
+
+@contextmanager
+def _stream_rows(connection, query, *, batch_size=500):
+    if isinstance(connection, sqlite3.Connection):
+        cursor = connection.execute(query)
+    else:
+        # A server cursor avoids buffering the full evidence table in libpq.
+        cursor = connection.cursor(name='ffm_archive_maintenance')
+        cursor.itersize = batch_size
+        cursor.execute(query)
+    try:
+        yield cursor
+    finally:
+        cursor.close()
+
+
+def _coverage_index(connection):
+    """Hash exact stored rows and index original evidence hashes once."""
+    tables = {
+        'archive_runs': ('run_id', 'source_id', 'payload'),
+        'archive_records': ('record_id', 'run_id', 'source_id', 'kind', 'source_key', 'league_id', 'team_id', 'season',
+                            'phase', 'week', 'observed_at', 'recorded_at', 'ingested_at', 'payload_sha256', 'payload'),
+        'archive_labels': ('label_id', 'record_id', 'label_key', 'label_value', 'evidence_type', 'payload'),
+        'archive_source_checkpoints': ('run_id', 'source_id', 'payload'),
+        'archive_source_objects': ('run_id', 'source_key', 'payload_sha256'),
+    }
+    hashes, runs, references, coverage = {'runs': {}, 'records': {}, 'labels': {}}, {}, {}, {}
+    for table, columns in tables.items():
+        if not _has_table(connection, table):
+            if table in {'archive_runs', 'archive_records', 'archive_labels'}:
+                raise ArchiveError('The archive evidence tables are missing.')
+            continue
+        digest, count = hashlib.sha256(), 0
+        digest.update((_json(list(columns)) + '\n').encode('utf-8'))
+        order = 'run_id,source_key' if table == 'archive_source_objects' else columns[0]
+        with _stream_rows(connection, 'SELECT ' + ','.join(columns) + f' FROM {table} ORDER BY {order}') as rows:
+            for values in rows:
+                row = dict(zip(columns, values))
+                digest.update((_json(list(values)) + '\n').encode('utf-8'))
+                count += 1
+                if table == 'archive_runs':
+                    payload = json.loads(row['payload'])
+                    if (payload.get('run_id') != row['run_id'] or payload.get('source_id') != row['source_id']
+                            or row['run_id'] != _hash({'source_id': row['source_id'], 'external_id': payload['external_id']})):
+                        raise ArchiveError('Stored archive run identity is invalid.')
+                    runs[row['run_id']] = payload
+                    hashes['runs'][row['run_id']] = _hash(payload)
+                elif table == 'archive_records':
+                    row.pop('ingested_at')
+                    row['context'] = {key: row.pop(key) for key in ('league_id', 'team_id', 'season', 'phase', 'week')}
+                    row['payload'] = json.loads(row['payload'])
+                    if (row['run_id'] not in runs or row['source_id'] != runs[row['run_id']]['source_id']
+                            or row['payload_sha256'] != _hash(row['payload'])
+                            or row['record_id'] != _hash({key: value for key, value in row.items() if key != 'record_id'})):
+                        raise ArchiveError('Stored archive record identity or content is invalid.')
+                    hashes['records'][row['record_id']] = _hash(row)
+                    references[row['record_id']] = row['run_id']
+                elif table == 'archive_labels':
+                    payload = json.loads(row['payload'])
+                    if (payload.get('label_id') != row['label_id'] or payload.get('record_id') != row['record_id']
+                            or payload.get('key') != row['label_key'] or _json(payload.get('value')) != row['label_value']
+                            or payload.get('evidence_type') != row['evidence_type']
+                            or row['label_id'] != _hash({key: value for key, value in payload.items() if key != 'label_id'})):
+                        raise ArchiveError('Stored archive label identity or content is invalid.')
+                    refs = (payload['record_id'], *payload['evidence_ids'])
+                    if any(key not in hashes['records'] for key in refs):
+                        raise ArchiveError('Stored archive label evidence is missing.')
+                    hashes['labels'][row['label_id']] = _hash(payload)
+                    references[row['label_id']] = refs
+        coverage[table] = {'rows': count, 'sha256': digest.hexdigest()}
+    return hashes, runs, references, coverage
+
+
+def compact_receipts(connection, *, apply=False):
+    """Verify legacy membership and compact receipts in one maintenance transaction.
+
+    The default is read-only verification. Pause archive writers before applying.
+    Evidence rows, labels, run metadata, import identities, and import times remain unchanged.
+    """
+    report = {'applied': apply, 'verified_receipts': 0, 'compacted_receipts': 0, 'already_compact_receipts': 0,
+              'original_text_bytes': 0, 'compact_text_bytes': 0}
+    with _transaction(connection):
+        if not isinstance(connection, sqlite3.Connection):
+            connection.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ' + (' READ ONLY' if not apply else ''))
+        if not _has_table(connection, 'archive_imports'):
+            raise ArchiveError('The archive import table is missing.')
+        hashes, runs, references, before = _coverage_index(connection)
+        receipt_identity = hashlib.sha256()
+        # Use a different named cursor because UPDATE runs while this cursor is open.
+        with _stream_rows(connection, 'SELECT bundle_id,imported_at,manifest FROM archive_imports ORDER BY bundle_id', batch_size=1) as rows:
+            for bundle_id, imported_at, text in rows:
+                receipt_identity.update((_json([bundle_id, imported_at]) + '\n').encode('utf-8'))
+                manifest = json.loads(text)
+                if manifest.get('receipt_format') == COMPACT_RECEIPT_FORMAT:
+                    if (manifest.get('original_manifest_sha256') != bundle_id
+                            or manifest.get('original_schema_version') != SCHEMA_VERSION
+                            or set(manifest) != {'receipt_format', 'original_schema_version', 'original_manifest_sha256',
+                                                 'exporter_version', 'counts', 'membership_sha256', 'runs'}
+                            or set(manifest['counts']) != {'runs', 'records', 'labels'}
+                            or set(manifest['membership_sha256']) != {'runs', 'records', 'labels'}
+                            or any(type(value) is not int or value < 0 for value in manifest['counts'].values())
+                            or any(not isinstance(value, str) or not SHA256.fullmatch(value) for value in manifest['membership_sha256'].values())
+                            or len(manifest['runs']) != manifest['counts']['runs']):
+                        raise ArchiveError('A compact receipt has invalid identity or metadata.')
+                    for run in manifest['runs']:
+                        stored = runs.get(run['run_id'])
+                        if not stored or run != {'run_id': stored['run_id'], 'source_id': stored['source_id'],
+                                                  'external_id': stored['external_id'], 'context': stored['context'],
+                                                  'run_payload_sha256': _hash(stored)}:
+                            raise ArchiveError('A compact receipt has changed run provenance.')
+                    report['already_compact_receipts'] += 1
+                    continue
+                if manifest.get('schema_version') == INCREMENTAL_SCHEMA_VERSION:
+                    if _hash(manifest) != bundle_id:
+                        raise ArchiveError('An incremental receipt has an invalid manifest hash.')
+                    report['already_compact_receipts'] += 1
+                    continue
+                if (set(manifest) != {'schema_version', 'exporter_version', 'runs', 'records', 'labels'}
+                        or manifest['schema_version'] != SCHEMA_VERSION or _hash(manifest) != bundle_id):
+                    raise ArchiveError('A legacy receipt has an invalid manifest hash or schema.')
+                members = {}
+                for kind in ('runs', 'records', 'labels'):
+                    members[kind] = set()
+                    for item in manifest[kind]:
+                        if (set(item) != {'id', 'sha256'} or item['id'] in members[kind]
+                                or hashes[kind].get(item['id']) != item['sha256']):
+                            raise ArchiveError('A legacy receipt has missing, duplicate, or changed evidence.')
+                        members[kind].add(item['id'])
+                if (any(references[key] not in members['runs'] for key in members['records'])
+                        or any(any(ref not in members['records'] for ref in references[key]) for key in members['labels'])):
+                    raise ArchiveError('A legacy receipt has incomplete evidence references.')
+                compact = _json(_compact_manifest(manifest, runs))
+                report['verified_receipts'] += 1
+                report['original_text_bytes'] += len(text.encode('utf-8'))
+                report['compact_text_bytes'] += len(compact.encode('utf-8'))
+                if apply:
+                    changed = _execute(connection, 'UPDATE archive_imports SET manifest=? WHERE bundle_id=? AND manifest=?',
+                                       (compact, bundle_id, text)).rowcount
+                    if changed != 1:
+                        raise ArchiveError('A receipt changed during compaction. No compaction was committed.')
+                    report['compacted_receipts'] += 1
+        del hashes, runs, references
+        # Rehash stored rows after writes. This also detects unexpected database triggers.
+        if apply:
+            _, _, _, after = _coverage_index(connection)
+        else:
+            after = before
+        if before != after:
+            raise ArchiveError('Compaction changed archived evidence. No compaction was committed.')
+        identity_after = hashlib.sha256()
+        with _stream_rows(connection, 'SELECT bundle_id,imported_at FROM archive_imports ORDER BY bundle_id') as rows:
+            for values in rows:
+                identity_after.update((_json(list(values)) + '\n').encode('utf-8'))
+        if identity_after.digest() != receipt_identity.digest():
+            raise ArchiveError('Compaction changed import identities or times. No compaction was committed.')
+        report['evidence_coverage'] = after
+        report['import_identity_sha256'] = identity_after.hexdigest()
+        report['evidence_unchanged'] = True
+    return report
+
+
+def import_bundle(connection, bundle, *, source_manifest=None, base_dir=None):
     """Atomically insert a verified bundle. Existing evidence is never overwritten."""
     validate_bundle(bundle)
     placeholder = '?' if isinstance(connection, sqlite3.Connection) else '%s'
     def execute(sql, values=()):
         return connection.execute(sql.replace('?', placeholder), values)
     added = {'runs': 0, 'records': 0, 'labels': 0, 'imports': 0}
+    incremental = bundle['schema_version'] == INCREMENTAL_SCHEMA_VERSION
+    if incremental and not bundle['checkpoints']:
+        return added
     with _transaction(connection):
         for statement in DDL:
             execute(statement)
+        receipt = execute('SELECT manifest FROM archive_imports WHERE bundle_id=?', (bundle['bundle_id'],)).fetchone()
+        if receipt:
+            if not _receipt_matches(json.loads(receipt[0]), bundle):
+                raise ArchiveError('An existing import receipt has different content.')
+            if incremental:
+                return added
+        if incremental:
+            for checkpoint in bundle['checkpoints']:
+                old = execute('SELECT source_id,payload FROM archive_source_checkpoints WHERE run_id=?', (checkpoint['run_id'],)).fetchone()
+                previous = json.loads(old[1]) if old else None
+                if ((old and old[0] != checkpoint['source_id'])
+                        or (_hash(previous) if previous else None) != checkpoint['previous_sha256']):
+                    raise ArchiveError('The incremental checkpoint is stale. Export again from the committed archive.')
+                old_state, new_state = (previous or {}).get('database'), checkpoint['state']['database']
+                upgrade = (old_state is not None and new_state is not None
+                           and old_state.get('snapshot_hash_format') is None
+                           and new_state.get('snapshot_hash_format') == SNAPSHOT_HASH_FORMAT
+                           and old_state['revision'] == new_state['revision'])
+                if upgrade:
+                    _verify_hash_upgrade(connection, checkpoint, previous, source_manifest, base_dir)
+                _check_advance(previous, checkpoint['state'], hash_upgrade_verified=upgrade)
         for run in bundle['runs']:
             old = execute('SELECT payload FROM archive_runs WHERE run_id=?', (run['run_id'],)).fetchone()
             payload = _json(run)
@@ -507,6 +1237,22 @@ def import_bundle(connection, bundle):
             added['labels'] += max(0, execute('INSERT INTO archive_labels VALUES(?,?,?,?,?,?) ON CONFLICT DO NOTHING', values).rowcount)
         added['imports'] += max(0, execute('INSERT INTO archive_imports VALUES(?,?,?) ON CONFLICT DO NOTHING',
                                          (bundle['bundle_id'], at, _json(bundle['manifest']))).rowcount)
+        for checkpoint in bundle.get('checkpoints', []) if incremental else []:
+            payload = _json(checkpoint['state'])
+            if checkpoint['previous_sha256'] is None:
+                changed = execute('INSERT INTO archive_source_checkpoints VALUES(?,?,?) ON CONFLICT DO NOTHING',
+                                  (checkpoint['run_id'], checkpoint['source_id'], payload)).rowcount
+            else:
+                old = execute('SELECT payload FROM archive_source_checkpoints WHERE run_id=?', (checkpoint['run_id'],)).fetchone()
+                if old is None or _hash(json.loads(old[0])) != checkpoint['previous_sha256']:
+                    raise ArchiveError('The incremental checkpoint changed during import. Export again.')
+                changed = execute('UPDATE archive_source_checkpoints SET payload=? WHERE run_id=? AND payload=?',
+                                  (payload, checkpoint['run_id'], old[0])).rowcount
+            if changed != 1:
+                raise ArchiveError('The incremental checkpoint changed during import. Export again.')
+            for item in checkpoint['objects']:
+                execute('INSERT INTO archive_source_objects VALUES(?,?,?) ON CONFLICT(run_id,source_key) DO UPDATE SET payload_sha256=excluded.payload_sha256',
+                        (checkpoint['run_id'], item['source_key'], item['payload_sha256']))
     return added
 
 
@@ -515,31 +1261,63 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     export = sub.add_parser('export')
     export.add_argument('--manifest', required=True); export.add_argument('--output', required=True)
+    export.add_argument('--incremental', action='store_true', help='Read committed destination checkpoints; do not advance them.')
+    export.add_argument('--dsn', default='dbname=fantasy_football')
+    export.add_argument('--batch-size', type=int, default=DEFAULT_BATCH_SIZE)
     ingest = sub.add_parser('import')
     ingest.add_argument('--bundle', required=True); ingest.add_argument('--dsn', default='dbname=fantasy_football')
+    ingest.add_argument('--manifest', help='Verify a same-revision legacy checkpoint hash upgrade against these private sources.')
     sync = sub.add_parser('sync')
     sync.add_argument('--manifest', required=True); sync.add_argument('--dsn', default='dbname=fantasy_football')
     sync.add_argument('--interval', type=float, default=0)
+    sync.add_argument('--batch-size', type=int, default=DEFAULT_BATCH_SIZE)
+    sync.add_argument('--legacy-full', action='store_true', help='Use the legacy full-history export explicitly.')
+    sync.add_argument('--drain', action='store_true', help='Commit further batches until the observed backlog is empty.')
+    compact = sub.add_parser('compact-receipts')
+    compact.add_argument('--dsn', default='dbname=fantasy_football')
+    compact.add_argument('--apply', action='store_true', help='Replace verified legacy manifests; the default only verifies.')
     args = parser.parse_args(argv)
     if args.command == 'sync' and args.interval != 0 and not 1 <= args.interval <= 86400:
         parser.error('The interval must be zero or from 1 through 86400 seconds.')
     while True:
-        if args.command == 'import':
-            bundle = json.loads(Path(args.bundle).read_text(encoding='utf-8'))
-        else:
+        incremental = (args.command == 'sync' and not args.legacy_full) or (args.command == 'export' and args.incremental)
+        if args.command == 'export' and not incremental:
             path = Path(args.manifest)
             bundle = export_bundle(json.loads(path.read_text(encoding='utf-8-sig')), base_dir=path.parent)
-        if args.command == 'export':
             Path(args.output).write_text(_json(bundle) + '\n', encoding='utf-8')
             print(_json({'bundle_id': bundle['bundle_id'], 'records': len(bundle['records']), 'labels': len(bundle['labels'])}))
             return 0
         try:
             import psycopg
         except ImportError as exc:
-            raise ArchiveError('Install the server extra before importing into PostgreSQL.') from exc
+            raise ArchiveError('Install the server extra before using PostgreSQL archive checkpoints or imports.') from exc
+        if args.command == 'import':
+            bundle = json.loads(Path(args.bundle).read_text(encoding='utf-8'))
+        elif args.command == 'sync' and not incremental:
+            path = Path(args.manifest)
+            bundle = export_bundle(json.loads(path.read_text(encoding='utf-8-sig')), base_dir=path.parent)
         with psycopg.connect(args.dsn, autocommit=True) as connection:
-            result = import_bundle(connection, bundle)
-        print(_json({'bundle_id': bundle['bundle_id'], 'inserted': result}), flush=True)
+            if args.command == 'compact-receipts':
+                print(_json(compact_receipts(connection, apply=args.apply)), flush=True)
+                return 0
+            if incremental:
+                path = Path(args.manifest)
+                bundle = export_incremental_bundle(connection, json.loads(path.read_text(encoding='utf-8-sig')),
+                                                   base_dir=path.parent, batch_size=args.batch_size)
+            if args.command == 'export':
+                Path(args.output).write_text(_json(bundle) + '\n', encoding='utf-8')
+                print(_json({'bundle_id': bundle['bundle_id'], 'records': len(bundle['records']),
+                             'labels': len(bundle['labels']), 'has_more': bundle['has_more']}))
+                return 0
+            source_manifest, source_base = None, None
+            if args.command == 'sync' or (args.command == 'import' and args.manifest):
+                source_path = Path(args.manifest)
+                source_manifest = json.loads(source_path.read_text(encoding='utf-8-sig'))
+                source_base = source_path.parent
+            result = import_bundle(connection, bundle, source_manifest=source_manifest, base_dir=source_base)
+        print(_json({'bundle_id': bundle['bundle_id'], 'inserted': result, 'has_more': bundle.get('has_more', False)}), flush=True)
+        if args.command == 'sync' and args.drain and bundle.get('has_more'):
+            continue
         if args.command != 'sync' or args.interval == 0:
             return 0
         time.sleep(args.interval)

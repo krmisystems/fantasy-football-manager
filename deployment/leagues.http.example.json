@@ -1,0 +1,30 @@
+{
+  "browser_data_dir": "/var/lib/fantasy-football/runtime",
+  "status_file": "/var/lib/fantasy-football/season-status.json",
+  "transport": "http",
+  "credential_file": "/var/lib/fantasy-football/private/espn-session.json",
+  "auto_rollover": true,
+  "headless": true,
+  "leagues": [
+    {
+      "league_id": "10001",
+      "team_id": "1",
+      "season": 2026,
+      "week": 1,
+      "data_dir": "/var/lib/fantasy-football/leagues/team-a",
+      "phase": "season",
+      "mode": "existing",
+      "enabled": false
+    },
+    {
+      "league_id": "10002",
+      "team_id": "2",
+      "season": 2026,
+      "week": 1,
+      "data_dir": "/var/lib/fantasy-football/leagues/team-b",
+      "phase": "season",
+      "mode": "existing",
+      "enabled": false
+    }
+  ]
+}

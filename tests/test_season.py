@@ -9,7 +9,7 @@ import pytest
 from fantasy_football_manager.models import (
     Budget, LeagueSnapshot, ManagerConfig, Player, Rules, Source, Team,
 )
-from fantasy_football_manager.season import power_rankings, rank_waivers, recommend_lineup
+from fantasy_football_manager.season import lineup_delta, power_rankings, rank_waivers, recommend_lineup
 
 
 def player(pid, position, points, **kwargs):
@@ -88,14 +88,15 @@ def test_out_reserve_and_bye_players_do_not_enter_unlocked_lineup():
     assert set(result["lineup"].values()) == {"rb", "wr", "te"}
 
 
-def test_inactive_player_is_excluded_and_doubtful_player_is_flagged():
+def test_inactive_and_doubtful_players_are_excluded_and_disclosed():
     state = snapshot([player("inactive", "WR", 30), player("doubtful", "WR", 20), player("active", "WR", 10)],
                      ["inactive", "doubtful", "active"], starters={"WR": 1}, bench=2)
     state.players[0].availability = "INACTIVE"
     state.players[1].availability = "DOUBTFUL"
     result = recommend_lineup(state, config())
-    assert result["lineup"] == {"WR1": "doubtful"}
-    assert result["availability_flags"] == [{"player_id": "doubtful", "availability": "DOUBTFUL"}]
+    assert result["lineup"] == {"WR1": "active"}
+    assert {item["player_id"] for item in result["excluded_players"]} == {"inactive", "doubtful"}
+    assert next(item for item in result["excluded_players"] if item["player_id"] == "doubtful")["availability"] == "DOUBTFUL"
 
 
 def test_missing_weekly_value_never_uses_season_projection():
@@ -207,20 +208,154 @@ def test_missing_free_agent_data_is_visible_and_does_not_become_zero():
     assert all(x["add_player_id"] != "available" for x in result["recommendations"])
 
 
-def test_waiver_repairs_a_vacant_position_without_zeroing_missing_projections():
+def test_out_starter_with_unknown_projection_is_not_a_scored_vacancy():
     state = snapshot([player("wr", "WR", 10), player("out", "RB", None), player("new", "RB", 8)],
                      ["wr", "out"], {"WR1": "wr", "RB1": "out"},
                      starters={"RB": 1, "WR": 1}, bench=0)
     state.players[1].availability = "OUT"
     result = rank_waivers(state, config(protected_ids=["wr"]))
-    assert result["status"] == "ok"
-    assert result["baseline_projected_points"] == 10
-    assert result["baseline_unfilled_slots"] == ["RB1"]
-    proposal = result["recommendations"][0]
-    assert proposal["add_player_id"] == "new"
-    assert proposal["drop_player_id"] == "out"
-    assert proposal["improvement"] == 8
+    assert result["status"] == "incomplete"
+    assert result["baseline_projected_points"] is None and result["recommendations"] == []
+    assert result["missing_projections"] == [{"player_id": "out", "fields": ["weekly_projection"]}]
+    proposal = result["coverage"]["candidates"][0]
+    assert proposal["player_id"] == "new" and proposal["drop_id"] == "out"
+    assert proposal["improvement"] is None and not proposal["authorized"]
+    assert "coverage_repair_not_enabled" in proposal["blocking_reasons"]
     assert proposal["lineup"] == {"RB1": "new", "WR1": "wr"}
+
+
+def test_actual_empty_slot_has_no_player_projection_to_invent():
+    state = snapshot([player("wr", "WR", 10), player("new", "RB", 8)], ["wr"],
+                     {"WR1": "wr", "RB1": None}, starters={"RB": 1, "WR": 1}, bench=0)
+    result = rank_waivers(state, config(protected_ids=["wr"]))
+    assert result["status"] == "ok" and result["baseline_projected_points"] == 10
+    assert result["recommendations"][0]["improvement"] == 8
+
+
+def test_locked_unknown_starter_cancels_without_inventing_total_points():
+    state = snapshot([player("fixed", "RB", None, locked=True, projection=900),
+                      player("current", "WR", 5), player("better", "WR", 12)],
+                     ["fixed", "current", "better"], {"RB1": "fixed", "WR1": "current"},
+                     starters={"RB": 1, "WR": 1}, bench=1)
+    before = state.model_dump()
+    result = recommend_lineup(state, config())
+    assert result["status"] == "ok" and result["comparison_complete"]
+    assert result["lineup"] == {"RB1": "fixed", "WR1": "better"} and result["fixed_slots"] == {"RB1": "fixed"}
+    assert result["improvement"] == 7 and result["comparison_scope"] == "known_projection_slots"
+    assert not result["projection_complete"]
+    assert result["projected_points"] is None and result["current_points"] is None
+    assert result["blocking_missing_projections"] == []
+    assert result["missing_projections"] == [{"player_id": "fixed", "fields": ["weekly_projection"]}]
+    assert state.model_dump() == before
+
+
+def test_unknown_fixed_floor_cancels_from_floor_objective_only():
+    state = snapshot([player("fixed", "RB", 5, locked=True, weekly_floor=None),
+                      player("current", "WR", 10, weekly_floor=2),
+                      player("safer", "WR", 9, weekly_floor=7)],
+                     ["fixed", "current", "safer"], {"RB1": "fixed", "WR1": "current"},
+                     starters={"RB": 1, "WR": 1}, bench=1)
+    settings = config()
+    settings.strategy.season = "floor"
+    result = recommend_lineup(state, settings)
+    assert result["status"] == "ok" and result["lineup"] == {"RB1": "fixed", "WR1": "safer"}
+    assert result["objective_points"] is None and result["projected_points"] == 14
+    assert result["improvement"] == -1
+    assert lineup_delta(state.own_team().lineup, result["lineup"], {p.id: p for p in state.players}, "weekly_floor") == 5
+
+
+@pytest.mark.parametrize("availability", ["ACTIVE", "DOUBTFUL", "OUT"])
+def test_unknown_unlocked_starter_is_a_blocking_baseline_even_with_a_replacement(availability):
+    state = snapshot([player("unknown", "TE", None), player("cover", "TE", 9)],
+                     ["unknown", "cover"], {"TE1": "unknown"}, starters={"TE": 1}, bench=1)
+    state.players[0].availability = availability
+    result = recommend_lineup(state, config())
+    assert result["status"] == "incomplete" and result["lineup"] == {}
+    assert not result["comparison_complete"] and result["improvement"] is None
+    assert result["blocking_missing_projections"] == [{"player_id": "unknown", "fields": ["weekly_projection"]}]
+    gap = result["coverage"]["gaps"][0]
+    assert "starter_projection_unknown" in gap["reasons"] and gap["weekly_projection"] is None
+    candidate = result["coverage"]["candidates"][0]
+    assert candidate["player_id"] == "cover" and candidate["repair_player_id"] == "unknown"
+    assert candidate["improvement"] is None and candidate["weekly_projection"] == 9
+    assert not candidate["authorized"]
+
+
+def test_unknown_doubtful_bench_does_not_block_known_current_lineup():
+    state = snapshot([player("doubtful", "TE", None), player("cover", "TE", 9)],
+                     ["doubtful", "cover"], {"TE1": "cover"}, starters={"TE": 1}, bench=1)
+    state.players[0].availability = "DOUBTFUL"
+    result = recommend_lineup(state, config())
+    assert result["status"] == "ok" and result["improvement"] == 0 and result["projected_points"] == 9
+    assert result["excluded_players"] == [{"player_id": "doubtful", "availability": "DOUBTFUL",
+                                           "reason": "unavailable_this_week", "weekly_projection": None}]
+
+
+def test_unknown_active_bench_candidate_is_not_silently_discarded():
+    state = snapshot([player("unknown", "WR", None), player("current", "WR", 10)],
+                     ["unknown", "current"], {"WR1": "current"}, starters={"WR": 1}, bench=1)
+    result = recommend_lineup(state, config())
+    assert result["status"] == "incomplete" and not result["comparison_complete"]
+    assert result["blocking_missing_projections"] == [{"player_id": "unknown", "fields": ["weekly_projection"]}]
+
+
+def test_delta_only_cancels_unchanged_player_ids_and_preserves_negative_scores():
+    players = {p.id: p for p in [player("fixed", "RB", None), player("old", "WR", -4), player("new", "WR", -1)]}
+    assert lineup_delta({"RB1": "fixed", "WR1": "old"}, {"RB1": "fixed", "WR1": "new"}, players) == 3
+    assert lineup_delta({"RB1": "fixed"}, {"RB1": "new"}, players) is None
+    assert lineup_delta({"RB1": "old"}, {"RB1": "fixed"}, players) is None
+    assert lineup_delta({"RB1": None}, {"RB1": "new"}, players) == -1
+
+
+def test_waiver_delta_can_cancel_unknown_fixed_starters_but_power_rank_cannot():
+    state = snapshot([player("fixed", "RB", None, locked=True), player("current", "WR", 10),
+                      player("bench", "WR", 1), player("new", "WR", 20)],
+                     ["fixed", "current", "bench"], {"RB1": "fixed", "WR1": "current"},
+                     starters={"RB": 1, "WR": 1}, bench=1)
+    result = rank_waivers(state, config(protected_ids=["fixed", "current"]))
+    assert result["status"] == "ok" and result["baseline_projected_points"] is None
+    assert result["recommendations"][0]["improvement"] == 10
+    assert result["recommendations"][0]["projected_points"] is None
+    ranking = power_rankings(state, config())
+    assert ranking["status"] == "incomplete" and all(row["rank"] is None for row in ranking["rankings"])
+
+
+def test_coverage_flags_no_backup_and_preserves_other_starters_and_limits():
+    state = snapshot([player("risk", "TE", None), player("starter", "WR", 10), player("bench", "WR", 1),
+                      player("cover", "TE", 8), player("owned", "TE", 100)],
+                     ["risk", "starter", "bench"], {"TE1": "risk", "WR1": "starter"},
+                     starters={"TE": 1, "WR": 1}, bench=1, other_ids=["owned"], other_lineup={"TE1": "owned"})
+    state.players[0].availability = "DOUBTFUL"
+    result = recommend_lineup(state, config(protected_ids=["risk"]))
+    coverage = result["coverage"]
+    assert "no_projected_bench_cover" in coverage["gaps"][0]["reasons"]
+    assert [(item["player_id"], item["drop_id"]) for item in coverage["candidates"]] == [("cover", "bench")]
+    candidate = coverage["candidates"][0]
+    assert candidate["lineup"]["WR1"] == "starter" and candidate["improvement"] is None
+    assert "platform_acquisition_eligibility_unverified" in candidate["blocking_reasons"]
+    state.budget.pending_moves = None
+    candidate = recommend_lineup(state, config(protected_ids=["risk"]))["coverage"]["candidates"][0]
+    assert "budget_unknown" in candidate["blocking_reasons"] and candidate["maximum_faab_bid"] is None
+
+
+def test_locked_coverage_gap_cannot_offer_a_replacement():
+    state = snapshot([player("fixed", "TE", None, locked=True), player("cover", "TE", 9)],
+                     ["fixed", "cover"], {"TE1": "fixed"}, starters={"TE": 1}, bench=1)
+    coverage = recommend_lineup(state, config())["coverage"]
+    assert coverage["gaps"][0]["locked"] and coverage["candidates"] == []
+
+
+def test_coverage_keeps_source_uncertainty_and_protected_drops_visible():
+    state = snapshot([player("unknown", "TE", None), player("protected", "WR", 5), player("cover", "TE", 9)],
+                     ["unknown", "protected"], {"TE1": "unknown"}, starters={"TE": 1}, bench=1)
+    state.source.locks_verified = False
+    settings = config(protected_ids=["unknown", "protected"])
+    coverage = recommend_lineup(state, settings)["coverage"]
+    assert not coverage["source_ready"] and coverage["gaps"] and coverage["candidates"] == []
+    settings.limits.protected_ids = ["unknown"]
+    candidate = recommend_lineup(state, settings)["coverage"]["candidates"][0]
+    assert candidate["drop_id"] == "protected" and "source_not_ready" in candidate["blocking_reasons"]
+    assert not candidate["authorized"]
 
 
 def test_bench_upside_changes_ranking_with_explicit_ceiling_data():

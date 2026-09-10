@@ -72,7 +72,7 @@ async def test_phase_changes_keep_the_profile_root_selected_at_service_start(tmp
     monkeypatch.setenv("FFM_BROWSER_DATA_DIR", str(selected_root))
     monkeypatch.setattr(espn_browser, "ESPNBrowser", BrowserStub)
     monkeypatch.setattr(espn_season_browser, "ESPNSeasonBrowser", BrowserStub)
-    service = espn_service.ESPNService(tmp_path / "league-state")
+    service = espn_service.ESPNService(tmp_path / "league-state", transport="browser")
     initial = service.browser
     monkeypatch.setenv("FFM_BROWSER_DATA_DIR", str(tmp_path / "later-environment-value"))
     await service.connect("123", "1", 2026, phase="draft")

@@ -1,7 +1,7 @@
 {
   "name": "fantasy-football-manager",
-  "version": "0.3.3",
-  "description": "ESPN draft and lineup tools for Codex, with browser sign-in, approval modes, and per-team limits.",
+  "version": "0.4.0",
+  "description": "ESPN HTTP season transactions and browser draft tools for Codex, with approval modes and per-team limits. Version 0.4.0 release candidate.",
   "author": {
     "name": "krmisystems",
     "url": "https://github.com/krmisystems"
@@ -11,8 +11,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Fantasy Football Manager",
-    "shortDescription": "Analyze teams and automate ESPN picks and lineups.",
-    "longDescription": "Use manager tools for draft estimates, weekly analysis, and policy. The ESPN companion submits draft picks and one verified lineup swap at a time. Live waivers, drops, trades, and automatic week rollover remain planned.",
+    "shortDescription": "Manage ESPN drafts and season transactions within saved limits.",
+    "longDescription": "The v0.4.0 release candidate adds HTTP season lineups, acquisitions, waiver claims, drops, IR moves, and optional verified week rollover. It uses a protected session file without a browser runtime. Draft operation retains the browser adapter. Saved modes and limits control each transaction. Pending waivers require ownership confirmation. This candidate is not yet published. Live HTTP write acceptance remains pending. Trade execution is unavailable.",
     "developerName": "krmisystems",
     "category": "Productivity",
     "capabilities": [
@@ -22,7 +22,7 @@
     "defaultPrompt": [
       "Connect my ESPN draft and check automation limits.",
       "Run continuous draft simulations and automatic picks.",
-      "Connect my ESPN week and automate qualifying lineup swaps."
+      "Connect my ESPN season through HTTP and check action limits."
     ]
   },
   "mcpServers": "./.mcp.json"

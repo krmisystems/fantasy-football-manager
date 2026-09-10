@@ -1,5 +1,10 @@
 # MCP tool definition quality
 
+This record describes the v0.3.3 metadata work and its historical external scores.
+The v0.4.0 candidate has 17 manager tools and 16 ESPN companion tools.
+Its installed-package checks are recorded in [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md).
+The historical Glama score does not evaluate the added HTTP tools.
+
 ## Objective and baseline
 
 Improve tool selection and invocation while preserving existing tool names, defaults, accepted calls, and execution policy.

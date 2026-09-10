@@ -211,4 +211,8 @@ Record the installed package, private launchers, and interventions with each liv
 Isolated Chrome fixture tests verify browser mechanics without changing a real league.
 Earlier direct browser picks do not establish packaged selector compatibility.
 Distinguish implemented lineup automation from live acceptance testing.
-Live waivers, acquisitions, drops, trades, and automatic week rollover remain planned.
+The v0.4.0 candidate implements HTTP season lineups, waivers, acquisitions, drops, IR moves, and automatic week rollover.
+Its privately deployed wheel has five-team read acceptance and one verified automatic free-agent add/drop and lineup repair.
+Live waiver processing, IR moves, and scoring-week rollover remain Not Tested. Public release remains incomplete.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for package verification and remaining gates.
+Trade execution remains outside the release scope.

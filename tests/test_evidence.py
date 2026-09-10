@@ -208,3 +208,142 @@ def test_monitor_records_executed_work_discarded_during_shutdown(tmp_path, monke
     assert record["completed_trials"] == 3 and record["requested_trials"] == 4
     assert record["disposition"] == "stopped" and record["accepted"] is False
     assert monitor.completed_trials == monitor.discarded_trials == 3
+
+
+def test_http_snapshot_retains_decision_flags_without_request_or_account_data(tmp_path):
+    from test_espn_http_policy import http_snapshot
+
+    snapshot = http_snapshot()
+    snapshot.source.notes = ["PRIVATE-NOTE-MARKER"]
+    snapshot.source.http.roster_url += "&memberId=PRIVATE-MEMBER-MARKER"
+    snapshot.source.http.pending_transactions = [{
+        "id": "fictional-pending", "type": "WAIVER", "teamId": 1, "scoringPeriodId": 1,
+        "status": "PENDING", "isPending": True, "bidAmount": 2,
+        "memberId": "PRIVATE-MEMBER-MARKER", "headers": {"Cookie": "PRIVATE-COOKIE-MARKER"},
+        "items": [{"playerId": 109, "type": "ADD", "toTeamId": 1, "name": "PRIVATE-NAME-MARKER"}],
+    }]
+    snapshot.source.http.recent_transactions = [{"id": "fictional-recent", "type": "ROSTER", "status": "FAILED",
+                                                  "error": "PRIVATE-ERROR-MARKER"}]
+    snapshot.players[0].name = "PRIVATE-PLAYER-MARKER"
+    snapshot.players[0].espn.pending_transaction_ids = ["fictional-pending"]
+    manager = Manager(tmp_path)
+    manager.import_snapshot(snapshot.model_dump(mode="json"))
+    record = outbox(manager, "snapshot_changed")[0]["detail"]["snapshot"]
+    assert "PRIVATE-" not in json.dumps(outbox(manager))
+    assert "roster_url" not in record["source"]["http"]
+    source = record["source"]["http"]
+    assert source["ownership_verified"] and source["pending_transactions_known"]
+    assert source["team_transaction_locked"] is False and source["acquisition_limit"] == -1
+    assert source["pending_transactions"][0]["items"] == [{"playerId": 109, "type": "ADD", "toTeamId": 1}]
+    assert source["recent_transactions"] == [{"id": "fictional-recent", "type": "ROSTER", "status": "FAILED"}]
+    player = next(row for row in record["players"] if row["id"] == "101")
+    assert player["espn"]["roster_locked"] is False and player["espn"]["droppable"] is True
+    assert player["espn"]["pending_transaction_ids"] == ["fictional-pending"]
+
+
+def test_comparison_and_coverage_evidence_preserves_unknowns_and_known_reason_codes(tmp_path):
+    from fantasy_football_manager.season import recommend_lineup
+    from test_espn_http_policy import automatic_config, http_snapshot
+
+    snapshot, config = http_snapshot(), automatic_config()
+    snapshot.players[0].weekly_projection = None
+    snapshot.players[0].availability = "DOUBTFUL"
+    result = recommend_lineup(snapshot, config)
+    result["coverage"]["gaps"][0]["reasons"].append("PRIVATE-FREEFORM-REASON")
+    result["coverage"]["candidates"][0]["player_name"] = "PRIVATE-PLAYER-MARKER"
+    result["coverage"]["candidates"][0]["error"] = "PRIVATE-ERROR-MARKER"
+    manager = Manager(tmp_path)
+    manager.import_snapshot(snapshot.model_dump(mode="json"))
+    manager.update_config(config.model_dump(mode="json"), 0)
+    _, _, revision, config_revision = manager.require_state()
+    manager.record_calculation("lineup", snapshot, config, revision, config_revision, result)
+    saved = outbox(manager, "calculation_completed")[0]["detail"]["calculation"]["result"]
+    assert "PRIVATE-" not in json.dumps(outbox(manager))
+    assert saved["comparison_complete"] is False and saved["projection_complete"] is False
+    assert saved["blocking_missing_projections"] == [{"player_id": "101", "fields": ["weekly_projection"]}]
+    gap = saved["coverage"]["gaps"][0]
+    assert gap["weekly_projection"] is None and "starter_projection_unknown" in gap["reasons"]
+    candidate = saved["coverage"]["candidates"][0]
+    assert candidate["repair_player_id"] == "101" and candidate["improvement"] is None
+    assert candidate["authorized"] is False and "coverage_repair_not_enabled" in candidate["blocking_reasons"]
+    assert candidate["lineup"] and candidate["weekly_projection"] == 30
+
+
+def test_http_authorization_response_and_observation_have_distinct_sanitized_events(tmp_path):
+    from fantasy_football_manager.espn_http_actions import ESPNHTTPActions, transaction_items
+    from test_espn_http_policy import SWAP, automatic_config, http_snapshot
+
+    manager = Manager(tmp_path)
+    snapshot, config = http_snapshot(), automatic_config()
+    manager.import_snapshot(snapshot.model_dump(mode="json"))
+    manager.update_config(config.model_dump(mode="json"), 0)
+    actions = ESPNHTTPActions(manager)
+    proposal = actions.prepare("set_lineup", {"lineup": SWAP})
+    permit = actions.authorize(proposal["proposal_id"])
+    actions.record_response(permit["proposal_id"], {"id": "fictional-response", "type": "ROSTER", "teamId": 1,
+        "scoringPeriodId": 1, "status": "EXECUTED", "isPending": False,
+        "items": transaction_items(snapshot, "set_lineup", {"lineup": SWAP}), "memberId": "PRIVATE-MEMBER-MARKER"})
+    assert outbox(manager, "espn_http_response") and not outbox(manager, "espn_http_reconciled")
+    snapshot.source.observed_at = datetime.now(timezone.utc)
+    snapshot.own_team().lineup = SWAP
+    result = actions.reconcile(permit["proposal_id"], snapshot.model_dump(mode="json"))
+    records = [row for row in outbox(manager) if row["event"].startswith("espn_http_")]
+    assert [row["event"] for row in records] == ["espn_http_prepared", "espn_http_authorized", "espn_http_response", "espn_http_reconciled"]
+    assert records[1]["detail"]["action"]["should_submit"] is True
+    assert records[2]["detail"]["action"]["transaction"]["status"] == "EXECUTED"
+    assert records[-1]["detail"]["action"]["status"] == "confirmed"
+    assert set(records[-1]["detail"]["action"]["actual_roster_ids"]) == {"101", "102", "103"}
+    snapshots = outbox(manager, "snapshot_changed")
+    assert len(snapshots) == 2
+    settled = snapshots[-1]["detail"]
+    assert settled["context"]["revision"] == result["revision"]
+    assert settled["snapshot"]["teams"][0]["lineup"] == SWAP
+    assert settled["snapshot"]["budget"]["balance"] == 100
+    assert all(player["espn"]["bye_verified"] is True for player in settled["snapshot"]["players"])
+    assert "PRIVATE-" not in json.dumps(records)
+    before = outbox(manager)
+    assert actions.authorize(permit["proposal_id"]) == result
+    assert outbox(manager) == before
+
+
+def test_http_outbox_failure_rolls_back_authorization_before_request(tmp_path, monkeypatch):
+    from fantasy_football_manager.espn_http_actions import ESPNHTTPActions
+    from test_espn_http_policy import SWAP, automatic_config, http_snapshot
+
+    manager = Manager(tmp_path)
+    manager.import_snapshot(http_snapshot().model_dump(mode="json"))
+    manager.update_config(automatic_config().model_dump(mode="json"), 0)
+    actions = ESPNHTTPActions(manager)
+    proposal = actions.prepare("set_lineup", {"lineup": SWAP})
+    original = evidence.append
+
+    def fail(db, event, detail):
+        if event == "espn_http_authorized":
+            raise RuntimeError("Fictional evidence write failure.")
+        return original(db, event, detail)
+
+    monkeypatch.setattr(evidence, "append", fail)
+    with pytest.raises(RuntimeError, match="evidence write failure"):
+        actions.authorize(proposal["proposal_id"])
+    assert actions.get(proposal["proposal_id"])["status"] == "pending" and actions.pending() == []
+    assert not outbox(manager, "espn_http_authorized")
+
+
+def test_http_preflight_failure_records_only_classified_error_and_known_phase(tmp_path):
+    from fantasy_football_manager.espn_http_actions import ESPNHTTPActions
+    from test_espn_http_policy import SWAP, automatic_config, http_snapshot
+
+    manager = Manager(tmp_path)
+    manager.import_snapshot(http_snapshot().model_dump(mode="json"))
+    manager.update_config(automatic_config().model_dump(mode="json"), 0)
+    actions = ESPNHTTPActions(manager)
+    proposal = actions.prepare("set_lineup", {"lineup": SWAP})
+    permit = actions.authorize(proposal["proposal_id"])
+    actions.record_not_submitted(permit["proposal_id"], "HTTP 401 PRIVATE-CREDENTIAL-MARKER")
+    saved = outbox(manager, "espn_http_not_submitted")[0]["detail"]["action"]
+    assert saved["status"] == "not_submitted" and saved["should_submit"] is False
+    assert saved["error_category"] == "authentication" and "PRIVATE-" not in json.dumps(outbox(manager))
+    assert not actions.pending() and not actions.authorize(permit["proposal_id"])["should_submit"]
+    assert evidence.action_or_result({"submission_phase": "preflight", "error_category": "timeout", "payload": {"bid": 3}}) == {
+        "submission_phase": "preflight", "error_category": "timeout", "payload": {"bid": 3}}
+    assert evidence.action_or_result({"submission_phase": "PRIVATE-PHASE", "error_category": "PRIVATE-ERROR"}) == {}

@@ -74,7 +74,7 @@ class Manager:
                           "action": "set_lineup" if table == "browser_lineup_proposals" else "draft_pick"}
             record["action"] = evidence.action_or_result(action)
             evidence.append(db, event, record)
-            if event in {"demo_action_executed", "browser_draft_reconciled", "browser_lineup_reconciled"}:
+            if event in {"demo_action_executed", "browser_draft_reconciled", "browser_lineup_reconciled", "espn_http_reconciled"}:
                 evidence.append(db, "snapshot_changed", evidence.envelope(*state, include_snapshot=True))
 
     def state(self):
@@ -94,10 +94,10 @@ class Manager:
             if expected_revision != revision and (old is not None or expected_revision is not None):
                 raise ValueError(f"Snapshot revision conflict. Current revision: {revision}.")
             tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            for table in ("browser_proposals", "browser_lineup_proposals"):
+            for table in ("browser_proposals", "browser_lineup_proposals", "espn_http_proposals"):
                 if table not in tables or old is None:
                     continue
-                rows = db.execute(f"SELECT baseline FROM {table} WHERE league_id=? AND team_id=? AND season=? AND status='awaiting_verification'",
+                rows = db.execute(f"SELECT baseline FROM {table} WHERE league_id=? AND team_id=? AND season=? AND status IN ('awaiting_verification','pending_waiver')",
                                   (old.league_id, old.team_id, old.season)).fetchall()
                 for row in rows:
                     baseline = LeagueSnapshot.model_validate_json(row["baseline"])

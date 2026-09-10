@@ -1,8 +1,14 @@
 # Server and archive acceptance
 
-**Status: Verified five-team Week 1 observation and analysis, archive import, historical backup recovery, and service restart.**
+**Historical status: Verified v0.3.2 five-team Week 1 observation and analysis, archive import, backup recovery, and service restart.**
 
 This record includes the v0.3.2 five-team handoff and retains the earlier versioned checks on 2026-09-08.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the deployed v0.4.0 candidate and its five-team HTTP observation sweep.
+One explicitly authorized Week 1 repair also verified automatic HTTP free-agent add/drop and a subsequent lineup exchange through that candidate.
+Both actions had ESPN `EXECUTED` receipts and matching roster observations.
+The execution harness applied temporary explicit limits and restored the original policy afterward.
+Live waiver processing, IR moves, scoring-week rollover, and public release remain incomplete.
+Production archive compaction, incremental bootstrap, exact event coverage, and scheduled collection passed.
 Deployment identities, account information, manifests, and raw evidence remain private.
 The checks below describe the tested configuration. They do not establish unattended season operation.
 
@@ -40,8 +46,8 @@ A privileged journal read also found no error entries during the checked window.
 The review account could not read the journal directly; the privileged read resolved that evidence gap without a permission change.
 
 These checks verify five-team observation and analysis. No live server lineup swap occurred during the checked cycles.
-Live server lineup submission and an unattended season remain **Not Tested**.
-Automatic week rollover, live waivers, drops, acquisitions, and trades are not implemented.
+Live server lineup submission and an unattended season were **Not Tested** at that v0.3.2 checkpoint.
+At this v0.3.2 handoff, automatic week rollover, live waivers, drops, acquisitions, and trades were not implemented.
 Read [the multi-team evaluation plan](MULTI_TEAM_ACCEPTANCE.md) for the remaining season evidence.
 
 ## Five-team archive and backup verification
@@ -89,7 +95,7 @@ The coordinator reported healthy status and zero unresolved or newly authorized 
 
 Team B already had the target lineup. Teams A, C, and D had no admissible single exchange.
 No live server lineup swap was submitted during these checked cycles.
-This verifies four-team observation and analysis. Live server lineup submission still requires a qualifying action and a confirmed result.
+This verifies four-team observation and analysis. That v0.3.1 checkpoint did not verify live server lineup submission.
 
 At the 19:38:32 UTC archive check, every outbox event through each checked cutoff was present:
 
@@ -252,7 +258,7 @@ Saved lineup modes were `automatic`, with a minimum projected improvement of 1.5
 The checks required no lineup changes and left zero pending claims.
 
 This verifies observation, saved-policy access, and analysis on the server.
-Live server lineup submission still requires a qualifying action and a confirmed platform result.
+That historical checkpoint did not verify live server lineup submission.
 No server lineup submission is claimed by this check.
 
 ## Backup and restart checks

@@ -1,0 +1,28 @@
+[Unit]
+Description=Fantasy Football browser draft worker
+Wants=network-online.target
+After=network-online.target
+
+# Install the browser extra and Google Chrome before using this template.
+# Save a verified phase=draft connection in the manager directory below.
+# Use its separate dedicated profile and the user's saved draft policy.
+# A visible browser requires a display supplied through private configuration.
+[Service]
+Type=simple
+User=fantasy-football
+Group=fantasy-football
+WorkingDirectory=/var/lib/fantasy-football
+Environment=PYTHONUNBUFFERED=1
+Environment=FFM_BROWSER_DATA_DIR=/var/lib/fantasy-football/draft-browser
+EnvironmentFile=-/etc/fantasy-football/draft-environment
+ExecStart=/opt/fantasy-football/venv/bin/python -m fantasy_football_manager.espn_mcp --worker --transport browser --data-dir /var/lib/fantasy-football/leagues/draft
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=180
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

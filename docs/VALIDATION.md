@@ -1,5 +1,20 @@
 # Validation status
 
+## Version 0.4.0 HTTP season candidate
+
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for current source tests, authenticated reads, and live transaction evidence.
+The candidate adds HTTP lineups, acquisitions, IR moves, automatic period rollover, and incremental archive export.
+It retains optional browser draft support.
+The local suite passed 1,048 tests with 22 skips. Separate PostgreSQL validation passed all 92 archive tests.
+A fresh base installation passed both MCP servers without Playwright.
+The deployed HTTP coordinator completed a five-team sweep with accurate analysis readiness.
+One authorized repair verified automatic HTTP free-agent add/drop and a subsequent lineup exchange.
+Both transactions matched ESPN receipts and fresh roster observations. A follow-up cycle confirmed no duplicate submission.
+Live waiver processing, IR moves, rollover, and an unattended season remain Not Tested. Public release remains incomplete.
+The results below describe their original versions and do not establish acceptance of this candidate.
+
+## Earlier release evidence
+
 Version 0.3.0 adds a server coordinator and labeled evidence archive.
 Read [server acceptance](SERVER_ACCEPTANCE.md) for current tests, team observations, backup recovery, and verification limits.
 Read [distribution acceptance](DISCOVERY_ACCEPTANCE.md) for the completed discovery findings and public channel checks.
@@ -296,7 +311,7 @@ Published assets remain fixed to the release commit. Later documentation commits
 ```sh
 uv run pytest -q
 uv run fantasy-football-manager --demo
-uv run python scripts/validate_release.py --version 0.3.2
+uv run python scripts/validate_release.py --version 0.4.0
 uv build
 uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
 uv run python scripts/build_plugin_zip.py

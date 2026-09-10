@@ -8,7 +8,7 @@ from math import inf, isfinite
 from .models import LeagueSnapshot, ManagerConfig, Player, Team
 
 
-_UNAVAILABLE = {"OUT", "IR", "INJURED_RESERVE", "INJURED RESERVE", "PUP", "SUSPENDED", "EXEMPT", "INACTIVE"}
+_UNAVAILABLE = {"OUT", "DOUBTFUL", "IR", "INJURED_RESERVE", "INJURED RESERVE", "PUP", "SUSPENDED", "EXEMPT", "INACTIVE"}
 _OBJECTIVES = {"projected_points": "weekly_projection", "floor": "weekly_floor", "upside": "weekly_ceiling"}
 
 
@@ -120,6 +120,17 @@ def _total(lineup: dict, slots: dict, players: dict[str, Player], field: str,
     return sum(values)
 
 
+def lineup_delta(before: dict, after: dict, players: dict[str, Player], field: str = "weekly_projection") -> float | None:
+    """Compare entering and leaving players. Unchanged players cancel, including unknown scores."""
+    previous = {pid for pid in before.values() if pid is not None}
+    proposed = {pid for pid in after.values() if pid is not None}
+    entering, leaving = proposed - previous, previous - proposed
+    values = {pid: _score(players[pid], field) if pid in players else None for pid in entering | leaving}
+    if any(value is None for value in values.values()):
+        return None
+    return sum(values[pid] for pid in entering) - sum(values[pid] for pid in leaving)
+
+
 def _lineup(snapshot: LeagueSnapshot, config: ManagerConfig, team: Team,
             roster_ids: list[str] | None = None, allow_empty: bool = False) -> dict:
     players = {p.id: p for p in snapshot.players}
@@ -132,18 +143,29 @@ def _lineup(snapshot: LeagueSnapshot, config: ManagerConfig, team: Team,
                   if (not players[pid].locked and _usable(players[pid], snapshot))
                   and any(set(players[pid].eligible_positions).intersection(eligible)
                           for slot, eligible in slots.items() if slot not in fixed)]
-    required = candidates + [players[pid] for pid in fixed.values()]
+    # An unavailable current starter still has an unknown baseline when its score is missing.
+    required = {p.id: p for p in candidates}
+    required.update({pid: players[pid] for pid in team.lineup.values() if pid is not None})
     missing = [{"player_id": p.id, "fields": [key for key in dict.fromkeys(("weekly_projection", field))
-                if _score(p, key) is None]} for p in required]
+                if _score(p, key) is None]} for p in required.values()]
     missing = [item for item in missing if item["fields"]]
+    blocking = [item for item in missing if item["player_id"] not in fixed.values()]
     result = {"status": "ok", "team_id": team.id, "team_name": team.name,
               "strategy": config.strategy.season, "objective_field": field,
               "lineup": {}, "projected_points": None, "objective_points": None,
               "current_points": _total(team.lineup, slots, players, "weekly_projection"),
               "current_projected_points": _total(team.lineup, slots, players, "weekly_projection"),
               "improvement": None, "missing_projections": missing, "unfilled_slots": [],
+              "blocking_missing_projections": blocking, "comparison_complete": False,
+              "projection_complete": False, "comparison_scope": "known_projection_slots" if missing else "full_roster",
+              "fixed_slots": fixed,
+              "excluded_players": [{"player_id": pid, "availability": players[pid].availability,
+                                    "reason": "locked_bench" if players[pid].locked else "unavailable_this_week",
+                                    "weekly_projection": players[pid].weekly_projection}
+                                   for pid in roster_ids if pid not in fixed.values()
+                                   and (players[pid].locked or not _usable(players[pid], snapshot))],
               "errors": [], "warnings": []}
-    if missing:
+    if blocking:
         result.update(status="incomplete", errors=["Required weekly projections are missing."])
         return result
     remaining = [slot for slot in slots if slot not in fixed]
@@ -164,12 +186,16 @@ def _lineup(snapshot: LeagueSnapshot, config: ManagerConfig, team: Team,
     result["unfilled_slots"] = [slot for slot, pid in lineup.items() if pid is None]
     result["projected_points"] = _total(lineup, slots, players, "weekly_projection", allow_empty)
     result["objective_points"] = _total(lineup, slots, players, field, allow_empty)
+    result["projection_complete"] = result["projected_points"] is not None and result["objective_points"] is not None
+    result["comparison_complete"] = True
     if result["unfilled_slots"]:
         result.update(status="incomplete", errors=["The roster has vacant starter slots."])
-    if result["current_points"] is not None:
-        result["improvement"] = result["projected_points"] - result["current_points"]
-    else:
+    if set(team.lineup) == set(slots):
+        result["improvement"] = lineup_delta(team.lineup, result["lineup"], players)
+    if result["current_points"] is None:
         result["warnings"].append("The current lineup is incomplete or has missing weekly projections.")
+    if missing:
+        result["warnings"].append("Locked starters remain fixed. Their unknown scores cancel from the comparison, but total points remain unknown.")
     for pid in fixed.values():
         if not _usable(players[pid], snapshot):
             result["warnings"].append(f"Locked player {pid} remains in the current slot despite unavailable status.")
@@ -179,13 +205,15 @@ def _lineup(snapshot: LeagueSnapshot, config: ManagerConfig, team: Team,
 
 
 def recommend_lineup(snapshot: LeagueSnapshot, config: ManagerConfig) -> dict:
-    """Return the exact best legal weekly lineup for the selected objective."""
+    """Optimize known weekly scores while preserving locked slots. Report coverage gaps separately."""
     base = _base(snapshot, config)
+    coverage = _coverage(snapshot, config, snapshot.own_team())
     if base["errors"]:
         return {**base, "team_id": snapshot.team_id, "lineup": {}, "projected_points": None,
-                "current_points": None, "current_projected_points": None, "improvement": None}
+                "current_points": None, "current_projected_points": None, "improvement": None,
+                "comparison_complete": False, "projection_complete": False, "coverage": coverage}
     result = _lineup(snapshot, config, snapshot.own_team())
-    return {**base, **result, "warnings": base["warnings"] + result["warnings"]}
+    return {**base, **result, "warnings": base["warnings"] + result["warnings"], "coverage": coverage}
 
 
 def _move_limits(snapshot: LeagueSnapshot, config: ManagerConfig) -> tuple[dict, list[str]]:
@@ -200,6 +228,92 @@ def _move_limits(snapshot: LeagueSnapshot, config: ManagerConfig) -> tuple[dict,
     return {"remaining_weekly_moves": max(0, moves), "maximum_faab_bid": bid}, []
 
 
+def _coverage(snapshot: LeagueSnapshot, config: ManagerConfig, team: Team) -> dict:
+    """List current slot gaps and replacement options. These options are not action permits."""
+    players = {p.id: p for p in snapshot.players}
+    slots = snapshot.rules.lineup_slots()
+    current_ids = {pid for pid in team.lineup.values() if pid is not None}
+    owned = {pid for other in snapshot.teams for pid in other.roster_ids + other.reserve_ids}
+    field = _OBJECTIVES[config.strategy.season]
+    base = _base(snapshot, config)
+    effective, budget_errors = _move_limits(snapshot, config)
+    source_ready = not base["errors"] and snapshot.source.projections_observed_at is not None
+    result = {"gaps": [], "candidates": [], "source_ready": source_ready,
+              "effective_limits": effective, "budget_errors": budget_errors,
+              "platform_eligibility_verified": False, "authorized": False}
+    for slot, eligible in slots.items():
+        pid = team.lineup.get(slot)
+        starter = players.get(pid)
+        reasons = []
+        if starter is None:
+            reasons.append("vacant_slot")
+        else:
+            if not _usable(starter, snapshot):
+                reasons.append("starter_unavailable")
+            elif starter.availability not in {"ACTIVE", "HEALTHY"}:
+                reasons.append("starter_availability_risk")
+            if _score(starter, "weekly_projection") is None or _score(starter, field) is None:
+                reasons.append("starter_projection_unknown")
+        if not reasons:
+            continue
+        alternatives = [p for p in snapshot.players if p.id not in current_ids and not p.locked
+                        and p.availability in {"ACTIVE", "HEALTHY", "QUESTIONABLE"} and p.bye != snapshot.week
+                        and set(p.eligible_positions).intersection(eligible)
+                        and _score(p, "weekly_projection") is not None and _score(p, field) is not None
+                        and (p.id in team.roster_ids or p.id not in owned)]
+        backups = sorted(p.id for p in alternatives if p.id in team.roster_ids)
+        if not backups:
+            reasons.append("no_projected_bench_cover")
+        gap = {"slot": slot, "player_id": pid, "reasons": reasons,
+               "locked": bool(starter and starter.locked), "backup_player_ids": backups,
+               "availability": starter.availability if starter else None,
+               "weekly_projection": starter.weekly_projection if starter else None}
+        result["gaps"].append(gap)
+        if gap["locked"]:
+            continue
+        choices = []
+        for candidate in alternatives:
+            bench = candidate.id in team.roster_ids
+            drops = [None] if bench else ([None] if len(team.roster_ids) < snapshot.rules.roster_size else [])
+            if not bench:
+                drops += [drop_id for drop_id in sorted(team.roster_ids)
+                          if drop_id not in config.limits.protected_ids and not players[drop_id].locked
+                          and (drop_id not in current_ids or drop_id == pid)
+                          and (config.limits.drop_mode == "any_unprotected" or drop_id in config.limits.allowed_drop_ids)]
+            for drop_id in drops:
+                proposed_ids = team.roster_ids if bench else [roster_id for roster_id in team.roster_ids if roster_id != drop_id] + [candidate.id]
+                if len(proposed_ids) > snapshot.rules.roster_size or any(
+                    sum(players[roster_id].position == position for roster_id in proposed_ids) > cap
+                    for position, cap in snapshot.rules.caps.items()
+                ) or snapshot.rules.caps.get(candidate.position, 0) == 0:
+                    continue
+                proposed_lineup = {key: team.lineup.get(key) for key in slots}
+                proposed_lineup[slot] = candidate.id
+                blockers = [] if source_ready else ["source_not_ready"]
+                if not bench:
+                    if budget_errors:
+                        blockers.append("budget_unknown")
+                    elif effective["remaining_weekly_moves"] == 0:
+                        blockers.append("weekly_move_limit")
+                    blockers.append("platform_acquisition_eligibility_unverified")
+                if pid is not None and pid not in getattr(config.limits, "coverage_repair_ids", []):
+                    blockers.append("coverage_repair_not_enabled")
+                if any(value is None for value in proposed_lineup.values()):
+                    blockers.append("other_vacant_slots")
+                choices.append({"slot": slot, "action": "set_lineup" if bench else "acquisition",
+                                "player_id": candidate.id, "player_name": candidate.name,
+                                "drop_id": drop_id, "repair_player_id": pid,
+                                "lineup": proposed_lineup, "weekly_projection": candidate.weekly_projection,
+                                "improvement": lineup_delta(team.lineup, proposed_lineup, players),
+                                "maximum_faab_bid": None if bench else effective.get("maximum_faab_bid"),
+                                "blocking_reasons": blockers, "authorized": False})
+        choices.sort(key=lambda item: (-_score(players[item["player_id"]], field),
+                                      item["action"] != "set_lineup", item["player_id"],
+                                      item["drop_id"] is not None, item["drop_id"] or ""))
+        result["candidates"].extend(choices[:10])
+    return result
+
+
 def rank_waivers(snapshot: LeagueSnapshot, config: ManagerConfig, limit: int = 10) -> dict:
     """Rank unique add/drop proposals without submitting claims or guessing bid odds."""
     if type(limit) is not int or not 1 <= limit <= 100:
@@ -207,7 +321,8 @@ def rank_waivers(snapshot: LeagueSnapshot, config: ManagerConfig, limit: int = 1
     result = _base(snapshot, config)
     result.update({"strategy": config.strategy.waiver, "recommendations": [], "candidates": [],
                    "missing_projections": [], "baseline_projected_points": None,
-                   "bid_win_probability": None, "platform_claim_status_verified": False})
+                   "bid_win_probability": None, "platform_claim_status_verified": False,
+                   "coverage": _coverage(snapshot, config, snapshot.own_team())})
     if result["errors"]:
         return result
     effective, errors = _move_limits(snapshot, config)
@@ -222,7 +337,8 @@ def rank_waivers(snapshot: LeagueSnapshot, config: ManagerConfig, limit: int = 1
     baseline = _lineup(snapshot, config, team, allow_empty=True)
     result["baseline_projected_points"] = baseline["projected_points"]
     result["baseline_unfilled_slots"] = baseline["unfilled_slots"]
-    if baseline["missing_projections"]:
+    result["missing_projections"] = list(baseline["missing_projections"])
+    if baseline["blocking_missing_projections"]:
         result.update(status="incomplete", errors=baseline["errors"], missing_projections=baseline["missing_projections"])
         return result
     if baseline["unfilled_slots"]:
@@ -258,7 +374,9 @@ def rank_waivers(snapshot: LeagueSnapshot, config: ManagerConfig, limit: int = 1
             after = _lineup(snapshot, config, team, proposed)
             if after["status"] != "ok":
                 continue
-            improvement = after["projected_points"] - baseline["projected_points"]
+            improvement = lineup_delta(baseline["lineup"], after["lineup"], players)
+            if improvement is None:
+                continue
             if improvement + 1e-9 < limits.min_lineup_improvement:
                 continue
             upside_gain = None
@@ -288,8 +406,12 @@ def rank_waivers(snapshot: LeagueSnapshot, config: ManagerConfig, limit: int = 1
     if result["missing_projections"]:
         unique = {(item["player_id"], tuple(item["fields"])): item for item in result["missing_projections"]}
         result["missing_projections"] = list(unique.values())
-        result["status"] = "incomplete"
-        result["warnings"].append("The ranking excludes candidates with missing weekly inputs.")
+        fixed_ids = set(baseline["fixed_slots"].values())
+        if any(item["player_id"] not in fixed_ids for item in result["missing_projections"]):
+            result["status"] = "incomplete"
+            result["warnings"].append("The ranking excludes candidates with missing weekly inputs.")
+        else:
+            result["warnings"].append("Unknown locked starter scores cancel from acquisition comparisons. Total points remain unknown.")
     if config.strategy.waiver == "conserve_faab":
         result["warnings"].append("Prefer a free acquisition when platform rules permit it. No FAAB bid is estimated.")
     result["warnings"].append("These are alternative single acquisitions, not a combined claim plan.")
@@ -307,7 +429,7 @@ def power_rankings(snapshot: LeagueSnapshot, config: ManagerConfig) -> dict:
     if result["errors"]:
         return result
     entries = [_lineup(snapshot, config, team) for team in snapshot.teams]
-    complete = all(entry["status"] == "ok" for entry in entries)
+    complete = all(entry["status"] == "ok" and entry["projected_points"] is not None for entry in entries)
     entries.sort(key=lambda entry: (entry["projected_points"] is None,
                                     -(entry["projected_points"] or 0), entry["team_id"]))
     previous_points, previous_rank = None, 0

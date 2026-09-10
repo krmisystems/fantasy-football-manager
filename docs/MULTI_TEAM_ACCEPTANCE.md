@@ -1,6 +1,6 @@
 # Multi-team acceptance plan
 
-**Status: All three additional drafts completed. Five-team Week 1 observation passed. Season outcomes remain Planned.**
+**Status: All three additional drafts completed. Five-team Week 1 observation passed. One HTTP roster repair passed. Season outcomes remain Planned.**
 The [third team draft](THIRD_DRAFT_ACCEPTANCE.md) is the first of the three additional trials.
 It verified all 160 selections and a 16-player roster, with 13 manager-confirmed picks and three platform fallbacks.
 The [fourth team draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own selections and captured all 160 league picks.
@@ -13,7 +13,19 @@ The five-team season evaluation remains planned. Season outcomes are not yet rec
 
 Version 0.3.0 adds a serial season coordinator with separate league databases and a shared server browser.
 Five-team Week 1 server observation and current lineup calculations are recorded in [server acceptance](SERVER_ACCEPTANCE.md).
-These checks do not establish unattended season completion or a live server lineup submission.
+Those historical browser checks did not establish unattended season completion or a live server lineup submission.
+
+The deployed v0.4.0 candidate completed a separate five-team HTTP observation sweep.
+All observations were fresh. Four teams had current analysis and required no lineup change.
+One team had incomplete tight-end coverage, which kept overall analysis health degraded.
+That initial sweep submitted no live HTTP transaction.
+
+One team then received an explicitly authorized Week 1 coverage repair through the deployed candidate.
+Two unchanged automatic engine steps confirmed a free-agent add/drop, then a lineup exchange, without a browser.
+Both actions had ESPN `EXECUTED` receipts and matching roster observations. The previous starter remained on the bench.
+Other roster players, starter assignments, and pending transactions stayed unchanged.
+The execution harness applied temporary explicit limits and restored the original policy afterward.
+This verifies the recorded repair for one team. Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the current deployment boundary.
 
 ## Failures to retain
 
@@ -39,18 +51,22 @@ The fifth draft exposed a separate missing-projection failure after 132 stored p
 Version 0.3.2 retains verified opponent identities without assigning projected points.
 The missed turn, two host selections, and unverified executor remain in the fifth report after the fix.
 
-## Separate state and browser access
+## Separate state and transport access
 
 Give each league its own `FFM_DATA_DIR` or `--data-dir`.
 Each directory stores that league's configuration, snapshots, proposals, and audit history.
 The manager and ESPN processes for one league must use the same state directory.
+
+The v0.4.0 coordinator uses HTTP by default and reads its protected session file through `FFM_ESPN_CREDENTIAL_FILE`.
+A lease prevents simultaneous HTTP control of the same team through the same session directory.
 
 Use `FFM_BROWSER_DATA_DIR` when controllers must share one authenticated browser profile.
 The profile lease permits only one active controller at a time.
 The current source can retain separate league state while controllers use that profile in sequence.
 Five-team serial visits passed with fresh Week 1 data and current lineup calculations.
 
-The diagram shows the tested five-team configuration using the season coordinator.
+The diagram preserves the historical five-team browser configuration.
+The [current architecture](ARCHITECTURE.md) describes HTTP season operation.
 Use the [server instructions](SERVER.md) to configure explicit team and week contexts.
 
 ```mermaid
@@ -105,25 +121,29 @@ A roster that becomes full through fallback selections does not establish comple
 Give the teams anonymous labels A through E in public reports.
 Record the scoring rules, lineup slots, and configured policy separately for each team.
 Use an explicit scoring week when connecting a season controller.
-Automatic week rollover is not implemented.
+The v0.4.0 HTTP coordinator can follow ESPN's verified current transaction period when `auto_rollover` is enabled.
+Pending submissions and queued waivers retain their original week until reconciliation resolves them.
 
 For each selected team and week:
 
-1. Load the correct state directory and verify the browser context.
+1. Load the correct state directory and verify the ESPN context.
 2. Read current ownership, weekly projections, and selected-team locks.
 3. Calculate the legal lineup under that team's configured limits.
-4. Submit supported lineup changes only within the authorized mode.
-5. Verify each resulting lineup before another change.
+4. Submit supported actions only within the authorized mode and saved limits.
+5. Verify the resulting roster and any transaction receipt before another change.
 6. Record source age, lock coverage, interventions, and unresolved results.
-7. Release the browser controller before another team uses the shared profile.
+7. Release the controller after the team visit.
 
-The current lineup adapter applies one qualifying swap at a time.
+The legacy browser lineup adapter applies one qualifying swap at a time.
 Each intermediate swap must meet the configured improvement limit.
 Some optimized targets require intermediate moves that fail that limit.
 Report those cases without claiming that the whole target lineup was applied.
 
-Live waiver, free-agent acquisition, drop, and trade adapters are not implemented.
-Keep their recommendations and any external manual actions separate from manager execution results.
+The HTTP adapter supports full lineup proposals, waivers, free-agent acquisitions, drops, IR moves, and IR activation.
+Those paths have fictional test coverage. One authorized repair also verified live automatic free-agent add/drop and lineup execution.
+Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested.
+Trade execution remains outside the release scope. The v0.4.0 candidate is not yet a public release.
+Keep recommendations and external manual actions separate from manager execution results.
 Five-team monitoring and lineup changes alone do not establish fully automatic season management.
 Selected-team lock evidence does not establish league-wide power-ranking coverage.
 

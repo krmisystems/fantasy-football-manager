@@ -10,6 +10,12 @@ Read `get_capabilities` and `get_manager_config` before selecting the workflow.
 For a real ESPN draft, use the included `espn-automation` skill and its companion tools.
 The manager's `execute_demo_action` tool is for synthetic state only.
 
+The v0.4.0 release candidate preserves the browser draft adapter. It is not yet a published release.
+The source `browser` extra and installed Chrome are required for that adapter.
+Its new HTTP transport applies to season operation and does not replace draft submission.
+Use `season-manager` after an explicit season connection. Completing a draft does not authorize new season action modes.
+Distinguish historical live draft evidence from new source changes and fictional tests.
+
 ## Imported drafts and demonstrations
 
 1. Identify the league, team, season, and current board revision.

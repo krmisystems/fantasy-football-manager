@@ -14,6 +14,8 @@ import pytest
 
 from fantasy_football_manager import espn_mcp, server
 from fantasy_football_manager.espn_service import ESPNService
+from fantasy_football_manager.models import ManagerConfig
+from fantasy_football_manager.season import recommend_lineup
 from test_espn_service import SeasonBrowserStub, season_observed
 
 
@@ -88,6 +90,7 @@ async def test_two_leagues_use_serial_browser_and_exact_context(tmp_path):
     assert all(event[2]["headless"] is True for event in events if event[0] == "connect")
     assert result["cycles"] == 1 and result["status"] == "stopped"
     assert all(item["last_success_at"] and item["status"] == "monitoring_lineup" for item in result["leagues"])
+    assert all(item["analysis"]["ready"] and item["action"]["reasons"] == ["mode_advisory"] for item in result["leagues"])
     assert all(not browser.clicks and browser.closed for browser in browsers)
     for entry in manifest.leagues:
         snapshot = ESPNService(entry.data_dir, browser=SeasonBrowserStub()).manager.state()[0]
@@ -151,6 +154,8 @@ async def test_saved_automatic_policy_can_apply_only_own_league_swap(tmp_path):
 
     result = await server.SeasonCoordinator(manifest, service_factory=factory).run(once=True)
     assert all(item["status"] == "confirmed" for item in result["leagues"])
+    assert all(not item["analysis"]["ready"] and "analysis_input_changed" in item["analysis"]["reasons"]
+               and not item["action"]["ready"] for item in result["leagues"])
     assert [len(browser.clicks) for browser in browsers] == [1, 1]
     for entry, browser in zip(manifest.leagues, browsers):
         permit = browser.clicks[0]
@@ -161,12 +166,18 @@ async def test_pending_claim_survives_next_visit_without_repeat_click(tmp_path):
     manifest = make_manifest(tmp_path, mode="automatic", entries=1)
     events, browsers = [], []
     normal = factory_for(manifest, events, browsers)
+    recovered = False
 
     def factory(entry, root):
         service = normal(entry, root)
         _, config, _, revision = service.manager.state()
         if config.automation.preset != "bounded_automation":
             config.automation.preset = "bounded_automation"
+            service.manager.update_config(config.model_dump(mode="json"), revision)
+        if recovered:
+            service.browser.current.own_team().lineup = dict(browsers[0].clicks[0]["lineup"])
+            _, config, _, revision = service.manager.state()
+            config.limits.min_lineup_improvement = 100
             service.manager.update_config(config.model_dump(mode="json"), revision)
         service.browser.submit_error = RuntimeError("Fictional connection failed after authorization.")
         return service
@@ -176,6 +187,16 @@ async def test_pending_claim_survives_next_visit_without_repeat_click(tmp_path):
     assert [len(browser.clicks) for browser in browsers] == [1, 0]
     assert result["leagues"][0]["status"] == "awaiting_verification"
     assert result["leagues"][0]["pending_count"] == 1
+    assert result["leagues"][0]["analysis"]["status"] == "not_run"
+    assert result["leagues"][0]["action"]["reasons"] == ["pending_claim"]
+    assert result["health"]["observations_fresh"]
+    assert not result["health"]["analysis_ready"]
+    recovered = True
+    coordinator = server.SeasonCoordinator(manifest, service_factory=factory)
+    await coordinator.visit(0, manifest.leagues[0])
+    assert coordinator.value["leagues"][0]["pending_count"] == 0
+    assert server.health(coordinator.value)["healthy"]
+    assert [len(browser.clicks) for browser in browsers] == [1, 0, 0]
 
 
 async def test_manifest_mode_cannot_elevate_saved_advisory_config(tmp_path):
@@ -265,17 +286,198 @@ def test_manifest_rejects_drafts_duplicate_databases_and_missing_week(tmp_path):
             server.load_manifest(path)
 
 
-def test_health_requires_successful_fresh_observation(tmp_path):
+def ready_health_value(tmp_path, *, automatic=False):
+    value = server.SeasonCoordinator(make_manifest(tmp_path, entries=1)).value
+    value["status"] = "waiting"
+    snapshot, config = season_observed(), ManagerConfig()
+    if automatic:
+        config.automation.preset = "bounded_automation"
+    latest = {"revision": 2, "config_revision": 1, "phase": "season", "result": recommend_lineup(snapshot, config)}
+    value["leagues"][0].update(status="monitoring_lineup", last_success_at=server.utc_now(),
+                              snapshot_observed_at=snapshot.source.observed_at.isoformat(),
+                              revision=2, config_revision=1, pending_count=0, paused=False,
+                              mode=config.automation.mode_for("set_lineup"),
+                              **server.lineup_readiness(snapshot, config, 2, 1, latest))
+    return value
+
+
+def test_old_health_requires_explicit_analysis_readiness(tmp_path):
     coordinator = server.SeasonCoordinator(make_manifest(tmp_path, entries=1))
     value = coordinator.value
     value["status"] = "waiting"
     assert not server.health(value)["healthy"]
     value["leagues"][0].update(status="monitoring_lineup", last_success_at=server.utc_now(), snapshot_observed_at=server.utc_now())
+    value["leagues"][0].pop("analysis")
+    value["leagues"][0].pop("action")
+    result = server.health(value)
+    assert result["process_active"] and result["heartbeat_fresh"] and result["observations_fresh"]
+    assert not result["healthy"] and result["degraded"] and not result["analysis_ready"]
+    assert "readiness_unknown" in result["reasons"]
+
+
+def test_health_requires_successful_fresh_observation_and_analysis(tmp_path):
+    value = ready_health_value(tmp_path)
     assert server.health(value)["healthy"]
     value["leagues"][0]["snapshot_observed_at"] = (datetime.now(timezone.utc) - timedelta(minutes=6)).isoformat()
     assert not server.health(value)["healthy"]
     value["leagues"][0].update(status="error", snapshot_observed_at=server.utc_now())
     assert not server.health(value)["healthy"]
+
+
+@pytest.mark.parametrize("change", [
+    lambda item: item["analysis"].pop("expires_at"),
+    lambda item: item["analysis"].pop("evaluated_at"),
+    lambda item: item["analysis"].pop("result_status"),
+    lambda item: item["analysis"].update(ready="true"),
+    lambda item: item["analysis"].update(evaluated_at=(datetime.now(timezone.utc) - timedelta(minutes=6)).isoformat()),
+    lambda item: item["analysis"].update(expires_at=(datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()),
+    lambda item: item["analysis"].update(config_revision=100),
+    lambda item: item.update(revision=100),
+])
+def test_saved_readiness_cannot_outlive_or_omit_its_evidence(tmp_path, change):
+    value = ready_health_value(tmp_path, automatic=True)
+    assert server.health(value)["action_ready"]
+    change(value["leagues"][0])
+    result = server.health(value)
+    assert result["observations_fresh"] and result["degraded"]
+    assert not result["analysis_ready"] and not result["action_ready"]
+
+
+@pytest.mark.parametrize("change", [lambda item: item.pop("pending_count"), lambda item: item.pop("paused"),
+                                  lambda item: item.pop("mode"), lambda item: item["action"].pop("scope"),
+                                  lambda item: item["action"].update(revision=100)])
+def test_missing_action_context_never_implies_ready(tmp_path, change):
+    value = ready_health_value(tmp_path, automatic=True)
+    change(value["leagues"][0])
+    assert not server.health(value)["action_ready"]
+
+
+@pytest.mark.parametrize("problem, reason", [("projection", "weekly_projections_missing"),
+                                             ("locks", "player_locks_unverified"),
+                                             ("complete", "source_incomplete"),
+                                             ("timestamp", "projection_timestamp_unknown"),
+                                             ("stale", "projections_not_fresh")])
+async def test_incomplete_analysis_degrades_health_and_recovers(tmp_path, problem, reason):
+    manifest = make_manifest(tmp_path, entries=1)
+    events, browsers = [], []
+    normal = factory_for(manifest, events, browsers)
+    broken = True
+
+    def factory(entry, root):
+        service = normal(entry, root)
+        snapshot = service.browser.current
+        if broken:
+            if problem == "projection":
+                snapshot.players[0].weekly_projection = None
+            elif problem == "locks":
+                snapshot.source.locks_verified = False
+            elif problem == "complete":
+                snapshot.source.complete = False
+            elif problem == "timestamp":
+                snapshot.source.projections_observed_at = None
+            else:
+                snapshot.source.projections_observed_at = datetime.now(timezone.utc) - timedelta(hours=2)
+        return service
+
+    coordinator = server.SeasonCoordinator(manifest, service_factory=factory)
+    await coordinator.visit(0, manifest.leagues[0])
+    item = coordinator.value["leagues"][0]
+    assert not item["analysis"]["ready"] and reason in item["analysis"]["reasons"]
+    result = server.health(coordinator.value)
+    assert result["process_active"] and result["heartbeat_fresh"] and result["observations_fresh"]
+    assert result["degraded"] and not result["healthy"] and not result["analysis_ready"]
+    assert not result["action_ready"] and not browsers[0].clicks
+    broken = False
+    await coordinator.visit(0, manifest.leagues[0])
+    result = server.health(coordinator.value)
+    assert result["healthy"] and result["analysis_ready"] and not result["degraded"]
+    assert not result["action_ready"] and not any(browser.clicks for browser in browsers)
+
+
+async def test_paused_visit_observes_but_does_not_claim_analysis_ready(tmp_path):
+    manifest = make_manifest(tmp_path, mode="existing", entries=1)
+    events, browsers = [], []
+    normal = factory_for(manifest, events, browsers)
+    paused = True
+
+    def factory(entry, root):
+        service = normal(entry, root)
+        _, config, _, revision = service.manager.state()
+        config.automation.paused = paused
+        service.manager.update_config(config.model_dump(mode="json"), revision)
+        return service
+
+    coordinator = server.SeasonCoordinator(manifest, service_factory=factory)
+    await coordinator.visit(0, manifest.leagues[0])
+    item = coordinator.value["leagues"][0]
+    result = server.health(coordinator.value)
+    assert item["status"] == "paused" and item["analysis"]["status"] == "not_run"
+    assert item["action"]["reasons"] == ["intentional_paused"]
+    assert result["observations_fresh"] and result["process_active"]
+    assert result["degraded"] and "intentional_paused" in result["reasons"]
+    assert not result["analysis_ready"] and not result["action_ready"] and not browsers[0].clicks
+    paused = False
+    await coordinator.visit(0, manifest.leagues[0])
+    result = server.health(coordinator.value)
+    assert result["healthy"] and "intentional_paused" not in result["reasons"]
+    assert not any(browser.clicks for browser in browsers)
+
+
+@pytest.mark.parametrize("preset, expected_status, expected_reason", [
+    ("advisory", "disabled", "mode_advisory"), ("review", "approval_required", "mode_review"),
+    ("bounded_automation", "ready", None)])
+def test_readiness_obeys_action_mode(preset, expected_status, expected_reason):
+    snapshot, config = season_observed(), ManagerConfig()
+    config.automation.preset = preset
+    latest = {"revision": 2, "config_revision": 1, "phase": "season", "result": recommend_lineup(snapshot, config)}
+    result = server.lineup_readiness(snapshot, config, 2, 1, latest)
+    assert result["analysis"]["ready"]
+    assert result["action"]["status"] == expected_status
+    assert result["action"]["ready"] is (expected_reason is None)
+    assert result["action"]["reasons"] == ([] if expected_reason is None else [expected_reason])
+
+
+@pytest.mark.parametrize("current, reason", [(True, "lineup_current"), (False, "no_admissible_lineup_exchange")])
+async def test_no_qualifying_swap_is_healthy_analysis(tmp_path, current, reason):
+    manifest = make_manifest(tmp_path, mode="automatic", entries=1)
+    events, browsers = [], []
+    normal = factory_for(manifest, events, browsers)
+
+    def factory(entry, root):
+        service = normal(entry, root)
+        _, config, _, revision = service.manager.state()
+        config.automation.preset = "bounded_automation"
+        if current:
+            service.browser.current.own_team().lineup = {"RB1": "p3", "RB2": "p4"}
+        else:
+            config.limits.min_lineup_improvement = 100
+        service.manager.update_config(config.model_dump(mode="json"), revision)
+        return service
+
+    coordinator = server.SeasonCoordinator(manifest, service_factory=factory)
+    await coordinator.visit(0, manifest.leagues[0])
+    item = coordinator.value["leagues"][0]
+    result = server.health(coordinator.value)
+    assert item["analysis"]["ready"] and item["action"]["status"] == "not_needed"
+    assert item["action"]["reasons"] == [reason]
+    assert result["healthy"] and not result["degraded"] and not result["action_ready"]
+    assert not browsers[0].clicks
+
+
+def test_aggregate_action_readiness_counts_teams_and_requires_process_activity(tmp_path):
+    value = ready_health_value(tmp_path, automatic=True)
+    other = json.loads(json.dumps(value["leagues"][0]))
+    other.update(mode="advisory")
+    other["action"].update(ready=False, status="disabled", reasons=["mode_advisory"])
+    value["leagues"].append(other)
+    result = server.health(value)
+    assert result["healthy"] and result["team_count"] == 2
+    assert result["action_ready"] and result["action_ready_count"] == 1
+    assert [item["action_ready"] for item in result["leagues"]] == [True, False]
+    value["status"] = "stopped"
+    result = server.health(value)
+    assert result["analysis_ready"] and result["observations_fresh"]
+    assert not result["process_active"] and not result["healthy"] and not result["action_ready"]
 
 
 def test_once_cli_returns_failure_when_observation_failed(tmp_path, monkeypatch):
@@ -294,9 +496,8 @@ def test_once_cli_returns_failure_when_observation_failed(tmp_path, monkeypatch)
 
 @pytest.mark.parametrize("field", ["updated_at", "last_success_at", "snapshot_observed_at"])
 def test_future_health_timestamps_are_unhealthy(tmp_path, field):
-    value = server.SeasonCoordinator(make_manifest(tmp_path, entries=1)).value
-    value["status"] = "waiting"
-    value["leagues"][0].update(status="monitoring_lineup", last_success_at=server.utc_now(), snapshot_observed_at=server.utc_now())
+    value = ready_health_value(tmp_path)
+    assert server.health(value)["healthy"]
     target = value if field == "updated_at" else value["leagues"][0]
     target[field] = (datetime.now(timezone.utc) + timedelta(seconds=30)).isoformat()
     assert not server.health(value)["healthy"]
@@ -306,7 +507,10 @@ def test_future_health_timestamps_are_unhealthy(tmp_path, field):
 def test_malformed_health_files_return_unhealthy(tmp_path, text):
     path = tmp_path / "health.json"
     path.write_text(text, encoding="utf-8")
-    assert server.read_health(path) == {"healthy": False, "heartbeat_fresh": False, "observations_fresh": False, "status": "invalid_health"}
+    result = server.read_health(path)
+    assert result["status"] == "invalid_health" and result["degraded"]
+    assert not any(result[field] for field in ("healthy", "process_active", "heartbeat_fresh", "observations_fresh",
+                                             "analysis_ready", "action_ready"))
 
 
 async def test_worker_stop_finishes_operation_then_closes(monkeypatch):

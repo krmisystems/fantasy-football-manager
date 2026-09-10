@@ -4,7 +4,8 @@ After=postgresql.service
 
 # Install deployment/backup.py at the generic application path below.
 # The helper retains complete application backup sets for 14 days.
-# Keep browser authentication profiles outside public artifacts.
+# Keep browser profiles and HTTP credentials outside public artifacts.
+# Never add the protected session file as a --config argument.
 [Service]
 Type=oneshot
 User=fantasy-football

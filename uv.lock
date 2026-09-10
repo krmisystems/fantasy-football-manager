@@ -400,23 +400,30 @@ wheels = [
 
 [[package]]
 name = "fantasy-football-manager"
-version = "0.3.3"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "filelock" },
     { name = "mcp" },
-    { name = "playwright" },
     { name = "pydantic" },
 ]
 
 [package.optional-dependencies]
+browser = [
+    { name = "playwright" },
+]
 server = [
     { name = "psycopg", extra = ["binary"] },
+]
+session-import = [
+    { name = "cryptography" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "build" },
+    { name = "cryptography" },
+    { name = "playwright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "twine" },
@@ -424,17 +431,20 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", marker = "extra == 'session-import'", specifier = ">=44,<51" },
     { name = "filelock", specifier = ">=3.32,<4" },
     { name = "mcp", specifier = ">=2.2,<3" },
-    { name = "playwright", specifier = ">=1.62,<2" },
+    { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.62,<2" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'server'", specifier = ">=3.3,<4" },
     { name = "pydantic", specifier = ">=2.11,<3" },
 ]
-provides-extras = ["server"]
+provides-extras = ["server", "session-import", "browser"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "build", specifier = ">=1.2,<2" },
+    { name = "cryptography", specifier = ">=44,<51" },
+    { name = "playwright", specifier = ">=1.62,<2" },
     { name = "pytest", specifier = ">=8,<10" },
     { name = "pytest-asyncio", specifier = ">=0.24,<2" },
     { name = "twine", specifier = ">=7,<8" },
