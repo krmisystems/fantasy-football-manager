@@ -11,8 +11,12 @@ from validate_release import NAME, ROOT, SKILLS, validate
 
 FILES = (
     "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    ".codexignore",
     ".codex-plugin/plugin.json",
     ".mcp.json",
+    "assets/icon.svg",
     *(f"skills/{name}/SKILL.md" for name in SKILLS),
 )
 

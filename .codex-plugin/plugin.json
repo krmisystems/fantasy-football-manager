@@ -10,7 +10,7 @@
   "license": "MIT",
   "skills": "./skills/",
   "interface": {
-    "composerIcon": "./assets/icon.svg",
+    "composerIcon": "./plugins/fantasy-football-manager/assets/icon.svg",
     "brandColor": "#14251F",
     "displayName": "Fantasy Football Manager",
     "shortDescription": "Inspect all teams and manage ESPN actions within saved limits.",

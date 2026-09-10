@@ -46,12 +46,17 @@ fantasy-football-dashboard = "fantasy_football_manager.dashboard:main"
     write(tmp_path, "uv.lock", lock_text())
     write(tmp_path, "README.md", f"mcp-name: io.github.krmisystems/{validator.NAME}\n")
     plugin = f"plugins/{validator.NAME}"
-    write_json(tmp_path, f"{plugin}/.codex-plugin/plugin.json", {
-        "name": validator.NAME, "version": VERSION, "mcpServers": "./.mcp.json"})
+    manifest = {"name": validator.NAME, "version": VERSION, "mcpServers": "./.mcp.json",
+                "interface": {"composerIcon": "./assets/icon.svg"}}
+    write_json(tmp_path, f"{plugin}/.codex-plugin/plugin.json", manifest)
+    write_json(tmp_path, ".codex-plugin/plugin.json", validator.catalog_manifest(manifest))
+    write(tmp_path, f"{plugin}/assets/icon.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>')
     write_json(tmp_path, f"{plugin}/.mcp.json", {"mcpServers": {
         name: {"command": name, "args": []} for name in (validator.NAME, validator.COMPANION, validator.PORTFOLIO)}})
     for skill in validator.SKILLS:
         write(tmp_path, f"{plugin}/skills/{skill}/SKILL.md", f"---\nname: {skill}\n---\nFictional release fixture.\n")
+    for relative in validator.CATALOG_FILES:
+        write(tmp_path, relative, (tmp_path / plugin / relative).read_text())
     write_json(tmp_path, "docs/registry/server.json", {
         "name": f"io.github.krmisystems/{validator.NAME}", "version": VERSION,
         "description": "Fictional release validation server.",
@@ -68,6 +73,33 @@ def test_matching_release_metadata_and_safe_html_pass(release_source):
     write(release_source, "tests/fixtures/room.html", '<p>Fictional team 123. No account credentials.</p>')
     errors, checked = validator.validate(release_source, VERSION)
     assert errors == [] and checked >= 10
+
+
+def test_catalog_manifest_reuses_version_and_portable_plugin_paths(release_source):
+    manifest = json.loads((release_source / ".codex-plugin/plugin.json").read_text())
+    assert manifest["version"] == VERSION
+    assert manifest["skills"] == "./skills/"
+    assert manifest["mcpServers"] == "./.mcp.json"
+    assert manifest["interface"]["composerIcon"] == "./plugins/fantasy-football-manager/assets/icon.svg"
+    manifest["version"] = "0.0.1"
+    write_json(release_source, ".codex-plugin/plugin.json", manifest)
+    errors, _ = validator.validate(release_source)
+    assert any("Root catalog manifest must match" in error for error in errors)
+
+
+def test_missing_catalog_manifest_or_icon_is_rejected(release_source):
+    (release_source / ".codex-plugin/plugin.json").unlink()
+    (release_source / "plugins/fantasy-football-manager/assets/icon.svg").unlink()
+    errors, _ = validator.validate(release_source)
+    assert "Root catalog manifest is missing or invalid" in errors
+    assert "Plugin composer icon must reference its packaged assets/icon.svg" in errors
+
+
+@pytest.mark.parametrize("relative", validator.CATALOG_FILES)
+def test_catalog_commands_and_skills_cannot_drift(release_source, relative):
+    write(release_source, relative, "Fictional stale catalog copy.\n")
+    errors, _ = validator.validate(release_source)
+    assert f"Catalog file must match the canonical plugin: {relative}" in errors
 
 
 @pytest.mark.parametrize("runtime", [
