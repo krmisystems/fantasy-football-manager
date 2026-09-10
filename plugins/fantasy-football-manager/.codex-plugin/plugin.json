@@ -1,7 +1,7 @@
 {
   "name": "fantasy-football-manager",
   "version": "0.4.0",
-  "description": "ESPN HTTP season transactions and browser draft tools for Codex, with approval modes and per-team limits. Version 0.4.0 release candidate.",
+  "description": "ESPN season transactions, draft tools, and a multi-team portfolio dashboard for Codex. Version 0.4.0 release candidate.",
   "author": {
     "name": "krmisystems",
     "url": "https://github.com/krmisystems"
@@ -11,8 +11,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Fantasy Football Manager",
-    "shortDescription": "Manage ESPN drafts and season transactions within saved limits.",
-    "longDescription": "The v0.4.0 release candidate adds HTTP season lineups, acquisitions, waiver claims, drops, IR moves, and optional week rollover from verified period evidence. It uses a protected session file without a browser runtime. Draft operation retains the browser adapter. Saved modes and limits control each transaction. Pending waivers require ownership confirmation. This candidate is not yet published. A live trial verified automatic free-agent add/drop and a subsequent lineup exchange under exact user-approved limits. Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested. Trade execution is unavailable.",
+    "shortDescription": "Inspect all teams and manage ESPN actions within saved limits.",
+    "longDescription": "The v0.4.0 release candidate adds HTTP season transactions, a five-tool portfolio MCP, and a localhost dashboard. Inspect configured teams, players, analysis, and proposals. Optional dashboard controls approve exact saved HTTP season proposals through the existing transaction service. Saved modes and limits apply. Draft operation retains its browser adapter. This candidate is not yet published. A live trial verified automatic free-agent add/drop and a subsequent lineup exchange. Live dashboard submissions, waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested. Football is the only implemented sport. Trade execution is unavailable.",
     "developerName": "krmisystems",
     "category": "Productivity",
     "capabilities": [
@@ -22,7 +22,8 @@
     "defaultPrompt": [
       "Connect my ESPN draft and check automation limits.",
       "Run continuous draft simulations and automatic picks.",
-      "Connect my ESPN season through HTTP and check action limits."
+      "Connect my ESPN season through HTTP and check action limits.",
+      "Show all managed teams and their pending proposals."
     ]
   },
   "mcpServers": "./.mcp.json"

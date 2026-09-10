@@ -1,7 +1,9 @@
 # Install the local Codex plugin
 
-The source plugin adds three workflow skills and two local MCP servers.
-It uses the installed `fantasy-football-manager` and `fantasy-football-espn` commands.
+The source plugin adds four workflow skills and three local MCP servers.
+It uses `fantasy-football-manager`, `fantasy-football-espn`, and `fantasy-football-portfolio`.
+The portfolio adds five read-only tools across explicitly configured team stores.
+Configure `FFM_PORTFOLIO_MANIFEST` for that command. See the [portfolio guide](PORTFOLIO.md).
 The unreleased v0.4.0 candidate exposes 16 ESPN tools, including HTTP season transactions without a browser runtime.
 Draft operation retains the browser adapter. Trade execution remains unavailable.
 The published v0.3.3 package has the original 13 ESPN tools and browser lineup workflow.
@@ -40,9 +42,10 @@ The `session-import` extra supplies cryptography for the optional Linux session 
 An already provisioned HTTP session file does not require that extra.
 Configure source commands through the checkout environment until a release includes this implementation.
 
-Check that the Codex process can find both commands on `PATH`.
+Check that the Codex process can find the configured commands on `PATH`.
 Restart Codex if you changed its environment.
-Both servers must use the same data directory to share policy, observations, and pause state.
+The manager and ESPN servers must share a per-team data directory.
+The portfolio reads all directories listed in its private manifest.
 
 ## Configure an HTTP season session (unreleased)
 

@@ -7,6 +7,10 @@
     "fantasy-football-espn": {
       "command": "fantasy-football-espn",
       "args": []
+    },
+    "fantasy-football-portfolio": {
+      "command": "fantasy-football-portfolio",
+      "args": []
     }
   }
 }

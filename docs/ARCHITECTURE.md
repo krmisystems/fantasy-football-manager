@@ -1,6 +1,10 @@
 # Architecture
 
-Two local STDIO servers share policy and versioned SQLite state.
+The manager and ESPN STDIO servers share policy and versioned SQLite state.
+The portfolio STDIO server reads multiple configured team stores.
+The localhost dashboard uses the same portfolio data service.
+Optional dashboard controls submit exact approved proposals through the HTTP season service.
+See the [portfolio architecture and API](PORTFOLIO.md).
 The manager provides calculations and synthetic execution.
 The ESPN companion selects an HTTP season adapter or the existing browser draft adapter.
 The v0.4.0 release candidate adds HTTP season operation. It is not yet a published release.
@@ -10,7 +14,7 @@ See [server architecture and operation](SERVER.md).
 
 ```mermaid
 flowchart TD
-    Client[MCP client and three workflow skills] --> Manager[Manager MCP]
+    Client[MCP client and four workflow skills] --> Manager[Manager MCP]
     Client --> ESPN[ESPN companion MCP]
     Import[JSON import or synthetic demo] --> Manager
     Manager --> Store[Versioned SQLite state and saved policy]

@@ -1,0 +1,57 @@
+.modal-header > .badge {
+  margin-left: auto;
+}
+.modal-team {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  padding-bottom: 17px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-team h3 {
+  font-size: 22px;
+}
+.modal-team p {
+  margin-top: 4px;
+  color: #6c7966;
+  font-size: 13px;
+}
+.saved-controls {
+  margin: 20px 0 15px;
+}
+.saved-controls h3 {
+  font-size: 12px;
+  color: #6d7967;
+  letter-spacing: 0;
+  margin-bottom: 12px;
+}
+.saved-controls p {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  margin-top: 9px;
+  font-size: 13px;
+  color: #52614b;
+}
+.saved-controls .check-circle {
+  flex-shrink: 0;
+}
+@media (max-width: 500px) {
+  .modal-header {
+    gap: 9px;
+  }
+  .modal-header h2 {
+    font-size: 20px;
+  }
+  .modal-header > .badge {
+    font-size: 10px;
+    padding: 6px;
+  }
+}
+.table-scroll {
+  position: relative;
+}
+.source-health ul {
+  padding-bottom: 17px;
+}

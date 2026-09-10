@@ -9,6 +9,7 @@ The same package provides a draft assistant with continuous Monte Carlo simulati
 
 The **manager MCP server** provides 17 tools for analysis, policy, and league state.
 The **ESPN MCP companion** provides 16 tools for live observations, controlled transactions, and continuous operation.
+The **portfolio MCP** adds five tools for all configured teams, players, saved proposals, and lineup analysis.
 HTTP season actions include lineups, free-agent additions, waiver claims, drops, and IR moves.
 Draft support retains the existing browser adapter.
 
@@ -36,6 +37,26 @@ These values describe synthetic inputs, not a measured fantasy result.
 ![Fictional demo: current projected points 124.53, suggested projected points 130.03, estimated increase 5.50 points. No live action.](https://github.com/krmisystems/fantasy-football-manager/raw/main/docs/assets/demo-lineup.svg)
 
 Read the [developer showcase](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SHOWCASE.md) for the design, verified trials, and contribution ideas.
+
+## Open the team dashboard
+
+The source checkout includes **Fieldroom**, a local dashboard for multiple managed teams.
+Inspect rosters, source health, projections, action limits, and proposed changes in one workspace.
+Optional approval controls submit exact saved HTTP season proposals through the existing transaction service.
+
+```sh
+uv sync --locked
+uv run fantasy-football-dashboard --demo --enable-actions
+```
+
+Open `http://127.0.0.1:8765/`.
+Demo approvals affect fictional in-memory records only. They make no ESPN requests.
+The dashboard requires no Node.js runtime, ESPN account, or external UI service.
+This dashboard is not included in the published v0.3.3 package.
+
+Read the [dashboard setup and API guide](docs/PORTFOLIO.md) for actual team data and submission controls.
+Use the [media UI integration prompt](docs/MEDIA_UI_HANDOFF.md) to connect an existing authenticated home-server interface.
+Football is the only implemented sport. The portfolio envelope leaves room for future adapters.
 
 ## Start with a weekly lineup
 
