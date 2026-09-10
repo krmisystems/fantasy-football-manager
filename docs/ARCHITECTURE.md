@@ -187,7 +187,10 @@ The worker is not an operating-system service and has no automatic reboot recove
 See the [fourth draft record](FOURTH_DRAFT_ACCEPTANCE.md) for installed v0.3.1 submissions with a private orchestration launcher.
 The earlier [live draft record](LIVE_DRAFT_ACCEPTANCE.md) retains its development-runtime limits and recovery failures.
 The v0.3.3 release and draft records remain historical evidence for the browser workflow.
-The v0.4.0 HTTP release candidate still requires separate live write acceptance.
+The v0.4.0 HTTP candidate completed one authorized free-agent add/drop and a subsequent lineup exchange on 2026-09-10 UTC.
+Both transactions had matching ESPN receipts and fresh roster observations. The previous policy was restored after verification.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for this result and its limits.
+Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain **Not Tested**.
 
 ## Draft entry and season handoff
 

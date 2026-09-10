@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Fantasy Football Manager",
     "shortDescription": "Manage ESPN drafts and season transactions within saved limits.",
-    "longDescription": "The v0.4.0 release candidate adds HTTP season lineups, acquisitions, waiver claims, drops, IR moves, and optional verified week rollover. It uses a protected session file without a browser runtime. Draft operation retains the browser adapter. Saved modes and limits control each transaction. Pending waivers require ownership confirmation. This candidate is not yet published. Live HTTP write acceptance remains pending. Trade execution is unavailable.",
+    "longDescription": "The v0.4.0 release candidate adds HTTP season lineups, acquisitions, waiver claims, drops, IR moves, and optional week rollover from verified period evidence. It uses a protected session file without a browser runtime. Draft operation retains the browser adapter. Saved modes and limits control each transaction. Pending waivers require ownership confirmation. This candidate is not yet published. A live trial verified automatic free-agent add/drop and a subsequent lineup exchange under exact user-approved limits. Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested. Trade execution is unavailable.",
     "developerName": "krmisystems",
     "category": "Productivity",
     "capabilities": [

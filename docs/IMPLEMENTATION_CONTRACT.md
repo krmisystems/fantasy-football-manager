@@ -1,5 +1,9 @@
 # Implementation contract
 
+**Historical record:** This contract describes the first implementation and early browser support.
+The assignments, planned work, and capability limits below are superseded. They do not identify current tasks.
+Read [architecture](ARCHITECTURE.md) for the current design and [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for verified results and remaining limits.
+
 This file coordinates the first implementation. All public examples must be synthetic.
 
 ## Shared models

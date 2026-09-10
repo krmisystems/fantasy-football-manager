@@ -295,7 +295,8 @@ After recovery, the archive importer can replay durable local evidence without d
 
 ## Current limits
 
-- HTTP season scheduling supports verified automatic rollover. Pending transactions can hold the original week.
+- HTTP season scheduling supports automatic rollover from verified period evidence. Fictional tests passed. Live rollover remains **Not Tested**.
+- Pending transactions can hold the original week.
 - HTTP lineups, acquisitions, drops, and IR moves require current source evidence and separate saved permissions.
 - Legacy browser lineups support one qualifying swap per proposal and require an explicit week.
 - Draft automation uses the separate draft worker. The season coordinator rejects draft entries.
@@ -307,6 +308,10 @@ After recovery, the archive importer can replay durable local evidence without d
 Read the [multi-team acceptance plan](MULTI_TEAM_ACCEPTANCE.md) before extending the evaluation.
 The v0.3.3 release and older server records remain historical evidence.
 The reviewed v0.4.0 wheel is deployed privately. Its first HTTP sweep returned five fresh observations and four current lineup analyses.
-The remaining team had incomplete tight-end coverage. No live HTTP write occurred.
+The remaining team had incomplete tight-end coverage. That initial sweep submitted no live HTTP write.
+A later authorized repair completed an automatic free-agent add/drop and a subsequent lineup exchange on 2026-09-10 UTC.
+Both transactions had matching ESPN receipts and fresh roster observations. The previous policy was restored after verification.
+A follow-up cycle found current analysis for all five teams, healthy overall status, and no duplicate submission.
+Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain **Not Tested**.
 Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for package verification and the remaining acceptance gates.
 See [validation status](VALIDATION.md) and the [HTTP source contract](ESPN_HTTP_COMPATIBILITY.md) for the evidence boundary.

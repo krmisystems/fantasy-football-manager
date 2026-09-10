@@ -1,8 +1,15 @@
 """Test release version consistency and privacy checks with temporary fixtures."""
 
+import ast
 import importlib.util
+import io
 import json
 from pathlib import Path
+import re
+import textwrap
+import tomllib
+import urllib.error
+import urllib.request
 
 import pytest
 
@@ -124,3 +131,114 @@ def test_registry_namespace_version_and_transport_checks_remain_active(release_s
     write_json(release_source, "docs/registry/server.json", value)
     errors, _ = validator.validate(release_source)
     assert any(expected in error for error in errors)
+
+
+def test_registry_dispatch_version_matches_current_package():
+    workflow = (REPO / ".github/workflows/registry.yml").read_text(encoding="utf-8")
+    version = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    inputs = workflow.split("permissions:", 1)[0]
+    defaults = re.findall(r"^        default: (.+)$", inputs, re.MULTILINE)
+    choices = re.findall(r"^        options: (.+)$", inputs, re.MULTILINE)
+    assert len(defaults) == len(choices) == 1
+    assert ast.literal_eval(defaults[0]) == version
+    assert ast.literal_eval(choices[0]) == [version]
+
+
+@pytest.fixture
+def registry_preflight(tmp_path, monkeypatch):
+    """Run the actual workflow preflight with fictional public metadata only."""
+    workflow = (REPO / ".github/workflows/registry.yml").read_text(encoding="utf-8")
+    marker = "          uv run --no-project --python 3.12 python - <<'PY'\n"
+    assert workflow.count(marker) == 1
+    source, terminator, _ = workflow.split(marker, 1)[1].partition("\n          PY\n")
+    assert terminator
+    code = compile(textwrap.dedent(source), "registry-workflow-preflight", "exec")
+    for name in ("pyproject.toml", "docs/registry/server.json"):
+        write(tmp_path, name, (REPO / name).read_text(encoding="utf-8"))
+    version = tomllib.loads((tmp_path / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RELEASE_VERSION", version)
+    pypi_url = f"https://pypi.org/pypi/fantasy-football-manager/{version}/json"
+    registry_url = ("https://registry.modelcontextprotocol.io/v0.1/servers/"
+                    "io.github.krmisystems%2Ffantasy-football-manager/versions/" + version)
+    state = {
+        "pypi_status": 200,
+        "registry_status": 404,
+        "requested": [],
+        "published": {
+            "info": {"name": validator.NAME, "version": version,
+                     "description": f"mcp-name: io.github.krmisystems/{validator.NAME}"},
+            "urls": [
+                {"filename": f"fantasy_football_manager-{version}-py3-none-any.whl",
+                 "packagetype": "bdist_wheel", "yanked": False, "digests": {"sha256": "0" * 64}},
+                {"filename": f"fantasy_football_manager-{version}.tar.gz",
+                 "packagetype": "sdist", "yanked": False, "digests": {"sha256": "1" * 64}},
+            ],
+        },
+    }
+
+    class FakeResponse(io.BytesIO):
+        def geturl(self):
+            return pypi_url
+
+    class FakeOpener:
+        def open(self, request, timeout):
+            url = request.full_url
+            assert url in (pypi_url, registry_url), "Unexpected preflight endpoint"
+            state["requested"].append(url)
+            status = state["pypi_status" if url == pypi_url else "registry_status"]
+            if status != 200:
+                raise urllib.error.HTTPError(url, status, "Fictional response", {}, None)
+            return FakeResponse(json.dumps(state["published"]).encode("utf-8"))
+
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *handlers: FakeOpener())
+    state["run"] = lambda: exec(code, {"__name__": "__main__"})
+    state["metadata_path"] = tmp_path / "docs/registry/server.json"
+    state["expected_requests"] = [pypi_url, registry_url]
+    return state
+
+
+def test_current_registry_preflight_accepts_reviewed_metadata(registry_preflight):
+    registry_preflight["run"]()
+    assert registry_preflight["requested"] == registry_preflight["expected_requests"]
+
+
+def test_registry_preflight_rejects_unreviewed_metadata_before_network(registry_preflight):
+    path = registry_preflight["metadata_path"]
+    metadata = json.loads(path.read_text(encoding="utf-8"))
+    metadata["description"] = "Unreviewed description."
+    path.write_text(json.dumps(metadata), encoding="utf-8")
+    with pytest.raises(SystemExit, match="Registry metadata differs"):
+        registry_preflight["run"]()
+    assert registry_preflight["requested"] == []
+
+
+@pytest.mark.parametrize("scenario, expected", [
+    ("wrong_version", "exact package version"),
+    ("missing_marker", "ownership marker"),
+    ("yanked_wheel", "missing, yanked"),
+    ("existing_registry_version", "Registry version already exists"),
+])
+def test_registry_preflight_preserves_publication_gates(registry_preflight, scenario, expected):
+    published = registry_preflight["published"]
+    if scenario == "wrong_version":
+        published["info"]["version"] = "0.0.0"
+    elif scenario == "missing_marker":
+        published["info"]["description"] = "Fictional package without an ownership marker."
+    elif scenario == "yanked_wheel":
+        published["urls"][0]["yanked"] = True
+    elif scenario == "existing_registry_version":
+        registry_preflight["registry_status"] = 200
+    with pytest.raises(SystemExit, match=expected):
+        registry_preflight["run"]()
+    expected_requests = registry_preflight["expected_requests"]
+    assert registry_preflight["requested"] == (
+        expected_requests if scenario == "existing_registry_version" else expected_requests[:1])
+
+
+def test_registry_preflight_stops_when_public_package_is_absent(registry_preflight):
+    registry_preflight["pypi_status"] = 404
+    with pytest.raises(urllib.error.HTTPError) as error:
+        registry_preflight["run"]()
+    assert error.value.code == 404
+    assert registry_preflight["requested"] == registry_preflight["expected_requests"][:1]

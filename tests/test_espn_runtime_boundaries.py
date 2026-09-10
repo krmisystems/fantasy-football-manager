@@ -316,8 +316,37 @@ async def test_worker_acknowledgement_uses_launch_id_and_reports_interpreter_pid
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("state", [
+    "analysis_incomplete", "state_changed", "no_admissible_candidate", "confirmed", "pending_waiver",
+    "not_submitted", "not_selected", "rejected", "cancelled", "conflict",
+])
+async def test_completed_cycle_heartbeat_acknowledges_the_running_worker(tmp_path, state):
+    service = ESPNService(tmp_path, transport="http")
+    launch_id = uuid.uuid4().hex
+    service._save_status(state, pid=20202, launch_id=launch_id)
+    result = await service._await_worker_start(SimpleNamespace(pid=10101, poll=lambda: None),
+                                              timeout=0, launch_id=launch_id)
+    assert result["startup_acknowledged"] is True
+    assert result["status"] == result["worker"]["status"] == state
+    assert result["pid"] == 20202 and result["launcher_pid"] == 10101
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["connected", "stopped", "stopping", "disconnected", "startup_failed", "unknown"])
+async def test_inactive_or_unknown_heartbeat_does_not_acknowledge_worker_startup(tmp_path, state):
+    service = ESPNService(tmp_path, transport="http")
+    launch_id = uuid.uuid4().hex
+    service._save_status(state, pid=20202, launch_id=launch_id)
+    result = await service._await_worker_start(SimpleNamespace(pid=10101, poll=lambda: None),
+                                              timeout=0, launch_id=launch_id)
+    assert result["startup_acknowledged"] is False and result["status"] == "startup_pending"
+    assert "worker startup" in result["message"] and "browser" not in result["message"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["monitoring", "analysis_incomplete", "confirmed", "pending_waiver", "not_selected"])
 @pytest.mark.parametrize("evidence", ["other_launch", "stale", "future"])
-async def test_other_or_stale_heartbeat_cannot_acknowledge_new_worker(tmp_path, evidence):
+async def test_other_or_stale_heartbeat_cannot_acknowledge_new_worker(tmp_path, evidence, state):
     service = ESPNService(tmp_path)
     launch_id = uuid.uuid4().hex
     timestamp = datetime.now(timezone.utc)
@@ -325,7 +354,7 @@ async def test_other_or_stale_heartbeat_cannot_acknowledge_new_worker(tmp_path, 
         timestamp -= timedelta(seconds=120)
     elif evidence == "future":
         timestamp += timedelta(seconds=120)
-    service._save_status("monitoring", pid=10101, launch_id="other-launch" if evidence == "other_launch" else launch_id,
+    service._save_status(state, pid=10101, launch_id="other-launch" if evidence == "other_launch" else launch_id,
                          observed_at=timestamp.isoformat())
     result = await service._await_worker_start(SimpleNamespace(pid=10101, poll=lambda: None),
                                               timeout=0, launch_id=launch_id)
