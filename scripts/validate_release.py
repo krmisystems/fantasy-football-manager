@@ -13,9 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "fantasy-football-manager"
 COMPANION = "fantasy-football-espn"
-SKILLS = ("draft-assistant", "espn-automation", "season-manager")
+PORTFOLIO = "fantasy-football-portfolio"
+SKILLS = ("draft-assistant", "espn-automation", "season-manager", "portfolio-manager")
 SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", "build",
-             ".demo-state", ".ci-demo", ".test-state", ".local-state", ".ruff_cache"}
+             ".demo-state", ".ci-demo", ".test-state", ".local-state", ".ruff_cache",
+             "node_modules", "playwright-report", "test-results"}
 PRIVATE_NAMES = {".watcher-token", "draft-state.json", "observed-ledger.json",
                  "verified-history.txt", "manual-observed-picks.json", "cookies.json",
                  "credentials.json", "corrected-recommendations.json"}
@@ -24,7 +26,7 @@ PRIVATE_NAMES.update({"Cookies", "Login Data", "Local State", "Web Data", "Histo
 PRIVATE_DIRS = {"private-captures", "espn-browser-profile", "browser-profile"}
 PRIVATE_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pem", ".key"}
 TEXT_SUFFIXES = {".py", ".json", ".md", ".toml", ".yml", ".yaml", ".txt", ".mmd", ".lock", ".html",
-                 ".service", ".timer", ".sh", ".jsonl"}
+                 ".service", ".timer", ".sh", ".jsonl", ".js", ".jsx", ".ts", ".tsx", ".css"}
 SECRET_PATTERNS = (
     re.compile(r"[A-Za-z]:[\\/]Users[\\/][^\\/\s\"']+", re.IGNORECASE),
     re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{32,}|github_pat_[A-Za-z0-9_]{32,}|sk-[A-Za-z0-9]{32,})\b"),
@@ -80,15 +82,17 @@ def validate(root: Path, expected_version: str | None = None) -> tuple[list[str]
         "registryType": "pypi", "identifier": NAME, "version": version, "transport": {"type": "stdio"}
     }:
         errors.append("Registry package must match the local PyPI STDIO release")
-    expected_commands = {"mcpServers": {name: {"command": name, "args": []} for name in (NAME, COMPANION)}}
+    expected_commands = {"mcpServers": {name: {"command": name, "args": []} for name in (NAME, COMPANION, PORTFOLIO)}}
     if command != expected_commands:
-        errors.append("Plugin MCP configuration must include both portable installed commands")
+        errors.append("Plugin MCP configuration must include all three portable installed commands")
     expected_scripts = {NAME: "fantasy_football_manager.mcp_server:main",
-                        COMPANION: "fantasy_football_manager.espn_mcp:main"}
+                        COMPANION: "fantasy_football_manager.espn_mcp:main",
+                        PORTFOLIO: "fantasy_football_manager.portfolio_mcp:main",
+                        "fantasy-football-dashboard": "fantasy_football_manager.dashboard:main"}
     if any(project.get("scripts", {}).get(name) != target for name, target in expected_scripts.items()):
-        errors.append("Manager and ESPN installed CLI entry points must match the package")
+        errors.append("Manager, ESPN, portfolio, and dashboard CLI entry points must match the package")
     if plugin.get("mcpServers") != "./.mcp.json":
-        errors.append("Plugin manifest must reference its two-server companion configuration")
+        errors.append("Plugin manifest must reference its three-server configuration")
     for skill_name in SKILLS:
         path = plugin_dir / "skills" / skill_name / "SKILL.md"
         if not path.is_file():

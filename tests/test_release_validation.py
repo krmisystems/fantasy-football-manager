@@ -39,6 +39,8 @@ version = "{VERSION}"
 [project.scripts]
 fantasy-football-manager = "fantasy_football_manager.mcp_server:main"
 fantasy-football-espn = "fantasy_football_manager.espn_mcp:main"
+fantasy-football-portfolio = "fantasy_football_manager.portfolio_mcp:main"
+fantasy-football-dashboard = "fantasy_football_manager.dashboard:main"
 ''')
     write(tmp_path, "src/fantasy_football_manager/__init__.py", f'__version__ = "{VERSION}"\n')
     write(tmp_path, "uv.lock", lock_text())
@@ -47,7 +49,7 @@ fantasy-football-espn = "fantasy_football_manager.espn_mcp:main"
     write_json(tmp_path, f"{plugin}/.codex-plugin/plugin.json", {
         "name": validator.NAME, "version": VERSION, "mcpServers": "./.mcp.json"})
     write_json(tmp_path, f"{plugin}/.mcp.json", {"mcpServers": {
-        name: {"command": name, "args": []} for name in (validator.NAME, validator.COMPANION)}})
+        name: {"command": name, "args": []} for name in (validator.NAME, validator.COMPANION, validator.PORTFOLIO)}})
     for skill in validator.SKILLS:
         write(tmp_path, f"{plugin}/skills/{skill}/SKILL.md", f"---\nname: {skill}\n---\nFictional release fixture.\n")
     write_json(tmp_path, "docs/registry/server.json", {
@@ -107,7 +109,7 @@ def test_html_private_path_or_token_is_rejected(release_source, kind):
     assert "Possible private path or secret in: tests/fixtures/unsafe.HTML" in errors
 
 
-@pytest.mark.parametrize("suffix", ["service", "timer", "sh", "jsonl"])
+@pytest.mark.parametrize("suffix", ["service", "timer", "sh", "jsonl", "js", "jsx", "ts", "tsx", "css"])
 @pytest.mark.parametrize("kind", ["path", "token"])
 def test_deployment_and_event_files_receive_privacy_scanning(release_source, suffix, kind):
     private = "C:" + "/Users/" + "FictionalPerson/Documents/state" if kind == "path" else "ghp_" + "x" * 36
