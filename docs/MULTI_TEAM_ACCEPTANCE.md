@@ -1,6 +1,6 @@
 # Multi-team acceptance plan
 
-**Status: All three additional drafts completed. Five-team Week 1 observation passed. Season outcomes remain Planned.**
+**Status: All three additional drafts completed. Five-team Week 1 observation passed. One HTTP roster repair passed. Season outcomes remain Planned.**
 The [third team draft](THIRD_DRAFT_ACCEPTANCE.md) is the first of the three additional trials.
 It verified all 160 selections and a 16-player roster, with 13 manager-confirmed picks and three platform fallbacks.
 The [fourth team draft](FOURTH_DRAFT_ACCEPTANCE.md) confirmed all 16 own selections and captured all 160 league picks.
@@ -13,12 +13,19 @@ The five-team season evaluation remains planned. Season outcomes are not yet rec
 
 Version 0.3.0 adds a serial season coordinator with separate league databases and a shared server browser.
 Five-team Week 1 server observation and current lineup calculations are recorded in [server acceptance](SERVER_ACCEPTANCE.md).
-These checks do not establish unattended season completion or a live server lineup submission.
+Those historical browser checks did not establish unattended season completion or a live server lineup submission.
 
 The deployed v0.4.0 candidate completed a separate five-team HTTP observation sweep.
 All observations were fresh. Four teams had current analysis and required no lineup change.
 One team had incomplete tight-end coverage, which kept overall analysis health degraded.
-No live HTTP transaction occurred. Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the current deployment boundary.
+That initial sweep submitted no live HTTP transaction.
+
+One team then received an explicitly authorized Week 1 coverage repair through the deployed candidate.
+Two unchanged automatic engine steps confirmed a free-agent add/drop, then a lineup exchange, without a browser.
+Both actions had ESPN `EXECUTED` receipts and matching roster observations. The previous starter remained on the bench.
+Other roster players, starter assignments, and pending transactions stayed unchanged.
+The execution harness applied temporary explicit limits and restored the original policy afterward.
+This verifies the recorded repair for one team. Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the current deployment boundary.
 
 ## Failures to retain
 
@@ -133,7 +140,9 @@ Some optimized targets require intermediate moves that fail that limit.
 Report those cases without claiming that the whole target lineup was applied.
 
 The HTTP adapter supports full lineup proposals, waivers, free-agent acquisitions, drops, IR moves, and IR activation.
-Those paths have fictional test coverage. Live HTTP writes remain Not Tested, and trade execution remains outside the release scope.
+Those paths have fictional test coverage. One authorized repair also verified live automatic free-agent add/drop and lineup execution.
+Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested.
+Trade execution remains outside the release scope. The v0.4.0 candidate is not yet a public release.
 Keep recommendations and external manual actions separate from manager execution results.
 Five-team monitoring and lineup changes alone do not establish fully automatic season management.
 Selected-team lock evidence does not establish league-wide power-ranking coverage.

@@ -7,7 +7,7 @@ The archive records observed results separately from executor attribution.
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from copy import deepcopy
 import hashlib
@@ -26,6 +26,8 @@ SCHEMA_VERSION = 1
 INCREMENTAL_SCHEMA_VERSION = 2
 DEFAULT_BATCH_SIZE = 500
 COMPACT_RECEIPT_FORMAT = 'ffm-compact-receipt-v1'
+SNAPSHOT_HASH_FORMAT = 'decision-inputs-v1'
+OBSERVATION_FIELDS = ('observed_at', 'projections_observed_at')
 SHA256 = re.compile(r'^[0-9a-f]{64}$')
 KINDS = {"snapshot", "draft_pick", "proposal", "audit_event", "runtime_observation", "failure", "recommendation", "outbox_event", "config"}
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
@@ -464,6 +466,91 @@ def _source_reset(reason):
     raise ArchiveError(f"Source continuity check failed ({reason}). Restore the original source, or use a new source_id and run_id after a reviewed reset.")
 
 
+def _snapshot_fingerprint(raw):
+    value = deepcopy(raw)
+    if value is not None:
+        for key in OBSERVATION_FIELDS:
+            value['source'].pop(key, None)
+    return _hash(value)
+
+
+def _observation_clock(raw):
+    source = raw['source'] if raw is not None else {}
+    return {'snapshot_' + key: _timestamp(source.get(key)) for key in OBSERVATION_FIELDS}
+
+
+def _check_observation_clock(previous, current):
+    for key in OBSERVATION_FIELDS:
+        old, new = previous['snapshot_' + key], current['snapshot_' + key]
+        if old is not None and (new is None or new < old):
+            _source_reset('an observation timestamp moved backward')
+
+
+def _legacy_snapshot_clock(connection, source, previous, raw):
+    """Prove an old raw hash before changing its checkpoint hash format."""
+    if _hash(raw) == previous['snapshot_sha256']:
+        return _observation_clock(raw)
+    if raw is None:
+        _source_reset('the legacy snapshot cannot be reconstructed')
+    after = ''
+    while True:
+        rows = _execute(connection, "SELECT record_id,payload FROM archive_records WHERE run_id=? AND source_id=? "
+                        "AND kind='snapshot' AND source_key=? AND record_id>? ORDER BY record_id LIMIT 20",
+                        (source['run_id'], source['source_id'], 'state:' + str(previous['revision']), after)).fetchall()
+        if not rows:
+            break
+        for record_id, payload in rows:
+            retained = json.loads(payload)['source']
+            candidates = [deepcopy(raw)]
+            for key in OBSERVATION_FIELDS:
+                value = retained.get(key)
+                forms = [value]
+                if value is not None:
+                    parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    forms += [parsed.isoformat(), parsed.isoformat().replace('+00:00', 'Z')]
+                replacements = []
+                for candidate in candidates:
+                    for form in dict.fromkeys(forms):
+                        changed = deepcopy(candidate)
+                        changed['source'][key] = form
+                        replacements.append(changed)
+                    if value is None:
+                        changed = deepcopy(candidate)
+                        changed['source'].pop(key, None)
+                        replacements.append(changed)
+                candidates = replacements
+            for candidate in candidates:
+                if _hash(candidate) == previous['snapshot_sha256']:
+                    clock = _observation_clock(candidate)
+                    _check_observation_clock(clock, _observation_clock(raw))
+                    return clock
+            after = record_id
+    _source_reset('retained timestamps cannot reconstruct the exact legacy snapshot hash')
+
+
+def _verify_hash_upgrade(connection, checkpoint, previous, manifest, base_dir):
+    if manifest is None:
+        raise ArchiveError('A legacy checkpoint hash upgrade requires the private source manifest. Use sync, or import with --manifest.')
+    matches = [entry for entry in manifest.get('sources', []) if entry['source_id'] == checkpoint['source_id']
+               and _hash({'source_id': entry['source_id'], 'external_id': entry['run']['run_id']}) == checkpoint['run_id']]
+    if len(matches) != 1 or not matches[0].get('database'):
+        raise ArchiveError('The hash upgrade manifest does not identify the committed source.')
+    entry = matches[0]
+    path = _read_file(entry['database'], Path(base_dir or '.'))
+    with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+        db.row_factory = sqlite3.Row
+        db.execute('PRAGMA query_only=ON')
+        row = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+        raw = json.loads(row['snapshot']) if row['snapshot'] else None
+    next_state = checkpoint['state']['database']
+    if row['revision'] != next_state['revision'] or _snapshot_fingerprint(raw) != next_state['snapshot_sha256']:
+        _source_reset('the source changed before its checkpoint hash upgrade')
+    source = {'run_id': checkpoint['run_id'], 'source_id': checkpoint['source_id']}
+    old_clock = _legacy_snapshot_clock(connection, source, previous['database'], raw)
+    _check_observation_clock(old_clock, next_state)
+    _check_observation_clock(next_state, _observation_clock(raw))
+
+
 def _stream_batch(db, table, previous, limit):
     """Check committed boundaries and read only the next append-only batch."""
     cursor = previous['last_id'] if previous else None
@@ -600,17 +687,27 @@ def export_incremental_bundle(connection, manifest, *, base_dir=None, batch_size
                 raw_snapshot = json.loads(row['snapshot']) if row['snapshot'] else None
                 config = _config(row['config'])
                 current = {'revision': row['revision'], 'config_revision': row['config_revision'],
-                           'snapshot_sha256': _hash(raw_snapshot), 'config_sha256': _hash(json.loads(row['config']))}
+                           'snapshot_sha256': _snapshot_fingerprint(raw_snapshot), 'config_sha256': _hash(json.loads(row['config'])),
+                           'snapshot_hash_format': SNAPSHOT_HASH_FORMAT, **_observation_clock(raw_snapshot)}
                 if any(type(current[key]) is not int or current[key] < 0 for key in ('revision', 'config_revision')):
                     raise ArchiveError('Source revisions must be nonnegative integers.')
                 prior = state['database']
                 if prior:
-                    for revision, digest in (('revision', 'snapshot_sha256'), ('config_revision', 'config_sha256')):
-                        if current[revision] < prior[revision] or (current[revision] == prior[revision] and current[digest] != prior[digest]):
-                            _source_reset(f'{revision} rolled back or changed without a revision')
+                    if current['revision'] < prior['revision']:
+                        _source_reset('revision rolled back')
+                    if (current['config_revision'] < prior['config_revision'] or
+                            (current['config_revision'] == prior['config_revision'] and current['config_sha256'] != prior['config_sha256'])):
+                        _source_reset('config_revision rolled back or changed without a revision')
+                    if prior.get('snapshot_hash_format') == SNAPSHOT_HASH_FORMAT:
+                        if current['revision'] == prior['revision'] and current['snapshot_sha256'] != prior['snapshot_sha256']:
+                            _source_reset('revision changed without a revision')
+                        _check_observation_clock(prior, current)
+                    elif current['revision'] == prior['revision']:
+                        _legacy_snapshot_clock(connection, source, prior, raw_snapshot)
                 if raw_snapshot is not None:
                     _context(raw_snapshot, source['context'])
-                    if prior is None or current['revision'] != prior['revision']:
+                    if (prior is None or current['revision'] != prior['revision']
+                            or prior.get('snapshot_hash_format') != SNAPSHOT_HASH_FORMAT):
                         builder.snapshot(source, f"state:{row['revision']}", raw_snapshot)
                 if prior is None or current['config_revision'] != prior['config_revision']:
                     builder.add(source, 'config', f"config:{row['config_revision']}", {'config': config, 'config_revision': row['config_revision']})
@@ -725,10 +822,19 @@ def _validate_checkpoints(bundle, runs):
             raise ArchiveError('An incremental checkpoint has invalid state.')
         _identifier(state['source_epoch'])
         value = state['database']
-        if value is not None and (set(value) != {'revision', 'config_revision', 'snapshot_sha256', 'config_sha256'}
-                                  or not all(integer(value[key]) for key in ('revision', 'config_revision'))
-                                  or not all(digest(value[key]) for key in ('snapshot_sha256', 'config_sha256'))):
-            raise ArchiveError('An incremental checkpoint has invalid database state.')
+        if value is not None:
+            legacy_keys = {'revision', 'config_revision', 'snapshot_sha256', 'config_sha256'}
+            current_keys = legacy_keys | {'snapshot_hash_format', 'snapshot_observed_at', 'snapshot_projections_observed_at'}
+            if (set(value) not in (legacy_keys, current_keys)
+                    or not all(integer(value[key]) for key in ('revision', 'config_revision'))
+                    or not all(digest(value[key]) for key in ('snapshot_sha256', 'config_sha256'))):
+                raise ArchiveError('An incremental checkpoint has invalid database state.')
+            if set(value) == current_keys:
+                if value['snapshot_hash_format'] != SNAPSHOT_HASH_FORMAT:
+                    raise ArchiveError('An incremental checkpoint has an unsupported snapshot hash format.')
+                for key in OBSERVATION_FIELDS:
+                    if _timestamp(value['snapshot_' + key]) != value['snapshot_' + key]:
+                        raise ArchiveError('Checkpoint observation timestamps must use canonical UTC values.')
         if not isinstance(state['streams'], dict) or set(state['streams']) - {'audit', 'ffm_archive_outbox'}:
             raise ArchiveError('An incremental checkpoint has an invalid event stream.')
         for cursor in state['streams'].values():
@@ -860,7 +966,7 @@ def _transaction(connection):
             yield
 
 
-def _check_advance(previous, state):
+def _check_advance(previous, state, *, hash_upgrade_verified=False):
     if previous is None:
         if state['sequence'] != 1:
             raise ArchiveError('An initial checkpoint must start at sequence one.')
@@ -872,9 +978,19 @@ def _check_advance(previous, state):
     if old is not None and (new is None or any(new[key] < old[key] for key in ('revision', 'config_revision'))):
         raise ArchiveError('An incremental checkpoint cannot reduce source revisions.')
     if old is not None:
-        for revision, digest in (('revision', 'snapshot_sha256'), ('config_revision', 'config_sha256')):
-            if new[revision] == old[revision] and new[digest] != old[digest]:
+        if new['config_revision'] == old['config_revision'] and new['config_sha256'] != old['config_sha256']:
+            raise ArchiveError('An incremental checkpoint cannot change configuration without a source revision.')
+        old_format, new_format = old.get('snapshot_hash_format'), new.get('snapshot_hash_format')
+        if old_format and old_format != new_format:
+            raise ArchiveError('An incremental checkpoint cannot downgrade its snapshot hash format.')
+        if new['revision'] == old['revision']:
+            if old_format != new_format:
+                if not hash_upgrade_verified:
+                    raise ArchiveError('The legacy snapshot hash upgrade was not verified against its source.')
+            elif new['snapshot_sha256'] != old['snapshot_sha256']:
                 raise ArchiveError('An incremental checkpoint cannot change data without a source revision.')
+        if old_format == SNAPSHOT_HASH_FORMAT:
+            _check_observation_clock(old, new)
     for collection in ('streams', 'datasets'):
         if set(previous[collection]) - set(state[collection]):
             raise ArchiveError('An incremental checkpoint cannot remove a source stream.')
@@ -1069,7 +1185,7 @@ def compact_receipts(connection, *, apply=False):
     return report
 
 
-def import_bundle(connection, bundle):
+def import_bundle(connection, bundle, *, source_manifest=None, base_dir=None):
     """Atomically insert a verified bundle. Existing evidence is never overwritten."""
     validate_bundle(bundle)
     placeholder = '?' if isinstance(connection, sqlite3.Connection) else '%s'
@@ -1095,7 +1211,14 @@ def import_bundle(connection, bundle):
                 if ((old and old[0] != checkpoint['source_id'])
                         or (_hash(previous) if previous else None) != checkpoint['previous_sha256']):
                     raise ArchiveError('The incremental checkpoint is stale. Export again from the committed archive.')
-                _check_advance(previous, checkpoint['state'])
+                old_state, new_state = (previous or {}).get('database'), checkpoint['state']['database']
+                upgrade = (old_state is not None and new_state is not None
+                           and old_state.get('snapshot_hash_format') is None
+                           and new_state.get('snapshot_hash_format') == SNAPSHOT_HASH_FORMAT
+                           and old_state['revision'] == new_state['revision'])
+                if upgrade:
+                    _verify_hash_upgrade(connection, checkpoint, previous, source_manifest, base_dir)
+                _check_advance(previous, checkpoint['state'], hash_upgrade_verified=upgrade)
         for run in bundle['runs']:
             old = execute('SELECT payload FROM archive_runs WHERE run_id=?', (run['run_id'],)).fetchone()
             payload = _json(run)
@@ -1143,6 +1266,7 @@ def main(argv=None):
     export.add_argument('--batch-size', type=int, default=DEFAULT_BATCH_SIZE)
     ingest = sub.add_parser('import')
     ingest.add_argument('--bundle', required=True); ingest.add_argument('--dsn', default='dbname=fantasy_football')
+    ingest.add_argument('--manifest', help='Verify a same-revision legacy checkpoint hash upgrade against these private sources.')
     sync = sub.add_parser('sync')
     sync.add_argument('--manifest', required=True); sync.add_argument('--dsn', default='dbname=fantasy_football')
     sync.add_argument('--interval', type=float, default=0)
@@ -1185,7 +1309,12 @@ def main(argv=None):
                 print(_json({'bundle_id': bundle['bundle_id'], 'records': len(bundle['records']),
                              'labels': len(bundle['labels']), 'has_more': bundle['has_more']}))
                 return 0
-            result = import_bundle(connection, bundle)
+            source_manifest, source_base = None, None
+            if args.command == 'sync' or (args.command == 'import' and args.manifest):
+                source_path = Path(args.manifest)
+                source_manifest = json.loads(source_path.read_text(encoding='utf-8-sig'))
+                source_base = source_path.parent
+            result = import_bundle(connection, bundle, source_manifest=source_manifest, base_dir=source_base)
         print(_json({'bundle_id': bundle['bundle_id'], 'inserted': result, 'has_more': bundle.get('has_more', False)}), flush=True)
         if args.command == 'sync' and args.drain and bundle.get('has_more'):
             continue

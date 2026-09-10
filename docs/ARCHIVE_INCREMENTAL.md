@@ -4,9 +4,9 @@ The archive now commits bounded export batches and durable source checkpoints in
 New incremental receipts contain counts and content digests. They do not contain cumulative lists of record identifiers.
 An unchanged source produces no new receipt.
 
-**Verified:** All 77 archive tests passed with PostgreSQL 16.15 and SQLite under the application service role in an isolated test database.
+**Verified:** All 92 archive tests passed with PostgreSQL 16.15 and SQLite under the application service role in an isolated test database.
 They cover export, import, restart, rollback, replay, source changes, receipt compaction, and exact legacy evidence coverage.
-**Not Tested:** Production migration, production compaction, and sustained collection on the server.
+**Not Tested:** Sustained collection beyond the initial production acceptance window.
 The PostgreSQL tests require an explicit isolated test database. A skipped local test does not verify PostgreSQL behavior.
 
 ## Verified full-data rehearsal
@@ -35,6 +35,57 @@ The bootstrap therefore verifies each frozen source's actual row keys against th
 Measured durations were 339 seconds for backup, 102 seconds for restore, and 566 seconds for verified compaction.
 Isolated imports-only reclamation took 1.5 seconds. The five-source bootstrap took 136 seconds.
 These measurements describe the rehearsal. They do not guarantee production timing.
+
+## Verified production receipt maintenance
+
+Production receipt maintenance passed on 2026-09-10 UTC.
+The archive writer was stopped before the final backup.
+All seven backup-file checksums passed. All five SQLite copies passed their integrity checks.
+The final PostgreSQL backup restored into a separate verification database.
+Its exact evidence and import-identity hashes matched the production dry-run.
+
+| Check | Verified result |
+|---|---|
+| Legacy receipts compacted | 1,435, with unchanged import identities and times |
+| Preserved evidence | Exact unchanged hashes for 17 runs, 92,421 records, and 178,543 labels |
+| Manifest text | 12,878,227,315 bytes before; 2,532,505 bytes after |
+| Imports table, including storage and indexes | 11,700,805,632 bytes before; 2,490,368 bytes after reclamation |
+| Database size | 12,345,056,279 bytes before; 646,741,015 bytes after reclamation |
+| Post-maintenance verification | All 1,435 receipts compact; exact evidence and import-identity hashes unchanged |
+
+The initial incremental bootstrap committed five batches and then stopped at a continuity check.
+It added 49 records and five compact receipts before the stop.
+ESPN had refreshed two observation timestamps without changing the decision revision.
+The old raw-snapshot hash incorrectly treated this valid refresh as a source replacement.
+The committed checkpoints and all evidence remained intact.
+
+The corrected format passed the archive tests, including the actual ESPN refresh method during multiple export batches.
+A read-only export against all five production sources passed with unchanged destination checkpoints.
+The installed fix then resumed from the five committed checkpoints.
+It converted the hash format and completed the remaining 15 batches in 76.3 seconds.
+Those batches added 948 records and 15 compact receipts, with no new runs or labels.
+No source identifier or run identifier was reset.
+
+Exact reconstruction covered all 56,322 committed audit/outbox rows across the five sources.
+Every expected record and derived label matched its archived content hash.
+All original stored rows, including import identities and times, remained unchanged.
+The archive retained both confirmed repair actions, `free_agent_add` and `set_lineup`, in the audit and outbox streams.
+Rows that arrived after each committed cutoff remained valid backlog.
+
+A bounded follow-up added 75 records in 0.525 seconds and returned `has_more=false`.
+All decision revisions remained unchanged. The follow-up added no full snapshots.
+The normal service invocation then added 25 records and one 457-byte receipt, with exit status zero and no error output.
+The existing timer was active at 03:23:45 UTC with a one-minute delay after each completed invocation.
+Its timing settings remained unchanged.
+
+The acceptance inventory contained 93,518 records, 178,543 labels, 17 runs, 1,457 receipts, five checkpoints, and 72 proposal fingerprints.
+Database size was 651,475,991 bytes after backlog processing. The imports table occupied 2,531,328 bytes.
+These counts describe the acceptance instant. New collection adds records and compact receipts.
+
+Production recovery used archive source SHA-256 `574daee586421cb26c5586d720fa2b714747cddfece8d651ed7dda0b5651679d`.
+The final 92-test suite used SHA-256 `539788ea0aea4809c538e418776718907cb4615891c184c6caa410fff8131157`.
+That source also fixes relative-path resolution during a verified legacy checkpoint import.
+All backups and maintenance evidence were preserved.
 
 ## Commands and compatibility
 
@@ -66,12 +117,25 @@ For a separate export and import, read checkpoints from the destination during e
 
 ```sh
 fantasy-football-archive export --incremental --manifest "$PRIVATE_ARCHIVE_MANIFEST" --dsn "$PRIVATE_ARCHIVE_DSN" --output "$PRIVATE_BUNDLE"
-fantasy-football-archive import --bundle "$PRIVATE_BUNDLE" --dsn "$PRIVATE_ARCHIVE_DSN"
+fantasy-football-archive import --bundle "$PRIVATE_BUNDLE" --dsn "$PRIVATE_ARCHIVE_DSN" --manifest "$PRIVATE_ARCHIVE_MANIFEST"
 ```
 
 Export does not create or advance destination checkpoints.
 Import advances them only after all evidence and labels pass validation.
 A stale bundle requires a new export. A previously committed bundle remains safe to replay after later commits.
+
+New checkpoints identify their snapshot hash format as `decision-inputs-v1`.
+The hash excludes only `source.observed_at` and `source.projections_observed_at`.
+Every other raw snapshot field remains part of the continuity check.
+Separate checkpoint watermarks reject backward observation times.
+Timestamp-only refreshes advance these watermarks and retain source audit events. They do not export duplicate full snapshots.
+
+An older raw-hash checkpoint requires an exact reconstruction before a same-revision format conversion.
+The exporter combines the current raw snapshot with retained observation timestamps and verifies the original raw hash.
+The importer repeats that proof against the private source inside the destination transaction.
+`sync` supplies the source manifest automatically. Separate `import` requires `--manifest` for this conversion.
+Missing retained timestamps, changed decision inputs, or a changed source before import stop the conversion without advancing its checkpoint.
+Raw source data stays in memory and does not enter the exported bundle.
 
 Legacy schema version `1` bundles remain readable and importable.
 `export` without `--incremental` retains the full-history format.
@@ -205,7 +269,7 @@ Legacy bundle replay verifies the equivalent compact receipt before it accepts a
 The archive keeps records, labels, run metadata, checkpoints, and proposal fingerprints unchanged.
 The command reports exact table hashes before and after replacement.
 
-**Not Tested:** Production compaction and production space reclamation.
+**Verified:** Production compaction and imports-only space reclamation passed the checks above.
 
 Production maintenance requires all of these conditions:
 
@@ -256,6 +320,7 @@ Include checkpoint and proposal-fingerprint tables in that comparison.
 Only the reviewed `archive_imports.manifest` values may differ.
 
 Retain the original manifests in the verified backup.
+Later backups of compact receipts cannot replace the original membership lists.
 Rehearse rollback by restoring that backup into another isolated database.
 Verify the same exact evidence hashes after restoration.
 Do not treat a smaller database file as proof of data coverage.

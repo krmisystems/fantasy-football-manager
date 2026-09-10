@@ -9,7 +9,9 @@ Trade execution remains unavailable.
 The published v0.3.3 package retains the browser draft and single-swap lineup workflows.
 The HTTP implementation has source and fictional-service tests.
 Verified staged reads cover ownership and targeted locks for five teams.
-Live HTTP write acceptance remains **Not Tested** at this documentation checkpoint.
+One authorized repair verified automatic HTTP free-agent add/drop and a subsequent lineup exchange.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the receipts, roster verification, and limits of this live result.
+Live waiver processing, IR moves, and scoring-week rollover remain **Not Tested**.
 See [validation status](VALIDATION.md) before using a release claim.
 
 ## Connection

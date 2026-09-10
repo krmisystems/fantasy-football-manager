@@ -1,6 +1,7 @@
 # Browser-free season automation
 
-Status: Implemented v0.4.0 candidate. Live transaction validation is not complete.
+Status: Implemented v0.4.0 candidate. One authorized Week 1 repair verified automatic HTTP free-agent add/drop and lineup execution.
+Public release and broader live acceptance remain incomplete.
 
 ## Scope
 
@@ -44,6 +45,16 @@ Missing inputs remain unknown. The service must not replace missing projections 
 Public fixtures use fictional identities. Private account evidence stays outside the repository. Unit tests do not establish live ESPN write compatibility.
 
 Authentication through an existing session was verified with HTTP only during investigation.
+Targeted roster reads verified player locks after kickoff.
 The [HTTP compatibility report](ESPN_HTTP_COMPATIBILITY.md) records transaction contracts from the ESPN football application.
 Acquisition limits and permitted drop players remain subject to the user's explicit policy.
+
+On 2026-09-10 UTC, the deployed candidate completed one explicitly authorized coverage repair without a browser.
+Two unchanged automatic engine steps submitted a free-agent add/drop and a subsequent lineup exchange.
+Both actions received ESPN `EXECUTED` receipts and matching roster observations.
+The previous starter remained on the bench. Other roster players, starter assignments, and pending transactions stayed unchanged.
+The execution harness used temporary explicit limits and restored the original policy afterward.
+
+This result verifies that exact workflow in one Week 1 context.
+Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested.
 Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for current results and unfinished validation.

@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from contextlib import closing
+from datetime import datetime, timedelta
 import hashlib
 import json
 import os
@@ -20,12 +21,12 @@ from test_archive import manifest, snapshot, write_db
 ZERO = {'runs': 0, 'records': 0, 'labels': 0, 'imports': 0}
 
 
-def append_events(manifest, count, table='ffm_archive_outbox'):
+def append_events(manifest, count, table='ffm_archive_outbox', at=None):
     with sqlite3.connect(manifest['sources'][0]['database']) as source:
         start = source.execute(f'SELECT COALESCE(MAX(id),0) FROM {table}').fetchone()[0]
         for index in range(start + 1, start + count + 1):
             source.execute(f'INSERT INTO {table} VALUES(?,?,?,?)',
-                           (index, None, 'calculation_completed', json.dumps({'calculation': {'seed': index,
+                           (index, at, 'calculation_completed', json.dumps({'calculation': {'seed': index,
                             'requested_trials': 40, 'completed_trials': 32, 'accepted': True,
                             'selection_causality': 'not_inferred'}})))
 
@@ -41,6 +42,228 @@ def checkpoint(db):
 def rehash(bundle):
     bundle['manifest'] = archive._bundle_manifest(bundle)
     bundle['bundle_id'] = archive._hash(bundle['manifest'])
+
+
+def refresh_timestamps(manifest, seconds=1, edit=None):
+    with sqlite3.connect(manifest['sources'][0]['database']) as source:
+        raw = json.loads(source.execute('SELECT snapshot FROM state WHERE id=1').fetchone()[0])
+        for key in ('observed_at', 'projections_observed_at'):
+            raw['source'][key] = (datetime.fromisoformat(raw['source'][key].replace('Z', '+00:00'))
+                                  + timedelta(seconds=seconds)).isoformat()
+        if edit:
+            edit(raw)
+        source.execute('UPDATE state SET snapshot=? WHERE id=1', (json.dumps(raw),))
+    return raw
+
+
+def legacy_checkpoint_bundle(db, manifest, size=2):
+    bundle = export(db, manifest, size)
+    with sqlite3.connect(manifest['sources'][0]['database']) as source:
+        raw = json.loads(source.execute('SELECT snapshot FROM state WHERE id=1').fetchone()[0])
+    state = bundle['checkpoints'][0]['state']['database']
+    for key in ('snapshot_hash_format', 'snapshot_observed_at', 'snapshot_projections_observed_at'):
+        state.pop(key)
+    state['snapshot_sha256'] = archive._hash(raw)
+    rehash(bundle)
+    return bundle
+
+
+def test_live_refresh_path_during_multibatch_export_preserves_decision_revision(manifest, tmp_path):
+    from fantasy_football_manager.espn_service import ESPNService
+    service = ESPNService(tmp_path / 'runtime', browser=types.SimpleNamespace(transport='http'))
+    service.manager.import_snapshot(snapshot(), 0)
+    manifest['sources'][0]['database'] = str(service.manager.path)
+    append_events(manifest, 6, at=service.manager.state()[0].source.observed_at.isoformat())
+    with sqlite3.connect(':memory:') as db:
+        first_hash = None
+        while True:
+            bundle = export(db, manifest, 2)
+            observed, _, revision, _ = service.manager.state()
+            refreshed = observed.model_dump(mode='json')
+            for key in ('observed_at', 'projections_observed_at'):
+                refreshed['source'][key] = (datetime.fromisoformat(refreshed['source'][key].replace('Z', '+00:00'))
+                                            + timedelta(seconds=1)).isoformat()
+            result = service._accept_observation(refreshed, revision)
+            assert result['status'] == 'refreshed' and result['revision'] == revision == 1
+            archive.import_bundle(db, bundle)
+            saved = checkpoint(db)['database']
+            assert saved['snapshot_hash_format'] == archive.SNAPSHOT_HASH_FORMAT
+            first_hash = first_hash or saved['snapshot_sha256']
+            assert saved['snapshot_sha256'] == first_hash
+            if not bundle['has_more']:
+                break
+        archive.import_bundle(db, export(db, manifest, 20))
+        assert checkpoint(db)['database']['revision'] == 1
+        assert checkpoint(db)['streams']['ffm_archive_outbox']['count'] >= 6
+        assert db.execute("SELECT count(*) FROM archive_records WHERE source_key='state:1' AND kind='snapshot'").fetchone()[0] == 1
+        assert archive.import_bundle(db, export(db, manifest, 20)) == ZERO
+
+
+@pytest.mark.parametrize('change', ['projection', 'rules', 'roster', 'lock'])
+def test_refresh_hash_keeps_every_non_timestamp_decision_input(manifest, change):
+    edits = {'projection': lambda raw: raw['players'][0].update(projection=999),
+             'rules': lambda raw: raw['rules']['starters'].update(RB=2),
+             'roster': lambda raw: raw['teams'][0]['roster_ids'].reverse(),
+             'lock': lambda raw: raw['source'].update(locks_verified=True)}
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, export(db, manifest))
+        before = checkpoint(db)
+        refresh_timestamps(manifest, edit=edits[change])
+        with pytest.raises(archive.ArchiveError, match='continuity'):
+            export(db, manifest)
+        assert checkpoint(db) == before
+
+
+def test_refresh_timestamps_cannot_move_backward_at_same_revision(manifest):
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, export(db, manifest))
+        refresh_timestamps(manifest)
+        archive.import_bundle(db, export(db, manifest))
+        before = checkpoint(db)
+        refresh_timestamps(manifest, seconds=-1)
+        with pytest.raises(archive.ArchiveError, match='timestamp moved backward'):
+            export(db, manifest)
+        assert checkpoint(db) == before
+
+
+def test_legacy_hash_upgrade_requires_source_proof_and_preserves_replay(manifest):
+    append_events(manifest, 4)
+    with sqlite3.connect(':memory:') as db:
+        old_bundle = legacy_checkpoint_bundle(db, manifest)
+        archive.import_bundle(db, old_bundle)
+        before = checkpoint(db)
+        refresh_timestamps(manifest)
+        upgrade = export(db, manifest)
+        assert checkpoint(db) == before
+        assert str(manifest['sources'][0]['database']) not in json.dumps(upgrade)
+        with pytest.raises(archive.ArchiveError, match='private source manifest'):
+            archive.import_bundle(db, upgrade)
+        assert checkpoint(db) == before
+        archive.import_bundle(db, upgrade, source_manifest=manifest)
+        assert checkpoint(db)['database']['snapshot_hash_format'] == archive.SNAPSHOT_HASH_FORMAT
+        assert checkpoint(db)['streams']['ffm_archive_outbox']['count'] == 4
+        assert archive.import_bundle(db, old_bundle) == ZERO
+        assert archive.import_bundle(db, upgrade) == ZERO
+
+
+def test_legacy_hash_upgrade_resolves_relative_manifest_and_database_paths(manifest, tmp_path, monkeypatch):
+    append_events(manifest, 4)
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, legacy_checkpoint_bundle(db, manifest))
+        before = checkpoint(db)
+        refresh_timestamps(manifest)
+        relative_sources = deepcopy(manifest)
+        relative_sources['sources'][0]['database'] = 'source.sqlite3'
+        (tmp_path / 'manifest.json').write_text(json.dumps(relative_sources), encoding='utf-8')
+        monkeypatch.chdir(tmp_path.parent)
+        manifest_path = Path(tmp_path.name) / 'manifest.json'
+        loaded = json.loads(manifest_path.read_text(encoding='utf-8'))
+        upgrade = archive.export_incremental_bundle(db, loaded, base_dir=manifest_path.parent, batch_size=2)
+        archive.import_bundle(db, upgrade, source_manifest=loaded, base_dir=manifest_path.parent)
+        after = checkpoint(db)
+        assert after['database']['snapshot_hash_format'] == archive.SNAPSHOT_HASH_FORMAT
+        assert after['database']['revision'] == before['database']['revision']
+        assert after['source_epoch'] == before['source_epoch']
+        assert after['selection_sha256'] == before['selection_sha256']
+        assert after['sequence'] == before['sequence'] + 1
+        assert after['streams']['ffm_archive_outbox']['count'] == 4
+        assert archive.import_bundle(db, upgrade) == ZERO
+
+
+@pytest.mark.parametrize('failure', ['missing_evidence', 'changed_decision', 'timestamp_rollback'])
+def test_legacy_hash_upgrade_refuses_unproven_reconstruction(manifest, failure):
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, legacy_checkpoint_bundle(db, manifest))
+        before = checkpoint(db)
+        if failure == 'missing_evidence':
+            db.execute("DELETE FROM archive_records WHERE kind='snapshot'")
+            db.commit()
+            refresh_timestamps(manifest)
+        elif failure == 'changed_decision':
+            refresh_timestamps(manifest, edit=lambda raw: raw['players'][0].update(projection=999))
+        else:
+            refresh_timestamps(manifest, seconds=-1)
+        with pytest.raises(archive.ArchiveError, match='continuity'):
+            export(db, manifest)
+        assert checkpoint(db) == before
+
+
+def test_legacy_upgrade_rechecks_source_after_export_and_before_commit(manifest):
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, legacy_checkpoint_bundle(db, manifest))
+        before = checkpoint(db)
+        refresh_timestamps(manifest)
+        upgrade = export(db, manifest)
+        refresh_timestamps(manifest, edit=lambda raw: raw['players'][0].update(projection=999))
+        with pytest.raises(archive.ArchiveError, match='source changed before'):
+            archive.import_bundle(db, upgrade, source_manifest=manifest)
+        assert checkpoint(db) == before
+        assert db.execute('SELECT count(*) FROM archive_imports').fetchone()[0] == 1
+
+
+def test_legacy_upgrade_rechecks_forged_hash_even_with_a_manifest(manifest):
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, legacy_checkpoint_bundle(db, manifest))
+        before = checkpoint(db)
+        refresh_timestamps(manifest)
+        upgrade = export(db, manifest)
+        upgrade['checkpoints'][0]['state']['database']['snapshot_sha256'] = '0' * 64
+        rehash(upgrade)
+        with pytest.raises(archive.ArchiveError, match='source changed before'):
+            archive.import_bundle(db, upgrade, source_manifest=manifest)
+        assert checkpoint(db) == before
+
+
+def test_new_snapshot_hash_format_cannot_downgrade_or_accept_unknown_format(manifest):
+    with sqlite3.connect(':memory:') as db:
+        archive.import_bundle(db, export(db, manifest))
+        before = checkpoint(db)
+        refresh_timestamps(manifest)
+        bundle = export(db, manifest)
+        state = bundle['checkpoints'][0]['state']['database']
+        state['snapshot_hash_format'] = 'unverified-v2'
+        rehash(bundle)
+        with pytest.raises(archive.ArchiveError, match='unsupported snapshot hash format'):
+            archive.import_bundle(db, bundle)
+        for key in ('snapshot_hash_format', 'snapshot_observed_at', 'snapshot_projections_observed_at'):
+            state.pop(key)
+        rehash(bundle)
+        with pytest.raises(archive.ArchiveError, match='downgrade'):
+            archive.import_bundle(db, bundle)
+        assert checkpoint(db) == before
+
+
+@pytest.mark.skipif(not os.environ.get('FFM_ARCHIVE_TEST_DSN'), reason='An explicit isolated PostgreSQL test DSN is required.')
+def test_postgres_legacy_refresh_upgrade_rolls_back_and_replays(manifest):
+    import psycopg
+    from psycopg import sql
+    schema = 'test_archive_refresh_' + uuid.uuid4().hex
+    append_events(manifest, 4)
+    with psycopg.connect(os.environ['FFM_ARCHIVE_TEST_DSN'], autocommit=True) as db:
+        db.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(schema)))
+        try:
+            db.execute(sql.SQL('SET search_path TO {}').format(sql.Identifier(schema)))
+            legacy = legacy_checkpoint_bundle(db, manifest)
+            archive.import_bundle(db, legacy)
+            previous = checkpoint(db)
+            refresh_timestamps(manifest)
+            upgraded = export(db, manifest)
+            with pytest.raises(archive.ArchiveError, match='private source manifest'):
+                archive.import_bundle(db, upgraded)
+            db.execute("ALTER TABLE archive_source_checkpoints ADD CONSTRAINT reject_upgrade CHECK ((payload::json->'database'->>'snapshot_hash_format') IS NULL)")
+            count = db.execute('SELECT count(*) FROM archive_records').fetchone()[0]
+            with pytest.raises(psycopg.errors.CheckViolation):
+                archive.import_bundle(db, upgraded, source_manifest=manifest)
+            assert checkpoint(db) == previous
+            assert db.execute('SELECT count(*) FROM archive_records').fetchone()[0] == count
+            db.execute('ALTER TABLE archive_source_checkpoints DROP CONSTRAINT reject_upgrade')
+            archive.import_bundle(db, upgraded, source_manifest=manifest)
+            assert checkpoint(db)['database']['snapshot_hash_format'] == archive.SNAPSHOT_HASH_FORMAT
+            assert checkpoint(db)['streams']['ffm_archive_outbox']['count'] == 4
+            assert archive.import_bundle(db, legacy) == ZERO
+            assert archive.import_bundle(db, upgraded) == ZERO
+        finally:
+            db.execute(sql.SQL('DROP SCHEMA {} CASCADE').format(sql.Identifier(schema)))
 
 
 def test_bounded_batches_cover_legacy_records_and_labels_exactly(manifest):

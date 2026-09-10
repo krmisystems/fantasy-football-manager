@@ -3,6 +3,8 @@
 Verified source review: 2026-09-10 UTC. This report records ESPN's public football application code, retrieved through HTTP requests.
 It does not claim that every transaction has passed a live account test.
 No browser, account request, or live transaction was used for this source review.
+A later trial with the deployed candidate verified automatic HTTP free-agent add/drop and lineup execution.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for that live evidence and its limits.
 
 ## Source artifacts
 
@@ -185,7 +187,7 @@ The [espn-api transaction reader](https://github.com/cwendt94/espn-api/blob/mast
 It supplies transaction type filters through `X-Fantasy-Filter`.
 Its [transaction model](https://github.com/cwendt94/espn-api/blob/master/espn_api/football/transaction.py) reads status, period, dates, bid amount, and items.
 
-Planned validation requirements:
+Implementation and validation requirements:
 
 1. Verify the selected league, season, period, and owner through authenticated reads.
 2. Verify targeted roster locks and pool ownership before each submission.
@@ -195,5 +197,14 @@ Planned validation requirements:
 6. Verify pending claims separately from completed acquisitions.
 7. Stop dependent actions when a rollover changes the scoring period.
 
-Not Tested by this source review: live football add/drop, waiver processing, IR activation, future-period propagation, and transaction response loss.
-Publication or release claims must cite separate test evidence for those behaviors.
+## Separate live acceptance
+
+Verified, live: on 2026-09-10 UTC, the deployed v0.4.0 candidate completed one explicitly authorized Week 1 coverage repair.
+Two unchanged automatic engine steps submitted a free-agent add/drop, then a lineup exchange, without a browser.
+ESPN returned `EXECUTED` for both transactions. Fresh roster observations established ownership and the intended starting-slot assignment.
+The previous starter remained on the bench. Other roster players, starter assignments, and pending transactions stayed unchanged.
+The execution harness used temporary explicit limits and restored the original policy afterward.
+
+This result verifies those two actions in their recorded context.
+Live waiver processing, IR activation, scoring-week rollover, transaction response loss, and an unattended season remain Not Tested.
+Public release remains incomplete. Read the [acceptance record](HTTP_SEASON_ACCEPTANCE.md) for the deployment identity and remaining gates.

@@ -2,13 +2,15 @@
 
 ## Version 0.4.0 HTTP season candidate
 
-Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for current source tests and authenticated read evidence.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for current source tests, authenticated reads, and live transaction evidence.
 The candidate adds HTTP lineups, acquisitions, IR moves, automatic period rollover, and incremental archive export.
 It retains optional browser draft support.
-The local suite passed 1,034 tests with 21 skips. Separate PostgreSQL validation passed all 77 archive tests.
+The local suite passed 1,048 tests with 22 skips. Separate PostgreSQL validation passed all 92 archive tests.
 A fresh base installation passed both MCP servers without Playwright.
 The deployed HTTP coordinator completed a five-team sweep with accurate analysis readiness.
-Live transaction acceptance and publication remain incomplete at this checkpoint.
+One authorized repair verified automatic HTTP free-agent add/drop and a subsequent lineup exchange.
+Both transactions matched ESPN receipts and fresh roster observations. A follow-up cycle confirmed no duplicate submission.
+Live waiver processing, IR moves, rollover, and an unattended season remain Not Tested. Public release remains incomplete.
 The results below describe their original versions and do not establish acceptance of this candidate.
 
 ## Earlier release evidence

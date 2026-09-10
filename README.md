@@ -13,7 +13,8 @@ HTTP season actions include lineups, free-agent additions, waiver claims, drops,
 Draft support retains the existing browser adapter.
 
 **Release candidate:** The reviewed v0.4.0 wheel is deployed privately and has completed a five-team HTTP observation sweep.
-Live HTTP writes and public release remain incomplete. Public v0.3.3 assets retain their earlier behavior.
+An explicitly authorized coverage repair also confirmed two automatic HTTP actions: a free-agent add/drop and a subsequent lineup exchange.
+Public release remains incomplete. Public v0.3.3 assets retain their earlier behavior.
 Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the current evidence and remaining live validation.
 
 This independent project requires your ESPN account. A protected session file supplies HTTP authentication.
@@ -38,7 +39,9 @@ Read the [developer showcase](https://github.com/krmisystems/fantasy-football-ma
 
 ## Start with a weekly lineup
 
-HTTP roster reads have verified ownership and player locks across five team contexts. Live write acceptance is tracked separately.
+HTTP roster reads have verified ownership and player locks across five team contexts.
+One authorized Week 1 repair verified automatic free-agent acquisition and a subsequent lineup exchange through the deployed candidate.
+Live waiver processing, IR moves, and scoring-week rollover remain Not Tested.
 
 For the v0.4.0 source checkout:
 
@@ -158,17 +161,22 @@ Health separates process activity, observation freshness, analysis readiness, an
 The optional PostgreSQL archive exports bounded batches and commits checkpoints with the evidence.
 Private backups preserve the operational databases and configuration.
 
-The deployed v0.4.0 coordinator returned fresh HTTP observations for all five teams.
+The deployed v0.4.0 coordinator's first sweep returned fresh HTTP observations for all five teams.
 Four teams had current analysis and required no lineup change. One team had incomplete tight-end coverage with an unknown projection.
-Health correctly reported degraded analysis. No live transaction was submitted, and existing team policies remained unchanged.
+Health correctly reported degraded analysis. That initial sweep submitted no live transaction and preserved existing team policies.
+
+The user then authorized an exact coverage repair with temporary action limits.
+Two unchanged automatic engine steps confirmed a free-agent add/drop, then a lineup exchange, through authenticated HTTP.
+Both actions received ESPN `EXECUTED` receipts and matching roster observations. The previous starter remained on the bench.
+Other roster players, starter assignments, and pending transactions stayed unchanged. The original policy was restored after execution.
 Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the deployment, package checks, and remaining live acceptance.
 
 After the fifth draft, the v0.3.2 server verified fresh Week 1 observations, selected-team locks, and current lineup calculations for **five exact team contexts**.
 The verified handoff recorded zero new lineup authorizations and zero unresolved authorized claims.
-These observations do not verify live server lineup submission or an unattended season.
+Those v0.3.2 observations did not verify live server lineup submission or an unattended season.
 Read [server acceptance](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/SERVER_ACCEPTANCE.md) for restart, archive, and recovery evidence.
 All three additional draft trials are complete, with their failures and execution sources recorded separately.
-Five-team season outcomes and live server lineup submission remain [unverified](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
+Five-team season outcomes and uninterrupted season operation remain [unverified](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/MULTI_TEAM_ACCEPTANCE.md).
 
 ## Install from PyPI
 
@@ -237,10 +245,11 @@ Follow the [release instructions](https://github.com/krmisystems/fantasy-footbal
 | Server team manager | HTTP team visits, optional period rollover, readiness, incremental archive, backups | Session renewal and unresolved transactions can require operator input. |
 | Trade execution | Not implemented | Pending trades remain protected from conflicting automatic actions. |
 
-The v0.4.0 local suite passed **1,034 tests with 21 skips**. A separate PostgreSQL run passed **77 archive tests**.
+The v0.4.0 local suite passed **1,048 tests with 22 skips**. A separate PostgreSQL run passed **92 archive tests**.
 A fresh base installation passed actual STDIO checks for 17 manager tools and 16 ESPN tools without Playwright.
 All 28 deployed Python files matched the reviewed wheel. Existing dependency versions and team policies remained unchanged.
-Live HTTP writes, public release, and production archive compaction remain incomplete at this checkpoint.
+One authorized repair subsequently verified automatic HTTP add/drop and lineup execution in a single Week 1 context.
+Live waiver processing, IR moves, and scoring-week rollover remain Not Tested. Public release remains incomplete.
 Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the exact evidence boundary.
 
 The v0.3.3 source passed **664 tests across the base and separate Chrome runs**, including **17 isolated Chrome cases**.
