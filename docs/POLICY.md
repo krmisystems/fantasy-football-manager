@@ -4,7 +4,11 @@ Strategy, execution permission, and hard limits are separate controls.
 The manager's execution tools remain restricted to synthetic demonstrations.
 Published v0.3.3 supports browser draft picks and one verified lineup swap per proposal.
 The unreleased v0.4.0 candidate adds HTTP lineups, acquisitions, waiver claims, drops, and IR moves through the ESPN companion.
-Trade execution remains unavailable. New HTTP write acceptance remains **Not Tested** at this documentation checkpoint.
+Trade execution remains unavailable.
+A live trial on 2026-09-10 UTC verified one automatic HTTP free-agent add/drop and a subsequent lineup exchange.
+The trial used exact user-authorized limits and restored the previous policy after verification.
+Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for the transaction receipts and roster verification.
+Live waiver processing, IR moves, and scoring-week rollover remain **Not Tested**.
 
 | Control | Meaning |
 |---|---|

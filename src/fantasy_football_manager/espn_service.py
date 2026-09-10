@@ -664,7 +664,9 @@ class ESPNService:
                 raise ValueError(message)
             if matching and shared.get("status") in {
                 "starting", "monitoring", "monitoring_lineup", "lineup_current", "no_admissible_lineup_exchange",
-                "paused", "awaiting_review", "awaiting_verification", "draft_complete", "needs_attention"}:
+                "paused", "awaiting_review", "awaiting_verification", "draft_complete", "needs_attention",
+                "analysis_incomplete", "state_changed", "no_admissible_candidate", "confirmed", "pending_waiver",
+                "not_submitted", "not_selected", "rejected", "cancelled", "conflict"}:
                 return {"status": shared["status"], "pid": shared["pid"], "launcher_pid": process.pid,
                         "launch_id": launch_id, "startup_acknowledged": True,
                         "worker": shared, "lifetime": "independent_of_codex",
@@ -672,5 +674,5 @@ class ESPNService:
             if asyncio.get_running_loop().time() >= deadline:
                 return {"status": "startup_pending", "pid": None, "launcher_pid": process.pid,
                         "launch_id": launch_id, "startup_acknowledged": False,
-                        "lifetime": "independent_of_codex", "message": "The process started, but browser startup is not yet verified."}
+                        "lifetime": "independent_of_codex", "message": "The process started, but worker startup is not yet verified."}
             await asyncio.sleep(.1)

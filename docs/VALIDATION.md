@@ -1,5 +1,7 @@
 # Validation status
 
+Read the [September 10 systems review](SYSTEM_REVIEW.md) for the latest startup correction, deployment checks, and remaining delivery gates.
+
 ## Version 0.4.0 HTTP season candidate
 
 Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for current source tests, authenticated reads, and live transaction evidence.
