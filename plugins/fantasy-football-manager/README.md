@@ -4,18 +4,18 @@ This plugin registers four skills and three local MCP servers for ESPN fantasy f
 It supports draft analysis, season proposals, and a portfolio of configured teams.
 Saved automation modes and per-team limits control submissions.
 
-This source package is the **unreleased v0.4.0 candidate**.
+This source package is the **v0.4.0 preview**.
 The published v0.3.3 Python package does not contain all of these tools.
-Install the candidate commands from the source checkout:
+Install the matching Python commands:
 
 ```sh
-uv tool install .
+uv tool install fantasy-football-manager==0.4.0
 fantasy-football-manager --help
 fantasy-football-espn --help
 fantasy-football-portfolio --help
 ```
 
-Run the installation command from the cloned repository root, not this plugin directory.
+For a source build, run `uv tool install .` from the cloned repository root.
 Make the three commands available on the Codex process's `PATH`.
 Configure private team stores, the portfolio manifest, and authorized ESPN sessions separately.
 The plugin contains registrations and instructions. It does not contain the Python runtime or credentials.

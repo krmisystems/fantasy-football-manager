@@ -138,7 +138,7 @@ uv run python scripts/build_plugin_zip.py
 
 Twine checks the selected Python distributions only.
 The ZIP builder writes a plugin archive and a SHA-256 manifest to `dist/`.
-The archive includes three skills and registrations for both installed MCP commands.
+The archive includes four skills and registrations for three installed MCP commands.
 It copies an explicit list of plugin files. It does not include league records or local state.
 
 Inspect the wheel, source distribution, and plugin manifest before publication.
@@ -211,8 +211,8 @@ Record the installed package, private launchers, and interventions with each liv
 Isolated Chrome fixture tests verify browser mechanics without changing a real league.
 Earlier direct browser picks do not establish packaged selector compatibility.
 Distinguish implemented lineup automation from live acceptance testing.
-The v0.4.0 candidate implements HTTP season lineups, waivers, acquisitions, drops, IR moves, and automatic week rollover.
+The v0.4.0 preview implements HTTP season lineups, waivers, acquisitions, drops, IR moves, and automatic week rollover.
 Its privately deployed wheel has five-team read acceptance and one verified automatic free-agent add/drop and lineup repair.
-Live waiver processing, IR moves, and scoring-week rollover remain Not Tested. Public release remains incomplete.
+Live waiver processing, IR moves, and scoring-week rollover remain Not Tested.
 Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for package verification and remaining gates.
 Trade execution remains outside the release scope.

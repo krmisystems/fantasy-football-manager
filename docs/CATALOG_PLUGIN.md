@@ -31,6 +31,6 @@ The distribution workflow accepts completed main-branch runs through its trigger
 It also checks the source repository and event type, then checks out the fixed `refs/heads/main` ref.
 It never selects a checkout ref from an incoming workflow payload.
 
-The source plugin remains an unreleased v0.4.0 candidate.
+The plugin uses the v0.4.0 preview commands.
 A catalog submission or scanner pass does not publish the Python package or update Glama.
 Use the [distribution check](DISTRIBUTION_STATUS.md) to verify those channels separately.

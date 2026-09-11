@@ -4,7 +4,7 @@ The source plugin adds four workflow skills and three local MCP servers.
 It uses `fantasy-football-manager`, `fantasy-football-espn`, and `fantasy-football-portfolio`.
 The portfolio adds five read-only tools across explicitly configured team stores.
 Configure `FFM_PORTFOLIO_MANIFEST` for that command. See the [portfolio guide](PORTFOLIO.md).
-The unreleased v0.4.0 candidate exposes 16 ESPN tools, including HTTP season transactions without a browser runtime.
+The v0.4.0 preview exposes 16 ESPN tools, including HTTP season transactions without a browser runtime.
 Draft operation retains the browser adapter. Trade execution remains unavailable.
 The published v0.3.3 package has the original 13 ESPN tools and browser lineup workflow.
 Do not assume that installing the published package supplies the new HTTP tools.
@@ -23,12 +23,12 @@ The plugin archive contains registrations and skills. Install the Python wheel s
 Install the published commands:
 
 ```sh
-uv tool install fantasy-football-manager
+uv tool install fantasy-football-manager==0.4.0
 fantasy-football-manager --help
 fantasy-football-espn --help
 ```
 
-For the unreleased HTTP implementation, use the [source installation](../README.md#install-from-source).
+For a development build, use the [source installation](../README.md#install-from-source).
 Run these commands from the repository root to install both optional workflows:
 
 ```sh
@@ -40,14 +40,14 @@ The base HTTP runtime requires neither Chrome nor Playwright.
 The `browser` extra supplies Playwright for draft and legacy season operation. Those workflows also require installed Google Chrome.
 The `session-import` extra supplies cryptography for the optional Linux session importer.
 An already provisioned HTTP session file does not require that extra.
-Configure source commands through the checkout environment until a release includes this implementation.
+Use the v0.4.0 commands or configure a source checkout environment.
 
 Check that the Codex process can find the configured commands on `PATH`.
 Restart Codex if you changed its environment.
 The manager and ESPN servers must share a per-team data directory.
 The portfolio reads all directories listed in its private manifest.
 
-## Configure an HTTP season session (unreleased)
+## Configure an HTTP season session (v0.4.0)
 
 Use an existing authorized ESPN session. The HTTP adapter does not provide password sign-in or renew expired sessions.
 Store only `SWID` and `espn_s2` in a protected local JSON file.
@@ -193,7 +193,7 @@ Run the printed `codex plugin add` command.
 Start a new Codex conversation.
 Ask Codex to call `get_capabilities` and `espn_get_status`.
 Use the synthetic workflow to check the manager without a real league.
-Use the HTTP session setup above for season operation from the unreleased source checkout.
+Use the HTTP session setup above for season operation with v0.4.0.
 For a browser draft, use `espn_connect` in draft phase and complete sign-in in the dedicated profile.
 See the [ESPN workflow](ESPN_AUTOMATION.md) before enabling automatic submissions.
 
@@ -204,7 +204,7 @@ Use either this plugin or direct MCP registrations to avoid duplicate tool sets.
 ## Inspect the source
 
 - [Plugin manifest](../plugins/fantasy-football-manager/.codex-plugin/plugin.json)
-- [Both MCP commands](../plugins/fantasy-football-manager/.mcp.json)
+- [Three MCP commands](../plugins/fantasy-football-manager/.mcp.json)
 - [Draft skill](../plugins/fantasy-football-manager/skills/draft-assistant/SKILL.md)
 - [ESPN automation skill](../plugins/fantasy-football-manager/skills/espn-automation/SKILL.md)
 - [Season skill](../plugins/fantasy-football-manager/skills/season-manager/SKILL.md)

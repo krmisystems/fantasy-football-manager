@@ -1,7 +1,7 @@
 {
   "name": "fantasy-football-manager",
   "version": "0.4.0",
-  "description": "ESPN season transactions, draft tools, and a multi-team portfolio dashboard for Codex. Version 0.4.0 release candidate.",
+  "description": "ESPN season transactions, draft tools, and a multi-team portfolio dashboard for Codex. Version 0.4.0 preview.",
   "author": {
     "name": "krmisystems",
     "url": "https://github.com/krmisystems"
@@ -14,7 +14,7 @@
     "brandColor": "#14251F",
     "displayName": "Fantasy Football Manager",
     "shortDescription": "Inspect all teams and manage ESPN actions within saved limits.",
-    "longDescription": "The v0.4.0 release candidate adds HTTP season transactions, a five-tool portfolio MCP, and a localhost dashboard. Inspect configured teams, players, analysis, and proposals. Optional dashboard controls approve exact saved HTTP season proposals through the existing transaction service. Saved modes and limits apply. Draft operation retains its browser adapter. This candidate is not yet published. A live trial verified automatic free-agent add/drop and a subsequent lineup exchange. Live dashboard submissions, waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested. Football is the only implemented sport. Trade execution is unavailable.",
+    "longDescription": "The v0.4.0 preview adds HTTP season transactions, a five-tool portfolio MCP, and a localhost dashboard. Inspect configured teams, players, analysis, and proposals. Optional dashboard controls approve exact saved HTTP season proposals through the existing transaction service. Saved modes and limits apply. Draft operation retains its browser adapter. A live trial verified automatic free-agent add/drop and a subsequent lineup exchange. Live dashboard submissions, waiver processing, IR moves, scoring-week rollover, and an unattended season remain Not Tested. Football is the only implemented sport. Trade execution is unavailable.",
     "developerName": "krmisystems",
     "category": "Productivity",
     "capabilities": [
