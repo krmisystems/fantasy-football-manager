@@ -138,8 +138,9 @@ jobs:
           uv run python - <<'PY'
           from pathlib import Path
           import hashlib
-          original = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in Path("dist").iterdir() if p.is_file()}
-          downloaded = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in Path("downloaded-artifacts").iterdir() if p.is_file()}
+          # uv build creates a hidden .gitignore; artifact uploads exclude hidden files.
+          original = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in Path("dist").iterdir() if p.is_file() and not p.name.startswith(".")}
+          downloaded = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in Path("downloaded-artifacts").iterdir() if p.is_file() and not p.name.startswith(".")}
           assert len(original) == 4, "Expected the wheel, source archive, plugin archive, and plugin manifest"
           assert original == downloaded, "Downloaded release artifacts differ from the package job outputs"
           print("Verified all four artifact downloads against package job outputs.")
