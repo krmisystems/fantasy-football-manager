@@ -128,3 +128,19 @@ jobs:
           name: distribution-files
           path: dist/
           if-no-files-found: error
+      - name: Download the packaged release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: distribution-files
+          path: downloaded-artifacts/
+      - name: Verify downloaded release artifacts
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          original = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in Path("dist").iterdir() if p.is_file()}
+          downloaded = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in Path("downloaded-artifacts").iterdir() if p.is_file()}
+          assert len(original) == 4, "Expected the wheel, source archive, plugin archive, and plugin manifest"
+          assert original == downloaded, "Downloaded release artifacts differ from the package job outputs"
+          print("Verified all four artifact downloads against package job outputs.")
+          PY

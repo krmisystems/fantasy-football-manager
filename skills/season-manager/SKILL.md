@@ -1,14 +1,15 @@
 ---
 name: season-manager
 description: Manage ESPN season lineups, acquisitions, waiver claims, and IR through authenticated HTTP. Preserve user limits and reconcile every transaction.
+license: MIT
 ---
 
 # Season manager
 
 Read `get_capabilities` and `get_manager_config` before selecting a season workflow.
 Read `espn_get_status` and discover the installed companion tools.
-The v0.4.0 release candidate supplies 16 ESPN tools and HTTP season operation. It is not yet a published release.
-The published v0.3.3 companion has 13 tools and browser lineup swaps.
+The published v0.4.0 preview supplies 16 ESPN tools and HTTP season operation.
+Version 0.3.3 has 13 ESPN tools and browser lineup swaps.
 Use the installed version's capabilities. Do not infer a live write from source code or fictional tests.
 The manager provides weekly analysis and synthetic execution. The ESPN companion owns real submissions.
 Trade execution remains unavailable.
