@@ -13,9 +13,9 @@ The **portfolio MCP** adds five tools for all configured teams, players, saved p
 HTTP season actions include lineups, free-agent additions, waiver claims, drops, and IR moves.
 Draft support retains the existing browser adapter.
 
-**Release candidate:** The reviewed v0.4.0 wheel is deployed privately and has completed a five-team HTTP observation sweep.
+**Version 0.4.0 preview:** The reviewed v0.4.0 wheel is deployed privately and has completed a five-team HTTP observation sweep.
 An explicitly authorized coverage repair also confirmed two automatic HTTP actions: a free-agent add/drop and a subsequent lineup exchange.
-Public release remains incomplete. Public v0.3.3 assets retain their earlier behavior.
+Version 0.3.3 assets retain their earlier behavior. See the release links below for the v0.4.0 preview.
 Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the current evidence and remaining live validation.
 
 This independent project requires your ESPN account. A protected session file supplies HTTP authentication.
@@ -27,7 +27,7 @@ Run this demo with Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
 It requires no ESPN account, Chrome session, or MCP client.
 
 ```sh
-uvx --from fantasy-football-manager==0.3.3 fantasy-football-manager --demo
+uvx --from fantasy-football-manager==0.4.0 fantasy-football-manager --demo
 ```
 
 The command prints a fictional lineup report and exits without changing saved league state.
@@ -201,6 +201,10 @@ Five-team season outcomes and uninterrupted season operation remain [unverified]
 
 ## Install from PyPI
 
+Version 0.4.0 adds HTTP season transactions, the portfolio MCP, and the Fieldroom dashboard.
+The base HTTP installation needs no browser. Install the `browser` extra for live drafts.
+
+
 Version 0.3.3 expands the descriptions, input schemas, and behavior annotations for all 30 MCP tools.
 Read the [tool definition review](docs/TOOL_DEFINITION_QUALITY.md) for compatibility checks and external scoring status.
 Version 0.3.2 preserves verified opponent draft history when a season projection is missing.
@@ -212,9 +216,11 @@ Use Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
 The published v0.3.3 browser workflow also requires installed Google Chrome.
 
 ```sh
-uv tool install fantasy-football-manager
+uv tool install fantasy-football-manager==0.4.0
 fantasy-football-manager --help
 fantasy-football-espn --help
+fantasy-football-portfolio --help
+fantasy-football-dashboard --help
 ```
 
 ## Install from source
@@ -226,6 +232,8 @@ uv sync --locked --dev
 uv tool install --force .
 fantasy-football-manager --help
 fantasy-football-espn --help
+fantasy-football-portfolio --help
+fantasy-football-dashboard --help
 ```
 
 ## Connect the commands
@@ -249,9 +257,9 @@ Use `FFM_BROWSER_DATA_DIR` to select a shared browser profile root across separa
 Browser mode accepts an optional `cdp_url` for an explicit loopback browser debugging endpoint.
 Keep profiles, credentials, databases, logs, and real league exports outside Git. Read the [privacy notes](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/PRIVACY.md).
 
-Use the [v0.3.3 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.3.3) for the versioned
-[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.3/fantasy_football_manager-0.3.3-py3-none-any.whl),
-[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.3.3/fantasy-football-manager-0.3.3-plugin.zip), and checksums.
+Use the [v0.4.0 release page](https://github.com/krmisystems/fantasy-football-manager/releases/tag/v0.4.0) for the versioned
+[wheel](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.4.0/fantasy_football_manager-0.4.0-py3-none-any.whl),
+[plugin ZIP](https://github.com/krmisystems/fantasy-football-manager/releases/download/v0.4.0/fantasy-football-manager-0.4.0-plugin.zip), and checksums.
 The [distribution acceptance record](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/DISCOVERY_ACCEPTANCE.md) tracks verified GitHub, PyPI, and MCP Registry publication separately.
 Follow the [release instructions](https://github.com/krmisystems/fantasy-football-manager/blob/main/docs/RELEASING.md) for publisher setup. Earlier published assets remain unchanged.
 
@@ -270,7 +278,7 @@ The v0.4.0 local suite passed **1,048 tests with 22 skips**. A separate PostgreS
 A fresh base installation passed actual STDIO checks for 17 manager tools and 16 ESPN tools without Playwright.
 All 28 deployed Python files matched the reviewed wheel. Existing dependency versions and team policies remained unchanged.
 One authorized repair subsequently verified automatic HTTP add/drop and lineup execution in a single Week 1 context.
-Live waiver processing, IR moves, and scoring-week rollover remain Not Tested. Public release remains incomplete.
+Live waiver processing, IR moves, and scoring-week rollover remain Not Tested.
 Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the exact evidence boundary.
 
 The v0.3.3 source passed **664 tests across the base and separate Chrome runs**, including **17 isolated Chrome cases**.

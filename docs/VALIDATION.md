@@ -2,7 +2,7 @@
 
 Read the [September 10 systems review](SYSTEM_REVIEW.md) for the latest startup correction, deployment checks, and remaining delivery gates.
 
-## Version 0.4.0 HTTP season candidate
+## Version 0.4.0 HTTP season preview
 
 Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for current source tests, authenticated reads, and live transaction evidence.
 The candidate adds HTTP lineups, acquisitions, IR moves, automatic period rollover, and incremental archive export.
@@ -12,7 +12,7 @@ A fresh base installation passed both MCP servers without Playwright.
 The deployed HTTP coordinator completed a five-team sweep with accurate analysis readiness.
 One authorized repair verified automatic HTTP free-agent add/drop and a subsequent lineup exchange.
 Both transactions matched ESPN receipts and fresh roster observations. A follow-up cycle confirmed no duplicate submission.
-Live waiver processing, IR moves, rollover, and an unattended season remain Not Tested. Public release remains incomplete.
+Live waiver processing, IR moves, rollover, and an unattended season remain Not Tested.
 The results below describe their original versions and do not establish acceptance of this candidate.
 
 ## Earlier release evidence
