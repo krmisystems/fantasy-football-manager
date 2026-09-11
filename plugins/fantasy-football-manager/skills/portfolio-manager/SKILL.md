@@ -1,6 +1,7 @@
 ---
 name: portfolio-manager
 description: Inspect all configured fantasy teams, saved players, lineup analysis, and transaction proposals through the portfolio MCP. Open the local dashboard for visual review and exact proposal approval.
+license: MIT
 ---
 
 # Portfolio manager

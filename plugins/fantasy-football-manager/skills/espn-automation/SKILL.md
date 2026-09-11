@@ -1,6 +1,7 @@
 ---
 name: espn-automation
 description: Connect the ESPN companion for browser drafts or HTTP season operation. Run continuous analysis and submit exact transactions within saved user limits.
+license: MIT
 ---
 
 # ESPN automation
@@ -8,8 +9,8 @@ description: Connect the ESPN companion for browser drafts or HTTP season operat
 Use the `fantasy-football-espn` companion supplied by this plugin for live ESPN drafts.
 Use `season-manager` for HTTP lineups, acquisitions, waiver claims, drops, and IR through the same companion.
 Use the manager MCP for saved configuration and strategy.
-The v0.4.0 release candidate adds HTTP season operation and exposes 16 ESPN tools. It is not yet published.
-The published v0.3.3 companion retains 13 tools, browser drafts, and one-swap lineup proposals.
+The published v0.4.0 preview adds HTTP season operation and exposes 16 ESPN tools.
+Version 0.3.3 retains 13 ESPN tools, browser drafts, and one-swap lineup proposals.
 Check the current release evidence before claiming live account acceptance.
 Distinguish installed-package checks, authenticated reads, live submissions, and fictional HTTP or browser tests.
 Trade execution remains unavailable.
