@@ -123,6 +123,10 @@ jobs:
       - run: uv build
       - run: uv run python -m twine check "dist/*.whl" "dist/*.tar.gz"
       - run: uv run python scripts/build_plugin_zip.py
+      - name: Rehearse clean installation and upgrade without browser dependencies
+        shell: bash
+        run: |
+          uv run python scripts/rehearse_release.py --wheel dist/*.whl --previous-version 0.4.0 --output .local-state/release-rehearsal.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: distribution-files

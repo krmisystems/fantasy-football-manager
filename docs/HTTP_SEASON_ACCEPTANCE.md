@@ -1,6 +1,6 @@
 # HTTP season acceptance
 
-**Candidate: v0.4.0. Evidence date: 2026-09-10 UTC.**
+**Version: v0.4.0 preview. Live evidence date: 2026-09-10 UTC.**
 
 The candidate implements season operation without Chrome, Playwright, or computer control.
 The existing browser adapter remains available for drafts through the optional `browser` dependency.
@@ -161,7 +161,7 @@ The service restarted successfully after the update. No checkpoint or archived e
 The exact live roster repair passed transaction and roster verification.
 A follow-up coordinator cycle confirmed no duplicate submission and restored five-team analysis readiness.
 Production archive maintenance, checkpoint recovery, and scheduled collection passed their validation gates.
-Public release remains incomplete.
+The v0.4.0 preview is published. Stable-release acceptance remains incomplete.
 
 The two successful transactions verify that workflow for its recorded context.
 They do not verify every league format, future authentication renewal, live IR execution, or an unattended season.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Verify private fantasy football backups each hour
+
+[Timer]
+OnBootSec=120
+OnUnitInactiveSec=1h
+AccuracySec=30
+Unit=fantasy-football-backup-check.service
+
+[Install]
+WantedBy=timers.target

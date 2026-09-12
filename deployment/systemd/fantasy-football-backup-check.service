@@ -1,0 +1,12 @@
+[Unit]
+Description=Verify the latest private fantasy football backup
+After=fantasy-football-backup.service
+
+[Service]
+Type=oneshot
+User=fantasy-football
+Group=fantasy-football
+ExecStart=/opt/fantasy-football/venv/bin/python -m fantasy_football_manager.backup_check --backup-root /var/lib/fantasy-football/backups --output /var/lib/fantasy-football/readiness/backup-report.json
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=600

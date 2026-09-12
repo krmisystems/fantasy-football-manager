@@ -315,3 +315,8 @@ A follow-up cycle found current analysis for all five teams, healthy overall sta
 Live waiver processing, IR moves, scoring-week rollover, and an unattended season remain **Not Tested**.
 Read [HTTP season acceptance](HTTP_SEASON_ACCEPTANCE.md) for package verification and the remaining acceptance gates.
 See [validation status](VALIDATION.md) and the [HTTP source contract](ESPN_HTTP_COMPATIBILITY.md) for the evidence boundary.
+
+## Stable release observation
+
+Read [Stable release readiness](STABLE_RELEASE_READINESS.md) for the independent acceptance collector, backup verification, and loopback readiness page.
+The collector preserves the running coordinator and saved transaction policies.

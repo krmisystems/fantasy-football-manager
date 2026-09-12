@@ -17,6 +17,7 @@ Draft support retains the existing browser adapter.
 An explicitly authorized coverage repair also confirmed two automatic HTTP actions: a free-agent add/drop and a subsequent lineup exchange.
 Version 0.3.3 assets retain their earlier behavior. See the release links below for the v0.4.0 preview.
 Read [HTTP season acceptance](docs/HTTP_SEASON_ACCEPTANCE.md) for the current evidence and remaining live validation.
+Read [Stable release readiness](docs/STABLE_RELEASE_READINESS.md) for scheduled acceptance checks, backup verification, and release gates.
 
 This independent project requires your ESPN account. A protected session file supplies HTTP authentication.
 An optional Linux import reads only the two ESPN session cookies from an existing profile without starting a browser.

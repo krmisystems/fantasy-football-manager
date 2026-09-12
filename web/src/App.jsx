@@ -114,6 +114,7 @@ export default function App() {
           </p>
         </div>
         <div className="header-actions">
+          <a className="button" href="readiness.html">Release readiness</a>
           {demo ? <span className="demo-label">Demo data</span> : null}
           <button
             className="button button-primary refresh-button"

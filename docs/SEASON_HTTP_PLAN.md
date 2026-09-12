@@ -1,7 +1,7 @@
 # Browser-free season automation
 
-Status: Implemented v0.4.0 candidate. One authorized Week 1 repair verified automatic HTTP free-agent add/drop and lineup execution.
-Public release and broader live acceptance remain incomplete.
+Status: Implemented and published in the v0.4.0 preview. One authorized Week 1 repair verified automatic HTTP free-agent add/drop and lineup execution.
+Broader live acceptance and stable publication remain incomplete.
 
 ## Scope
 

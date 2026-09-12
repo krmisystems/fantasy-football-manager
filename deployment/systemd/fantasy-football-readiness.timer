@@ -1,0 +1,11 @@
+[Unit]
+Description=Check fantasy football release readiness every five minutes
+
+[Timer]
+OnBootSec=90
+OnUnitInactiveSec=300
+AccuracySec=5
+Unit=fantasy-football-readiness.service
+
+[Install]
+WantedBy=timers.target

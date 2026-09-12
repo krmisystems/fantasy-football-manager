@@ -1,0 +1,12 @@
+[Unit]
+Description=Collect private fantasy football release acceptance evidence
+After=fantasy-football-season.service
+
+[Service]
+Type=oneshot
+User=fantasy-football
+Group=fantasy-football
+ExecStart=/opt/fantasy-football/venv/bin/python -m fantasy_football_manager.readiness --manifest /etc/fantasy-football/leagues.json --output-dir /var/lib/fantasy-football/readiness --systemd --archive-dsn dbname=fantasy_football
+UMask=0077
+NoNewPrivileges=true
+TimeoutStartSec=120
