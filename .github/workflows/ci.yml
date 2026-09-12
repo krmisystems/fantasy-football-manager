@@ -101,7 +101,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: uv sync --locked --extra server --dev
-      - run: uv run pytest -q tests/test_archive.py tests/test_archive_incremental.py tests/test_archive_compaction.py
+      - run: uv run pytest -q tests/test_archive.py tests/test_archive_incremental.py tests/test_archive_compaction.py tests/test_backup_restore.py
         env:
           FFM_ARCHIVE_TEST_DSN: host=127.0.0.1 port=5432 dbname=ffm_test user=ffm_test password=fixture-only-password
   package:
@@ -149,3 +149,10 @@ jobs:
           assert original == downloaded, "Downloaded release artifacts differ from the package job outputs"
           print("Verified all four artifact downloads against package job outputs.")
           PY
+      - name: Retain installation and upgrade evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: readiness-rehearsal
+          path: .local-state/release-rehearsal.json
+          include-hidden-files: true
+          if-no-files-found: error

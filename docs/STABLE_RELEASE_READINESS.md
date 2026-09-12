@@ -15,6 +15,7 @@ It preserves draft support and each team's saved action permissions.
 | Archive | Existing one-minute timer | Durable team and transaction evidence |
 | Backup | Existing daily timer | PostgreSQL, team databases, configuration, and checksums |
 | Backup verification | Every hour, including after the daily backup | File hashes, five-team coverage, SQLite integrity, and PostgreSQL dump readability |
+| Full restore rehearsal | Sunday and Wednesday at 09:00 UTC, with up to five minutes of delay | Temporary PostgreSQL instance, restored archive membership, copied team state, and confirmed cleanup |
 | Readiness summary | Updated with each collection | Current sanitized state in the daily summary and dashboard |
 | Release rehearsal | Every source CI run and weekly on Sunday at 06:47 UTC | Clean installation, retained-state upgrade, MCP initialization, and existing draft/dashboard/database tests |
 | Distribution check | Existing daily 07:17 UTC schedule and update triggers | Public versions, indexed source, and visible tool definitions |
@@ -98,6 +99,13 @@ Run `scripts/rehearse_release.py` with a built wheel, an exact previous version,
 The script creates fresh and upgraded environments, preserves a fictional snapshot, and compares complete MCP tool definitions.
 It initializes all three MCP servers with private configuration removed. Playwright must be absent.
 The CI matrix separately preserves browser draft fixtures and dashboard interaction checks.
+The package job retains `readiness-rehearsal` as a separate artifact with the wheel hash, source hashes, and complete tool schema comparisons.
+
+The scheduled restore service runs `python -m fantasy_football_manager.backup_restore --backup-root` with the private backup directory and output file.
+It creates a temporary PostgreSQL instance under the service account. It disables TCP and removes inherited PostgreSQL connection settings.
+The service requires PostgreSQL server utilities, including `pg_config`, `initdb`, and `pg_ctl`.
+It needs no production database creation permission. A failure replaces the previous restore report with a failed result.
+The timer uses `Persistent=true` to recover a missed calendar run after the server restarts.
 
 Run `scripts/rehearse_backup_restore.py` only against an existing empty database with an `ffm_rehearsal_` name.
 The current role must own that database. The helper verifies the selected backup before restoring it.

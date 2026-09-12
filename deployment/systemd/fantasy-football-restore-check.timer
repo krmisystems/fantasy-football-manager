@@ -1,0 +1,11 @@
+[Unit]
+Description=Rehearse fantasy football backup restoration twice each week
+
+[Timer]
+OnCalendar=Sun,Wed *-*-* 09:00:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=fantasy-football-restore-check.service
+
+[Install]
+WantedBy=timers.target

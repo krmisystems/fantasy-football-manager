@@ -1,0 +1,14 @@
+[Unit]
+Description=Verify an isolated fantasy football backup restore
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=fantasy-football
+Group=fantasy-football
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ExecStart=/opt/fantasy-football-manager/venv/bin/python -m fantasy_football_manager.backup_restore --backup-root /var/backups/fantasy-football --output /var/lib/fantasy-football/readiness/restore-report.json
+TimeoutStartSec=1500
+
