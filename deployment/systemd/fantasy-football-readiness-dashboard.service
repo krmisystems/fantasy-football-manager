@@ -1,0 +1,16 @@
+[Unit]
+Description=Display private fantasy football acceptance evidence on loopback
+After=network.target
+
+[Service]
+Type=simple
+User=fantasy-football
+Group=fantasy-football
+ExecStart=/opt/fantasy-football/venv/bin/python -m fantasy_football_manager.dashboard --manifest /etc/fantasy-football/leagues.json --readiness-report /var/lib/fantasy-football/readiness/report.json --port 8766
+UMask=0077
+NoNewPrivileges=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

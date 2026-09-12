@@ -3,7 +3,7 @@
 The review found a worker startup reporting defect, a Registry publication configuration gap, and stale acceptance descriptions.
 The source corrections passed 1,084 local tests with 22 environment-dependent skips.
 The deployed five-team HTTP coordinator was healthy before maintenance.
-Public v0.4.0 distribution and several live acceptance gates remain incomplete.
+Update: v0.4.0 preview distribution completed on 2026-09-11 UTC. Several live acceptance gates remain incomplete. The operational measurements below retain their original dates.
 
 ## Scope and evidence
 

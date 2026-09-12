@@ -49,11 +49,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
     server_version = "FantasyPortfolio"
     sys_version = ""
 
-    def __init__(self, *args, portfolio, asset_root, source_mode, actions=None, **kwargs):
+    def __init__(self, *args, portfolio, asset_root, source_mode, actions=None, readiness_report=None, **kwargs):
         self.portfolio = portfolio
         self.asset_root = asset_root
         self.source_mode = source_mode
         self.actions = actions
+        self.readiness_report = readiness_report
         self._request_body_consumed = False
         super().__init__(*args, **kwargs)
 
@@ -155,6 +156,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._respond(503, {"error": "The saved portfolio data is unavailable."})
 
     def _api(self, path, params):
+        if path == "/api/readiness" and not params:
+            from .readiness import public_report
+            self._respond(200, public_report(self.readiness_report) if self.readiness_report else
+                          {"status": "unavailable", "release_ready": False, "gates": {}})
+            return
         if path == "/api/session" and not params:
             self._respond(200, {"actions_enabled": self.actions is not None,
                                 "demo": self.source_mode == "demo", "read_only": self.actions is None,
@@ -266,7 +272,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 
 def create_http_server(manifest=None, *, demo=False, host="127.0.0.1", port=8765, asset_root=None, portfolio=None,
-                       enable_actions=False, credential_file=None, actions=None):
+                       enable_actions=False, credential_file=None, actions=None, readiness_report=None):
     """Bind a local dashboard. Call serve_forever to handle requests."""
     if host not in _HOSTS:
         raise ValueError("Bind the dashboard to localhost, 127.0.0.1, or ::1.")
@@ -285,7 +291,8 @@ def create_http_server(manifest=None, *, demo=False, host="127.0.0.1", port=8765
         from .dashboard_actions import DashboardActions
         actions = DashboardActions(portfolio, credential_file=credential_file)
     source_mode = "demo" if demo else "manifest" if manifest else "configuration_required"
-    handler = partial(DashboardHandler, portfolio=portfolio, asset_root=assets, source_mode=source_mode, actions=actions)
+    handler = partial(DashboardHandler, portfolio=portfolio, asset_root=assets, source_mode=source_mode, actions=actions,
+                      readiness_report=readiness_report)
     server_class = _IPv6Server if host == "::1" else DashboardServer
     return server_class((host, port), handler)
 
@@ -299,11 +306,13 @@ def main():
     parser.add_argument("--open", action="store_true", help="Open the dashboard in the default browser.")
     parser.add_argument("--enable-actions", action="store_true", help="Permit exact reviewed HTTP season proposals. Default: read-only.")
     parser.add_argument("--credential-file", help="Protected ESPN session file for approved HTTP actions. Defaults to the existing environment setting.")
+    parser.add_argument("--readiness-report", default=os.environ.get("FFM_READINESS_REPORT"), help="Optional private readiness report. Display only sanitized gate states.")
     parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args()
     try:
         server = create_http_server(args.manifest, demo=args.demo, host=args.host, port=args.port,
-                                    enable_actions=args.enable_actions, credential_file=args.credential_file)
+                                    enable_actions=args.enable_actions, credential_file=args.credential_file,
+                                    readiness_report=args.readiness_report)
     except ValueError as exc:
         parser.error(str(exc))
     except OSError:

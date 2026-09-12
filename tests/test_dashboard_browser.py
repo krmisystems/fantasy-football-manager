@@ -49,6 +49,21 @@ def browser_page():
             browser.close()
 
 
+def test_readiness_page_fails_closed_and_refreshes(browser_page, tmp_path):
+    from playwright.sync_api import expect
+    page, errors, external = browser_page
+    with running(demo=True, readiness_report=tmp_path / "missing.json") as url:
+        page.goto(url + "readiness.html")
+        expect(page).to_have_title("Release readiness · Fantasy Football Manager")
+        expect(page.get_by_role("heading", name="Evidence unavailable", exact=True)).to_be_visible()
+        assert page.locator(".badge").count() == 15
+        page.get_by_role("button", name="Refresh evidence").click()
+        expect(page.get_by_role("heading", name="Evidence unavailable", exact=True)).to_be_visible()
+        page.set_viewport_size({"width": 390, "height": 844})
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        assert not errors and not external
+
+
 def navigate(page, name):
     page.get_by_role("navigation", name="Workspace").get_by_role("button", name=name, exact=True).click()
 

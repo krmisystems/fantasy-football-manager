@@ -1,0 +1,7 @@
+# Keep packaged dashboard output reproducible across Windows and Linux builds.
+web/index.html text eol=lf
+web/public/* text eol=lf
+src/fantasy_football_manager/dashboard_static/*.html text eol=lf
+src/fantasy_football_manager/dashboard_static/*.js text eol=lf
+src/fantasy_football_manager/dashboard_static/*.css text eol=lf
+src/fantasy_football_manager/dashboard_static/assets/* text eol=lf
