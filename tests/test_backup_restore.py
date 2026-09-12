@@ -35,6 +35,7 @@ def test_isolated_cluster_connection_and_cleanup(tmp_path, monkeypatch, failure)
         assert env["PGDATABASE"].startswith("ffm_rehearsal_")
         assert "PGSERVICE" not in env and "PGPASSWORD" not in env
         if name == "initdb":
+            assert "--encoding=UTF8" in args
             Path(args[args.index("-D") + 1]).mkdir()
         if "start" in args:
             config = Path(args[args.index("-D") + 1]) / "postgresql.conf"

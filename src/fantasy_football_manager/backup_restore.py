@@ -94,7 +94,7 @@ def isolated_cluster(root, output, *, runner=subprocess.run):
             socket.mkdir(mode=0o700)
             database = "ffm_rehearsal_" + uuid.uuid4().hex
             env.update(PGHOST=str(socket), PGPORT="5432", PGDATABASE=database)
-            runner([str(bindir / "initdb"), "-D", str(data), "--auth-local=trust", "--auth-host=reject", "--no-locale"],
+            runner([str(bindir / "initdb"), "-D", str(data), "--auth-local=trust", "--auth-host=reject", "--no-locale", "--encoding=UTF8"],
                    env=env, check=True, capture_output=True, timeout=120)
             # No TCP listener exists. The private socket directory is accessible only to this account.
             with (data / "postgresql.conf").open("a") as config:
