@@ -55,7 +55,10 @@ A change to the configured team set prevents a continuity pass across that chang
 The monitor does not infer a full week from elapsed service uptime or backdate observations.
 Review documented interruptions before any release decision. The automatic continuity gate remains conservative.
 
-The collector waits up to 21 seconds for a normal coordinator transition before recording an incomplete observation.
+The collector accepts a healthy coordinator visit when its saved revisions match the team snapshots.
+It retries incomplete visits and revision changes for up to 57 seconds before recording a failure.
+Each new sample retains health reasons, revision consistency, retry count, failed services, archive status, and hashed invalid team keys.
+The journal also records health reasons and retry counts. Later recovery does not remove earlier failure evidence.
 It retains 35 days of compact samples in its own database. Unchanged receipts are stored once. Team stores remain read-only.
 Proposal collection is limited to 1,000 records per team. Exceeding the limit reports unavailable evidence.
 The archive remains the durable source for older evidence.

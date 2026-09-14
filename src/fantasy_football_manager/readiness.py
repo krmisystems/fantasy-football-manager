@@ -23,6 +23,7 @@ from .server import load_manifest, health as assess_health
 
 DAY = 86400
 MAX_GAP = 900
+TRANSITION_ATTEMPTS = 20
 ACTIONS = ("set_lineup", "free_agent_add", "waiver_claim", "move_to_ir", "activate_from_ir")
 
 
@@ -174,6 +175,8 @@ def record_sample(db, sample):
     db.execute("CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY, scope TEXT NOT NULL, last_seen REAL NOT NULL, value TEXT NOT NULL)")
     db.execute("CREATE TABLE IF NOT EXISTS pending_seen(id TEXT PRIMARY KEY, at REAL NOT NULL)")
     compact = {k: sample[k] for k in ("at", "scope", "healthy")}
+    if "diagnostics" in sample:
+        compact["diagnostics"] = sample["diagnostics"]
     compact["teams"] = []
     for team in sample["teams"]:
         compact["teams"].append({k: team[k] for k in ("team_key", "valid", "week", "pending") if k in team} | {"receipts": []})
@@ -306,7 +309,7 @@ def service_checks(runner=subprocess.run):
 
 
 def observe_coordinator(manifest, *, now=None, sleeper=time.sleep):
-    for attempt in range(8):
+    for attempt in range(TRANSITION_ATTEMPTS):
         observed_time = now or datetime.now(timezone.utc)
         try:
             saved = read_json(manifest.status_file)
@@ -321,8 +324,10 @@ def observe_coordinator(manifest, *, now=None, sleeper=time.sleep):
             t.get("revision") == r.get("revision") and t.get("config_revision") == r.get("config_revision")
             and t.get("team_key") == digest([r.get("league_id"), r.get("team_id"), r.get("season")])[:20]
             for t, r in zip(teams, recorded))
-        transient = saved.get("status") == "visiting" or (bool(recorded) and not consistent)
-        if not transient or attempt == 7:
+        # A coherent, healthy visit is already valid evidence. Retry incomplete visits
+        # and changing revisions for at most 57 seconds; persistent failures stay failures.
+        transient = (saved.get("status") == "visiting" and not health["healthy"]) or (bool(recorded) and not consistent)
+        if not transient or attempt == TRANSITION_ATTEMPTS - 1:
             return observed_time, health, teams, consistent, attempt
         sleeper(3)
 
@@ -361,6 +366,23 @@ def collect(manifest_path, output_dir, *, now=None, systemd=False, archive_dsn=N
             sample["healthy"] = sample["healthy"] and all(services.values())
         if archive_dsn:
             sample["healthy"] = sample["healthy"] and archive["verified"]
+        reasons = list(health["reasons"])
+        if not teams:
+            reasons.append("no_team_evidence")
+        if not consistent:
+            reasons.append("coordinator_snapshot_mismatch")
+        if any(not t["valid"] for t in teams):
+            reasons.append("team_evidence_invalid")
+        if services and not all(services.values()):
+            reasons.append("service_inactive")
+        if archive_dsn and not archive["verified"]:
+            reasons.append("archive_not_verified")
+        diagnostics = {"health_reasons": list(dict.fromkeys(reasons)),
+                       "coordinator_status": health.get("status"), "coordinator_consistent": consistent,
+                       "transition_retries": retries, "failed_services": [k for k, v in services.items() if not v],
+                       "archive_verified": archive["verified"],
+                       "invalid_team_keys": [t["team_key"] for t in teams if not t["valid"]]}
+        sample["diagnostics"] = diagnostics
         with closing(sqlite3.connect(root / "observations.sqlite3")) as db:
             record_sample(db, sample)
             samples = [json.loads(r[0]) for r in db.execute("SELECT value FROM samples ORDER BY at")]
@@ -373,7 +395,7 @@ def collect(manifest_path, output_dir, *, now=None, systemd=False, archive_dsn=N
                   "status": "pending", "release_ready": False, "healthy": sample["healthy"], "team_count": len(teams),
                   "transport": manifest.transport, "auto_rollover": manifest.auto_rollover,
                   "services": services, "archive": archive, "transition_retries": retries,
-                  "teams": teams, "health_reasons": health["reasons"], **evaluate(samples, sample, known),
+                  "teams": teams, **diagnostics, **evaluate(samples, sample, known),
                   "model_calls": 0, "provider_requests": 0, "live_action_calls": 0}
         supplementary_gates(root, report, now.timestamp())
         atomic_json(root / "report.json", report)
@@ -408,6 +430,8 @@ def main():
     try:
         r = collect(args.manifest, args.output_dir, systemd=args.systemd, archive_dsn=args.archive_dsn)
         print(json.dumps({"status": r["status"], "healthy": r["healthy"], "team_count": r["team_count"],
+                          "health_reasons": r["health_reasons"], "coordinator_consistent": r["coordinator_consistent"],
+                          "transition_retries": r["transition_retries"],
                           "gates": {k: v["status"] for k, v in r["gates"].items()}}))
         return 0 if r["healthy"] else 1
     except (OSError, ValueError, sqlite3.Error):

@@ -286,11 +286,22 @@ class Portfolio:
                 where, args = "revision=? AND config_revision=?", [frame.revision, frame.config_revision]
                 if not snapshot.source.synthetic:
                     source = "local"
-                pending = "result IS NULL"
+                pending = "result IS NULL AND action='draft_pick'" if snapshot.phase == "draft" else "result IS NULL AND action!='draft_pick'"
             else:
                 where, args = "league_id=? AND team_id=? AND season=?", list((snapshot.league_id, snapshot.team_id, snapshot.season))
-                pending = "status IN ('pending','awaiting_verification','pending_waiver')"
-            count = db.execute(f"SELECT COUNT(*), SUM(CASE WHEN {pending} THEN 1 ELSE 0 END) FROM {table} WHERE {where}", args).fetchone()
+                current = "revision=? AND config_revision=?"
+                current_args = [frame.revision, frame.config_revision]
+                if "week" in columns:
+                    current += " AND week=?"
+                    current_args.append(snapshot.week)
+                current += " AND ?"
+                current_args.append(snapshot.phase == ("draft" if action == "draft_pick" else "season"))
+                # Submitted or authorized work can still need reconciliation after a
+                # revision or week change. Only unsubmitted obsolete proposals expire.
+                authorized = "authorized_at IS NOT NULL" if "authorized_at" in columns else "0"
+                pending = f"status IN ('awaiting_verification','pending_waiver') OR (status='pending' AND ({authorized} OR ({current})))"
+            count_args = args if table == "proposals" else [*current_args, *args]
+            count = db.execute(f"SELECT COUNT(*), SUM(CASE WHEN {pending} THEN 1 ELSE 0 END) FROM {table} WHERE {where}", count_args).fetchone()
             frame.proposal_count += count[0]
             frame.pending_count += count[1] or 0
             names = [name for name in ("id", "action", "revision", "config_revision", "status", "created_at", "authorized_at", "week") if name in columns]
@@ -331,6 +342,9 @@ class Portfolio:
             return None
         current = (row["revision"], row["config_revision"]) == (frame.revision, frame.config_revision)
         current = current and ("week" not in row or row["week"] == frame.snapshot.week)
+        current = current and frame.snapshot.phase == ("draft" if action == "draft_pick" else "season")
+        if status in {"pending", "prepared"} and not current and not row.get("authorized_at"):
+            status = "expired"
         mode = decision.get("mode")
         if mode not in {"disabled", "advisory", "review", "automatic"}:
             mode = frame.config.automation.mode_for(action) if current else None

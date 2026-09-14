@@ -279,11 +279,40 @@ def test_saved_proposals_preserve_status_scope_and_staleness(tmp_path):
     assert records["confirmed"]["status"] == "confirmed"
     assert records["confirmed"]["is_current"] is False
     assert records["old-week"]["is_current"] is False
+    assert records["old-week"]["status"] == "expired"
     assert records["awaiting"]["is_current"] is True
     assert all(item["source"] == "http" and item["scope"] == "espn_http" for item in records.values())
     assert all(item["created_at"] is None for item in records.values())
-    assert portfolio.overview()["teams"][0]["pending_count"] == 3
+    assert portfolio.overview()["teams"][0]["pending_count"] == 2
     assert portfolio.proposals(status="confirmed")["total"] == 1
+
+
+@pytest.mark.parametrize("draft", [False, True])
+def test_obsolete_unsubmitted_proposals_expire_but_unresolved_work_remains(tmp_path, draft):
+    snapshot = store(tmp_path)
+    with http_table(tmp_path) as db:
+        add_http(db, snapshot, pid="old-revision", revision=1)
+        add_http(db, snapshot, pid="old-policy", config_revision=1)
+        add_http(db, snapshot, pid="current")
+        add_http(db, snapshot, pid="uncertain", status="awaiting_verification", revision=1)
+        add_http(db, snapshot, pid="waiver", status="pending_waiver", week=snapshot.week + 1)
+        add_http(db, snapshot, pid="authorized", revision=1)
+        db.execute("UPDATE espn_http_proposals SET authorized_at='2026-01-01T00:00:00+00:00' WHERE id='authorized'")
+        if draft:
+            db.execute("ALTER TABLE espn_http_proposals RENAME TO browser_proposals")
+            db.execute("UPDATE browser_proposals SET action='draft_pick'")
+    path = tmp_path / "one/manager.sqlite3"
+    before = path.read_bytes()
+    portfolio = Portfolio(manifest(tmp_path, "one"))
+    rows = {p["id"]: p for p in portfolio.proposals()["proposals"]}
+    assert rows["old-revision"]["status"] == rows["old-policy"]["status"] == "expired"
+    assert rows["current"]["status"] == ("expired" if draft else "pending")
+    assert rows["uncertain"]["status"] == "awaiting_verification"
+    assert rows["waiver"]["status"] == "pending_waiver"
+    assert rows["authorized"]["status"] == "pending"
+    assert portfolio.overview()["teams"][0]["pending_count"] == (3 if draft else 4)
+    assert portfolio.overview()["teams"][0]["proposal_count"] == 6
+    assert path.read_bytes() == before
 
 
 def test_proposal_whitelist_excludes_secrets_and_arbitrary_payload_keys(tmp_path):
