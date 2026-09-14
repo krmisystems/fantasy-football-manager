@@ -2,7 +2,7 @@
 
 Fieldroom displays multiple managed teams in one local workspace.
 It shares a data service with the five-tool portfolio MCP.
-The source checkout includes this feature. Public v0.3.3 does not include it.
+The v0.4.0 preview includes this feature.
 
 ## Start the fictional workspace
 
@@ -38,6 +38,11 @@ It reads the configured `leagues` entries and their per-team SQLite stores.
 It does not discover directories or contact ESPN for portfolio reads.
 The running coordinator remains responsible for fresh observations.
 The interface refreshes saved data every 30 seconds while visible.
+
+The source checkout marks unsubmitted obsolete proposals as `expired` when their revision, policy, week, or phase changes.
+These proposals remain in history but do not increase the pending count.
+Authorized proposals, pending waivers, and submissions awaiting verification retain their unresolved status until reconciliation.
+Portfolio reads do not modify stored proposals or submit transactions.
 
 A dedicated portfolio manifest can use this schema:
 

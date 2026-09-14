@@ -123,8 +123,48 @@ def test_coordinator_transition_retries_are_bounded(monkeypatch):
     calls = []
     monkeypatch.setattr(readiness, "read_json", lambda _: {"status": "visiting", "leagues": []})
     result = readiness.observe_coordinator(SimpleNamespace(status_file="fixture", leagues=[]), sleeper=calls.append)
-    assert calls == [3] * 7 and result[-1] == 7
+    assert calls == [3] * 19 and result[-1] == 19
     assert not result[1]["healthy"]
+
+
+@pytest.mark.parametrize("initial_revision", [1, 2])
+def test_coherent_healthy_visit_does_not_wait_for_idle(monkeypatch, initial_revision):
+    from types import SimpleNamespace
+    from fantasy_football_manager import readiness
+    recorded = {"enabled": True, "league_id": "fictional", "team_id": "1", "season": 2026,
+                "revision": initial_revision, "config_revision": 1}
+    monkeypatch.setattr(readiness, "read_json", lambda _: {"status": "visiting", "leagues": [recorded]})
+    monkeypatch.setattr(readiness, "assess_health", lambda _: {"healthy": True})
+    monkeypatch.setattr(readiness, "observe_team", lambda *a: {"valid": True, "revision": 2, "config_revision": 1,
+        "team_key": readiness.digest(["fictional", "1", 2026])[:20]})
+    waits = []
+    def align(seconds):
+        waits.append(seconds)
+        recorded["revision"] = 2
+    result = readiness.observe_coordinator(SimpleNamespace(status_file="fixture", leagues=[SimpleNamespace(enabled=True)]), sleeper=align)
+    assert result[3] is True
+    assert waits == ([3] if initial_revision == 1 else [])
+
+
+def test_failure_diagnostics_survive_later_healthy_samples(setup, tmp_path, monkeypatch):
+    from fantasy_football_manager import readiness
+    manager, _ = setup
+    snap = manager.state()[0]
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"browser_data_dir": "unused", "leagues": [{"league_id": snap.league_id,
+        "team_id": snap.team_id, "season": snap.season, "week": snap.week, "phase": "season", "data_dir": str(manager.data_dir)}]}))
+    monkeypatch.setattr(readiness, "service_checks", lambda: {"fantasy-football-season.service": False})
+    monkeypatch.setattr(readiness, "archive_check", lambda *a: {"verified": False})
+    report = collect(manifest, tmp_path / "evidence", systemd=True, archive_dsn="fixture")
+    assert {"coordinator_snapshot_mismatch", "service_inactive", "archive_not_verified"} <= set(report["health_reasons"])
+    with sqlite3.connect(tmp_path / "evidence/observations.sqlite3") as db:
+        prior = json.loads(db.execute("SELECT value FROM samples").fetchone()[0])
+        record_sample(db, sample(prior["at"] + 300))
+        saved = json.loads(db.execute("SELECT value FROM samples ORDER BY at LIMIT 1").fetchone()[0])
+    assert saved["diagnostics"]["health_reasons"] == report["health_reasons"]
+    assert saved["diagnostics"]["failed_services"] == ["fantasy-football-season.service"]
+    assert saved["diagnostics"]["archive_verified"] is False
+    assert str(tmp_path) not in json.dumps(saved)
 
 
 @pytest.mark.parametrize("age,count,expected", [(60, 5, True), (1000, 5, False), (-60, 5, False), (60, 4, False)])
