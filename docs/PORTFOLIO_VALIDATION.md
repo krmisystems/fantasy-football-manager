@@ -165,3 +165,21 @@ The following screenshots use fictional data only.
 ![Running exact-proposal review](assets/portfolio/review-desktop.png)
 
 ![Running Fieldroom mobile workspace](assets/portfolio/overview-mobile.png)
+
+## Navigation verification: September 15, 2026
+
+Verified with fictional data in headless Chrome on Windows:
+
+- A team selection opens its detail view above the fold.
+- Browser Back, Forward, and refresh retain team and tab context.
+- Proposal filters remain in the address after a refresh.
+- Unknown team links show a message without selecting another team.
+- Mobile team cards expose the week, status, and open control without horizontal scrolling.
+- Pending records include waivers and submissions awaiting verification.
+- Exact approval still requires verification and confirmation before one submission.
+
+The targeted dashboard, action, and portfolio checks passed: 138 tests, with one optional test skipped.
+The frontend unit checks passed: eight tests.
+Rendered checks used 1440 × 1000 and 390 × 844 viewports.
+The inspected pages produced no JavaScript console errors.
+These checks used fictional stores and a simulated provider. They did not submit live ESPN transactions.

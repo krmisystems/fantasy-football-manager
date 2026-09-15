@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useNavigation from "./useNavigation.js";
 import { useRefreshClock, useResource } from "./api.js";
 import { humanize, isPending } from "./format.js";
 import Shell from "./components/Shell.jsx";
@@ -8,9 +9,11 @@ import { ProposalModal, ReviewQueue } from "./components/Proposals.jsx";
 import { PlayerExplorer, ProposalExplorer } from "./components/Explorer.jsx";
 
 export default function App() {
-  const [view, setView] = useState("Overview");
-  const [selected, setSelected] = useState(null);
-  const [tab, setTab] = useState("Roster");
+  const [route, navigate] = useNavigation();
+  const { view, team: selected, tab } = route;
+  const setView = (next) => navigate({ view: next });
+  const selectTeam = (team) => navigate({ view: "Teams", team });
+  const setTab = (next) => navigate({ ...route, tab: next });
   const [provider, setProvider] = useState("");
   const [sport, setSport] = useState("");
   const [proposal, setProposal] = useState(null);
@@ -19,7 +22,7 @@ export default function App() {
   const session = useResource("api/session", revision);
   const queue = useResource(
     overview.data
-      ? `api/proposals?status=${overview.data.source_mode === "demo" ? "prepared" : "pending"}&limit=200`
+      ? "api/proposals?status=unresolved&limit=200"
       : null,
     revision,
   );
@@ -29,16 +32,13 @@ export default function App() {
       (!provider || team.provider === provider) &&
       (!sport || team.sport === sport),
   );
-  const activeKey = teams.some((team) => team.team_key === selected)
+  const activeKey = allTeams.some((team) => team.team_key === selected)
     ? selected
-    : teams[0]?.team_key;
+    : null;
   const pending = (queue.data?.proposals || []).filter(
     (item) =>
       isPending(item) && teams.some((team) => team.team_key === item.team_key),
   );
-  useEffect(() => {
-    setTab("Roster");
-  }, [activeKey]);
   const demo = overview.data?.source_mode === "demo";
   const summary = overview.data?.summary;
   const providers = [...new Set(allTeams.map((team) => team.provider))];
@@ -85,8 +85,8 @@ export default function App() {
     </div>
   );
   return (
-    <Shell view={view} setView={setView} session={session.data}>
-      <a className="skip-link" href="#workspace-content">
+    <Shell view={view} setView={setView} session={session.data} reviewCount={summary?.pending_proposals}>
+      <a className="skip-link" href="#workspace-content" onClick={(event) => { event.preventDefault(); document.getElementById("workspace-content").focus(); }}>
         Skip to workspace
       </a>
       <header className="page-header">
@@ -96,12 +96,12 @@ export default function App() {
           </div>
           <h1>
             {view === "Overview"
-              ? "Your teams. One field of view."
+              ? "Team overview"
               : view === "Teams"
-                ? "Every team, in context."
+                ? "Your teams"
                 : view === "Players"
-                  ? "Know your player pool."
-                  : "Review every change."}
+                  ? "Find players"
+                  : "Proposals"}
           </h1>
           <p>
             {view === "Overview"
@@ -114,7 +114,6 @@ export default function App() {
           </p>
         </div>
         <div className="header-actions">
-          <a className="button" href="readiness.html">Release readiness</a>
           {demo ? <span className="demo-label">Demo data</span> : null}
           <button
             className="button button-primary refresh-button"
@@ -127,7 +126,7 @@ export default function App() {
           </button>
         </div>
       </header>
-      <div id="workspace-content">
+      <div id="workspace-content" tabIndex={-1}>
         {overview.error ? (
           <Notice kind="error">
             {overview.error} Use Refresh to try again.
@@ -160,8 +159,12 @@ export default function App() {
                           : undefined
                     }
                   >
-                    <span>{label}</span>
-                    <strong className={className}>{value}</strong>
+                    {label === "Managed teams" || label === "Pending proposals" ? (
+                      <button className="summary-link" onClick={() => setView(label === "Managed teams" ? "Teams" : "Proposals")}>
+                        <span>{label} <Icon name="arrow" size={13} /></span>
+                        <strong className={className}>{value}</strong>
+                      </button>
+                    ) : <><span>{label}</span><strong className={className}>{value}</strong></>}
                   </div>
                 ))}
               </div>
@@ -174,14 +177,14 @@ export default function App() {
                 </Empty>
               </div>
             ) : null}
-            {view === "Overview" || view === "Teams" ? (
+            {view === "Overview" || (view === "Teams" && !selected) ? (
               <>
                 <div className={view === "Overview" ? "overview-grid" : ""}>
                   <TeamTable
                     teams={teams}
                     avatarTeams={allTeams}
                     selected={activeKey}
-                    onSelect={setSelected}
+                    onSelect={selectTeam}
                     filters={filters}
                   />
                   {view === "Overview" ? (
@@ -193,6 +196,8 @@ export default function App() {
                           proposals={pending}
                           onSelect={setProposal}
                           teams={allTeams}
+                          loading={queue.loading && !queue.data}
+                          onViewAll={() => setView("Proposals")}
                         />
                       )}
                       <section className="panel source-health">
@@ -213,7 +218,7 @@ export default function App() {
                             {session.data?.actions_enabled
                               ? demo
                                 ? "Demo submission enabled"
-                                : "Exact approval required"
+                                : "Dashboard approval required"
                               : "No live transactions"}
                           </li>
                           <li>
@@ -227,7 +232,18 @@ export default function App() {
                     </aside>
                   ) : null}
                 </div>
-                <TeamDetail
+              </>
+            ) : null}
+            {view === "Teams" && selected ? (
+              <>
+                <div className="team-toolbar">
+                  <button className="button" onClick={() => setView("Teams")}>Back to all teams</button>
+                  <label>Switch team <select aria-label="Switch team" value={activeKey || ""} onChange={(event) => selectTeam(event.target.value)}>
+                    {!activeKey ? <option value="">Select a team</option> : null}
+                    {allTeams.map((team) => <option key={team.team_key} value={team.team_key}>{team.name}</option>)}
+                  </select></label>
+                </div>
+                {!activeKey ? <Notice kind="warning">This team is not in the current portfolio. Select a managed team.</Notice> : <TeamDetail
                   teamKey={activeKey}
                   teams={allTeams}
                   revision={revision}
@@ -235,8 +251,7 @@ export default function App() {
                   setTab={setTab}
                   onReview={setProposal}
                   session={session.data}
-                  onExpand={view === "Overview" ? () => setView("Teams") : null}
-                />
+                />}
               </>
             ) : null}
             {view === "Players" ? (
@@ -248,6 +263,9 @@ export default function App() {
                 revision={revision}
                 session={session.data}
                 onReview={setProposal}
+                team={route.team}
+                status={route.status}
+                onFilter={(filter) => navigate({ ...route, ...filter })}
               />
             ) : null}
           </>
@@ -258,6 +276,7 @@ export default function App() {
           ? "Demo workspace. Team data and proposals are synthetic."
           : "Local workspace. Data comes from configured team stores."}
         <span>Refreshes every 30 seconds while visible.</span>
+        <a href="readiness.html">System status</a>
       </footer>
       {proposal ? (
         <ProposalModal

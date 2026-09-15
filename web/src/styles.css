@@ -1645,3 +1645,41 @@ main {
     scroll-behavior: auto !important;
   }
 }
+
+/* Direct team navigation and compact review controls. */
+.nav-count { margin-left: auto; background: #fff2c8; color: #68490c; padding: 2px 6px; border-radius: 10px; font-size: 11px; }
+.summary-link { border: 0; background: transparent; width: 100%; color: inherit; padding: 0; }
+.summary-link:hover span { color: var(--forest); text-decoration: underline; }
+.summary-link svg { vertical-align: middle; }
+.team-toolbar { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+.team-toolbar label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.proposal-views { display: flex; gap: 10px; padding: 0 19px 15px; }
+.proposal-views [aria-pressed="true"] { background: var(--soft); border-color: var(--forest); }
+.queue-footer { padding: 4px 19px 12px; }
+.queue-link { margin: 4px 19px 12px; }
+.queue-explanation { padding: 20px; font-size: 13px; color: var(--muted); }
+.mobile-label { display: none; }
+@media (max-width: 700px) {
+  .nav-item { gap: 4px; }
+  .nav-count { margin-left: 0; padding: 1px 4px; }
+  .nav-item:has(.nav-count) svg { display: none; }
+  .page-header { flex-wrap: wrap; }
+  .header-actions { max-width: none; flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; }
+  .header-actions .button { width: auto; }
+  .team-toolbar { flex-wrap: wrap; }
+  .team-toolbar label { width: 100%; }
+  .team-toolbar select { flex: 1; min-width: 0; }
+  .team-table, .team-table tbody { display: block; white-space: normal; }
+  .team-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .team-table tr { display: grid; grid-template-columns: 1fr auto auto; gap: 5px 12px; padding: 13px 15px; border-top: 1px solid var(--border); }
+  .team-table td { border: 0; padding: 0; }
+  .team-table td:first-child { grid-column: 1 / 3; }
+  .team-table .team-league { grid-column: 1 / 3; grid-row: 2; font-size: 12px; }
+  .team-table .team-week { grid-column: 1; grid-row: 3; font-size: 12px; align-self: center; }
+  .team-table td:nth-child(4) { grid-column: 2; grid-row: 3; }
+  .team-table td:last-child { grid-column: 3; grid-row: 1 / 4; padding: 0; align-self: center; }
+  .team-table .icon-button { min-width: 40px; min-height: 44px; }
+  .mobile-label { display: inline; }
+  .team-panel { min-height: 0; }
+  .detail-heading { flex-wrap: wrap; }
+}

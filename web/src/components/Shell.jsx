@@ -2,7 +2,7 @@ import { Icon } from "./Primitives.jsx";
 
 const navigation = ["Overview", "Teams", "Players", "Proposals"];
 
-export default function Shell({ view, setView, session, children }) {
+export default function Shell({ view, setView, session, reviewCount, children }) {
   const access = session?.actions_enabled
     ? session.demo
       ? "Demo controls enabled"
@@ -28,12 +28,14 @@ export default function Shell({ view, setView, session, children }) {
           {navigation.map((item) => (
             <button
               key={item}
+              aria-label={item}
               className={`nav-item${item === view ? " active" : ""}`}
               aria-current={item === view ? "page" : undefined}
               onClick={() => setView(item)}
             >
               <Icon name={item.toLowerCase()} size={24} />
               <span>{item}</span>
+              {item === "Proposals" && reviewCount > 0 ? <span className="nav-count" aria-label={`${reviewCount} pending proposals`}>{reviewCount}</span> : null}
             </button>
           ))}
         </nav>

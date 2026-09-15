@@ -506,7 +506,10 @@ class Portfolio:
         if status is not None and not _key(status):
             raise ValueError("Invalid proposal filter.")
         frames = self._frames(team_key)
-        found = [proposal for frame in frames for proposal in frame.proposals if status is None or proposal["status"] == status]
+        unresolved = {"prepared", "pending", "authorized", "review_required", "awaiting_verification", "pending_waiver", "unknown"}
+        found = [proposal for frame in frames for proposal in frame.proposals
+                 if status is None or proposal["status"] == status
+                 or (status == "unresolved" and proposal["status"] in unresolved)]
         found.sort(key=lambda item: (item["created_at"] or "", item["revision"], item["team_key"], item["id"]), reverse=True)
         return {"proposals": found[offset:offset + limit], "total": len(found), "limit": limit, "offset": offset,
                 "truncated": any(frame.truncated for frame in frames), "total_scope": "loaded_records",
