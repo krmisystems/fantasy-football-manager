@@ -61,8 +61,8 @@ export function TeamTable({
                       <strong>{team.name}</strong>
                     </button>
                   </td>
-                  <td>{team.league_name}</td>
-                  <td>{team.week ?? "—"}</td>
+                  <td className="team-league">{team.league_name}</td>
+                  <td className="team-week"><span className="mobile-label">Week </span>{team.week ?? "—"}</td>
                   <td>
                     <Badge value={team.data_status} />
                     {team.paused ? (
@@ -348,6 +348,14 @@ function Analysis({ data, teamData }) {
           </strong>
         </div>
       </div>
+      {typeof teamData.policy?.limits?.min_lineup_improvement === "number" ? (
+        <Notice>
+          Automatic lineup changes require at least {points(teamData.policy.limits.min_lineup_improvement)} projected points of improvement.
+          {typeof data.improvement === "number" && data.improvement > 0 && data.improvement < teamData.policy.limits.min_lineup_improvement
+            ? " This suggestion is below that minimum."
+            : " Source checks, player locks, and the saved action policy also apply."}
+        </Notice>
+      ) : null}
       {messages.map((message, index) => (
         <Notice key={index} kind="warning">
           {message}

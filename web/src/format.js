@@ -43,7 +43,7 @@ export function timestamp(value) {
 }
 
 export function isPending(proposal) {
-  return ["prepared", "pending", "authorized", "review_required"].includes(
+  return ["prepared", "pending", "authorized", "review_required", "awaiting_verification", "pending_waiver", "unknown"].includes(
     proposal.status,
   );
 }

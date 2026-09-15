@@ -3,17 +3,17 @@ import { post } from "../api.js";
 import { canReview, humanize, lineupChanges, timestamp } from "../format.js";
 import { Avatar, Badge, Empty, Icon, Notice } from "./Primitives.jsx";
 
-export function ReviewQueue({ proposals, onSelect, teams }) {
+export function ReviewQueue({ proposals, onSelect, teams, onViewAll, loading = false }) {
   return (
     <section className="panel review-queue">
       <div className="rail-heading">
-        <h2>Review queue</h2>
+        <h2>Pending proposals</h2>
         <span className="pending-count">
           <span />
-          {proposals.length} pending
+          {loading ? "Checking…" : `${proposals.length} pending`}
         </span>
       </div>
-      {proposals.length ? (
+      {loading ? <p className="queue-explanation">Checking saved proposals…</p> : proposals.length ? (
         proposals.slice(0, 3).map((proposal) => (
           <button
             key={`${proposal.team_key}:${proposal.id}`}
@@ -42,10 +42,11 @@ export function ReviewQueue({ proposals, onSelect, teams }) {
           </button>
         ))
       ) : (
-        <Empty title="No proposals await review">
-          Pending review proposals will appear here.
+        <Empty title="No pending proposals">
+          Lineup suggestions are in each team's Analysis tab. They are not approval requests.
         </Empty>
       )}
+      {onViewAll ? <button className="text-button queue-link" onClick={onViewAll}>Open proposals <Icon name="arrow" size={17} /></button> : null}
     </section>
   );
 }

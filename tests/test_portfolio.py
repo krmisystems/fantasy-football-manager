@@ -525,3 +525,13 @@ def test_demo_pending_proposals_are_legal_changes():
             if proposal["status"] == "prepared":
                 assert proposal["payload"]["lineup"] != frame.snapshot.own_team().lineup
                 assert check_action(frame.snapshot, frame.config, proposal["action"], proposal["payload"])["mode"] == "review"
+
+@pytest.mark.parametrize('status', ['pending', 'awaiting_verification', 'pending_waiver', 'confirmed', 'rejected'])
+def test_unresolved_filter_keeps_unreconciled_submissions_visible(tmp_path, status):
+    portfolio, _ = review_fixture(tmp_path)
+    with sqlite3.connect(tmp_path / 'one' / 'manager.sqlite3') as db:
+        db.execute('UPDATE espn_http_proposals SET status=?', (status,))
+    result = portfolio.proposals(status='unresolved')
+    assert result['total'] == (1 if status in {'pending', 'awaiting_verification', 'pending_waiver'} else 0)
+    if result['total']:
+        assert result['proposals'][0]['status'] == status

@@ -4,6 +4,7 @@ import { queryString, humanize } from "../format.js";
 import { Loading, Notice, Pager, Icon } from "./Primitives.jsx";
 import { RosterTable } from "./Teams.jsx";
 import { ProposalRows } from "./Proposals.jsx";
+import { proposalStatuses } from "../navigation.js";
 
 export function PlayerExplorer({ teams, revision }) {
   const [team, setTeam] = useState("");
@@ -111,21 +112,25 @@ export function PlayerExplorer({ teams, revision }) {
   );
 }
 
-export function ProposalExplorer({ teams, revision, session, onReview }) {
-  const [team, setTeam] = useState("");
-  const [status, setStatus] = useState("");
+export function ProposalExplorer({ teams, revision, session, onReview, team = "", status = "review", onFilter }) {
   const [offset, setOffset] = useState(0);
+  const effectiveStatus = status === "review" ? "unresolved" : status === "all" ? "" : status;
+  useEffect(() => setOffset(0), [team, status]);
   const state = useResource(
-    `api/proposals?${queryString({ team_key: team, status, limit: 25, offset })}`,
+    `api/proposals?${queryString({ team_key: team, status: effectiveStatus, limit: 25, offset })}`,
     revision,
   );
   return (
     <section className="panel explorer">
       <div className="panel-heading">
         <div>
-          <h2>Proposal history</h2>
-          <p>Inspect saved decisions and review exact changes.</p>
+          <h2>{status === "review" ? "Pending proposals" : "Proposal history"}</h2>
+          <p>{status === "review" ? "Review saved changes and track unresolved submissions. Find calculated lineup suggestions under Teams → Analysis." : "Inspect past decisions and their recorded status."}</p>
         </div>
+      </div>
+      <div className="proposal-views" aria-label="Proposal views">
+        <button className="button" aria-pressed={status === "review"} onClick={() => onFilter({ team, status: "review" })}>Pending</button>
+        <button className="button" aria-pressed={status !== "review"} onClick={() => onFilter({ team, status: "all" })}>History</button>
       </div>
       <div className="explorer-filters">
         <label className="filter-label">
@@ -133,7 +138,7 @@ export function ProposalExplorer({ teams, revision, session, onReview }) {
           <select
             value={team}
             onChange={(event) => {
-              setTeam(event.target.value);
+              onFilter({ team: event.target.value, status });
               setOffset(0);
             }}
           >
@@ -150,24 +155,13 @@ export function ProposalExplorer({ teams, revision, session, onReview }) {
           <select
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value);
+              onFilter({ team, status: event.target.value });
               setOffset(0);
             }}
           >
-            <option value="">All statuses</option>
-            {[
-              "pending",
-              "prepared",
-              "authorized",
-              "confirmed",
-              "pending_waiver",
-              "unknown",
-              "rejected",
-              "cancelled",
-              "not_submitted",
-            ].map((item) => (
+            {proposalStatuses.map((item) => (
               <option key={item} value={item}>
-                {humanize(item)}
+                {item === "review" ? "All pending" : item === "all" ? "All statuses" : humanize(item)}
               </option>
             ))}
           </select>

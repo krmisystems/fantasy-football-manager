@@ -94,9 +94,10 @@ def test_overview_team_analysis_and_player_filters(browser_page):
     with running(demo=True, enable_actions=True) as url:
         page.goto(url)
         expect(page).to_have_title(re.compile("Fieldroom", re.IGNORECASE))
-        expect(page.get_by_role("heading", name="Your teams. One field of view.")).to_be_visible()
+        expect(page.get_by_role("heading", name="Team overview")).to_be_visible()
         expect(page.locator(".team-table tbody tr")).to_have_count(5)
         for name in ("Harbor Lights", "Sunday Pilots", "Cedar Rovers", "Westside Union"):
+            navigate(page, "Teams")
             page.get_by_role("button", name=f"View {name}", exact=True).click()
             expect(page.get_by_role("region", name="Selected team details").get_by_role("heading", name=name)).to_be_visible()
         expect(page.locator(".roster-table tbody tr")).to_have_count(14)
@@ -182,7 +183,7 @@ def test_mobile_and_mounted_prefix(browser_page):
             route.fulfill(response=response)
         page.route("**/fantasy/**", mounted)
         page.goto(url + "fantasy/")
-        expect(page.get_by_role("heading", name="Your teams. One field of view.")).to_be_visible()
+        expect(page.get_by_role("heading", name="Team overview")).to_be_visible()
         expect(page.locator(".team-table tbody tr")).to_have_count(5)
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         navigate(page, "Players")
@@ -222,3 +223,57 @@ def test_league_count_uses_identity_when_labels_match(browser_page):
         page.goto(url)
         expect(page.get_by_text('5 teams across 5 leagues', exact=True)).to_be_visible()
         assert errors == [] and external == []
+
+def test_team_navigation_history_reload_and_review_filters(browser_page):
+    from playwright.sync_api import expect
+    page, errors, external = browser_page
+    with running(demo=True, enable_actions=True) as url:
+        page.goto(url)
+        expect(page.locator('.team-table tbody tr')).to_have_count(5)
+        assert page.get_by_role('region', name='Selected team details').count() == 0
+        page.get_by_role('button', name='View Harbor Lights', exact=True).click()
+        expect(page.get_by_role('region', name='Selected team details').get_by_role('heading', name='Harbor Lights')).to_be_visible()
+        assert page.locator('.detail-panel').bounding_box()['y'] < 400
+        page.get_by_role('tab', name='Analysis', exact=True).click()
+        expect(page.get_by_role('heading', name='Lineup analysis')).to_be_visible()
+        saved = page.url
+        assert 'tab=analysis' in saved and '#teams?team=' in saved
+        page.reload()
+        expect(page.get_by_role('heading', name='Lineup analysis')).to_be_visible()
+        page.get_by_role('combobox', name='Switch team').select_option('northside-wolves')
+        expect(page.get_by_role('tab', name='Roster', exact=True)).to_have_attribute('aria-selected', 'true')
+        page.go_back()
+        expect(page.get_by_role('heading', name='Lineup analysis')).to_be_visible()
+        expect(page).to_have_url(saved)
+        page.go_forward()
+        expect(page.get_by_role('combobox', name='Switch team')).to_have_value('northside-wolves')
+        page.get_by_role('button', name='Back to all teams').click()
+        expect(page.locator('.team-table tbody tr')).to_have_count(5)
+        navigate(page, 'Overview')
+        page.get_by_role('button', name=re.compile('Pending proposals')).click()
+        expect(page.get_by_role('combobox', name='Proposal status')).to_have_value('review')
+        page.get_by_role('button', name='History', exact=True).click()
+        expect(page.get_by_role('heading', name='Proposal history')).to_be_visible()
+        page.get_by_role('combobox', name='Proposal status').select_option('confirmed')
+        page.reload()
+        expect(page.get_by_role('combobox', name='Proposal status')).to_have_value('confirmed')
+        expect(page.locator('.proposal-row')).to_have_count(1)
+        page.goto(url + '#teams?team=missing-team')
+        expect(page.get_by_role('status')).to_contain_text('not in the current portfolio')
+        assert page.get_by_role('region', name='Selected team details').count() == 0
+        assert not errors and not external
+
+
+def test_mobile_team_cards_open_without_horizontal_scroll(browser_page):
+    from playwright.sync_api import expect
+    page, errors, external = browser_page
+    page.set_viewport_size({'width': 390, 'height': 844})
+    with running(demo=True, enable_actions=True) as url:
+        page.goto(url)
+        expect(page.locator('.team-table tbody tr')).to_have_count(5)
+        assert page.locator('.team-panel .table-scroll').evaluate('(e) => e.scrollWidth <= e.clientWidth')
+        page.get_by_role('button', name='View Harbor Lights', exact=True).click()
+        expect(page.get_by_role('tab', name='Roster', exact=True)).to_be_visible()
+        assert page.locator('.detail-panel').bounding_box()['y'] < 500
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert not errors and not external

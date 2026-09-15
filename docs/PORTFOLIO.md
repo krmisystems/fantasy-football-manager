@@ -75,6 +75,24 @@ The manifest permits at most 100 teams.
 Keep manifests and credentials outside the public repository.
 API responses exclude state paths, credential paths, cookies, and raw provider errors.
 
+## Navigate the workspace
+
+Select a team name or its arrow to open that team.
+Use **Switch team** to inspect another roster.
+Use **Back to all teams** to return to the list.
+Team links retain the selected team and tab after a refresh.
+Browser Back and Forward restore previous team views.
+
+Select **Pending proposals** to review saved changes and track unresolved submissions.
+This view includes queued waivers and submissions awaiting verification.
+Use **History** for confirmed, rejected, cancelled, and expired records.
+The selected team and status filters remain in the address after a refresh.
+The portfolio API accepts `status=unresolved` for this combined pending view.
+
+The **Analysis** tab shows calculated lineup suggestions and the saved minimum improvement.
+A suggestion is not an approval request or a confirmed transaction.
+The saved automation policy, source checks, and player locks still apply.
+
 ## Approve a saved proposal
 
 Configure `FFM_ESPN_CREDENTIAL_FILE` with the existing protected HTTP session file.
