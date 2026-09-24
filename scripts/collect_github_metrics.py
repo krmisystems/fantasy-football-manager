@@ -24,6 +24,7 @@ API_VERSION = '2026-03-10'
 ENDPOINTS = {'views': '/traffic/views?per=day', 'clones': '/traffic/clones?per=day',
              'referrers': '/traffic/popular/referrers', 'stars': ''}
 MAX_RESPONSE_BYTES = 2_000_000
+MAX_TRAFFIC_LAG_DAYS = 7
 
 
 class MetricsError(ValueError):
@@ -93,15 +94,24 @@ def normalize(endpoint, value, repo, observed_at):
             raise MetricsError('invalid_response')
         point = timestamp(item.get('timestamp'))
         day = point.date()
-        if point.hour or point.minute or point.second or point.microsecond or day > today or day < today - timedelta(days=14) or day in days:
+        if point.hour or point.minute or point.second or point.microsecond or day > today or day in days:
             raise MetricsError('invalid_response')
         days.add(day)
         row_count, row_unique = count(item.get('count')), count(item.get('uniques'))
         if row_unique > row_count:
             raise MetricsError('invalid_response')
         rows.append({'date': day.isoformat(), 'count': row_count, 'uniques': row_unique})
+    # GitHub can serve a delayed window. Validate its span separately from its age.
+    start, end = (min(days), max(days)) if days else (None, None)
+    lag = (today - end).days if end is not None else None
+    if days and ((end - start).days >= 14 or lag > MAX_TRAFFIC_LAG_DAYS):
+        raise MetricsError('invalid_response')
+    warnings = [] if sum(r['count'] for r in rows) == total else ['daily_count_sum_differs_from_window']
+    if lag is not None and lag > 1:
+        warnings.append('traffic_window_delayed')
     return {'window_days': 14, 'count': total, 'uniques': unique, 'days': sorted(rows, key=lambda r: r['date']),
-            'warnings': [] if sum(r['count'] for r in rows) == total else ['daily_count_sum_differs_from_window']}
+            'window_start': start.isoformat() if start else None, 'window_end': end.isoformat() if end else None,
+            'latest_day_lag_days': lag, 'warnings': warnings}
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -196,7 +206,8 @@ def merge_report(state, report):
                 if old is None or timestamp(old['observed_at']) < timestamp(at):
                     merged['daily'][endpoint][day['date']] = {**day, 'observed_at': at, 'report_id': rid}
             merged['windows'][endpoint].append({'observed_at': at, 'report_id': rid,
-                                                **{key: data[key] for key in ('window_days', 'count', 'uniques', 'warnings')}})
+                                                **{key: data[key] for key in ('window_days', 'count', 'uniques', 'warnings')},
+                                                **{key: data[key] for key in ('window_start', 'window_end', 'latest_day_lag_days') if key in data}})
         elif endpoint == 'referrers':
             merged['windows']['referrers'].append({'observed_at': at, 'report_id': rid, **data})
         else:

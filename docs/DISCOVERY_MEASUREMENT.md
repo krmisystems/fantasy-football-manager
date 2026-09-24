@@ -9,6 +9,11 @@ It does not publish results, change the repository, or measure active users.
 GitHub provides daily views and clones for the last 14 days.
 It also provides the top 10 referrers for that period.
 Daily timestamps use UTC boundaries.
+The response can contain a delayed window.
+The collector accepts at most 14 calendar days, ending no more than seven days before collection.
+It records the window dates and the lag in days.
+A lag above one day adds `traffic_window_delayed` to the report warnings.
+Unobserved days remain missing. The collector does not shift dates or replace missing counts with zero.
 Traffic access requires repository write access. Fine-grained tokens require the repository **Administration: read** permission.
 See the [GitHub repository traffic API](https://docs.github.com/en/rest/metrics/traffic).
 
