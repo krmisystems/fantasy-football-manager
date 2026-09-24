@@ -268,3 +268,49 @@ def test_symlinked_report_directory_is_not_read_or_written(tmp_path):
     with pytest.raises(metrics.MetricsError, match='symlink'):
         metrics.save_report(target, report())
     assert not list(elsewhere.iterdir())
+
+@pytest.mark.parametrize('endpoint', ['views', 'clones'])
+def test_delayed_traffic_window_retains_dates_and_warns(endpoint):
+    delayed_at = '2026-08-18T08:00:00+00:00'
+    value = metrics.normalize(endpoint, traffic(delayed_at), REPO, AT)
+    assert value['window_start'] == '2026-08-05'
+    assert value['window_end'] == '2026-08-18'
+    assert value['latest_day_lag_days'] == 2
+    assert value['warnings'] == ['traffic_window_delayed']
+    assert value['count'] == 28
+    assert len(value['days']) == 14
+
+
+def test_delayed_window_does_not_fill_unobserved_days_with_zero():
+    value = metrics.collect(REPO, None, client=FakeClient('2026-08-18T08:00:00+00:00'), observed_at=AT)
+    state = metrics.merge_report(metrics.empty_state(REPO), value)
+    summary = metrics.summarize(state)
+    assert value['status'] == 'complete'
+    assert summary['views']['previous_7_days']['count'] is None
+    assert '2026-08-19' in summary['views']['previous_7_days']['missing_days']
+    assert summary['views']['latest_successful_14_day_window']['latest_day_lag_days'] == 2
+
+
+@pytest.mark.parametrize('kind', ['too_old', 'too_wide', 'future', 'duplicate'])
+def test_traffic_dates_remain_bounded(kind):
+    raw = traffic()
+    if kind == 'too_old':
+        raw = traffic('2026-08-12T08:00:00+00:00')
+    elif kind == 'too_wide':
+        raw['views'][0]['timestamp'] = '2026-08-06T00:00:00Z'
+    elif kind == 'future':
+        raw['views'][-1]['timestamp'] = '2026-08-21T00:00:00Z'
+    else:
+        raw['views'][-1]['timestamp'] = raw['views'][0]['timestamp']
+    with pytest.raises(metrics.MetricsError, match='invalid_response'):
+        metrics.normalize('views', raw, REPO, AT)
+
+def test_existing_reports_without_window_dates_still_load():
+    value = report()
+    for endpoint in ('views', 'clones'):
+        for key in ('window_start', 'window_end', 'latest_day_lag_days'):
+            value['results'][endpoint]['data'].pop(key)
+    value['report_id'] = metrics.digest({k: v for k, v in value.items() if k != 'report_id'})
+    summary = metrics.summarize(metrics.merge_report(metrics.empty_state(REPO), value))
+    assert summary['status'] == 'complete'
+    assert 'latest_day_lag_days' not in summary['views']['latest_successful_14_day_window']
