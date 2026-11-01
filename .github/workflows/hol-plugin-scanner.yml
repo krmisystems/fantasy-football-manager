@@ -20,7 +20,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan the public plugin source
-        uses: hashgraph-online/ai-plugin-scanner-action@b6087cac286c39d504f9d0d8a45778da5ee6f1b9 # reviewed v1, scanner 3.0.151
+        uses: hashgraph-online/ai-plugin-scanner-action@3220f5fedcd269533a6275738b2ab5d5f9753e8e # reviewed v1, scanner 3.0.151
         with:
           plugin_dir: '.'
           mode: scan
